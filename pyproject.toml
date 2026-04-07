@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financialagents"
+version = "0.1.0"
+description = "Multi-agent LLM trading signal framework for Indian equities"
+requires-python = ">=3.11"
+
+dependencies = [
+    "langgraph==1.1.6",
+    "langchain==1.2.15",
+    "langchain-groq==1.1.2",
+    "langchain-ollama==1.1.0",
+    "langchain-core>=0.3",
+    "pydantic-settings==2.13.1",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+financialagents = "financialagents.cli.main:app"
+fa = "financialagents.cli.main:app"
+
+[project.optional-dependencies]
+dev = [
+    "ty>=0.0.29",
+    "ruff",
+    "pytest>=9.0",
+    "pytest-asyncio>=1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["financialagents*"]
+
+[tool.ty]
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
