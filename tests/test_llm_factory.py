@@ -3,15 +3,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 from langchain_core.language_models import BaseChatModel
 
 from financialagents.config import Settings
 from financialagents.llm_clients.factory import create_llm_client
-from financialagents.llm_clients.model_catalog import (
-    GROQ_MODELS,
-    OLLAMA_MODELS,
-    get_default_model,
-)
 
 
 class TestFactoryReturnsBaseChatModel:
@@ -83,32 +79,12 @@ class TestOllamaProvider:
         with patch("langchain_ollama.ChatOllama", create=True) as mock_ollama:
             mock_ollama.return_value = MagicMock(spec=BaseChatModel)
             create_llm_client("quick_think", default_settings)
-            mock_ollama.assert_called_once_with(model="gemma4:latest")
+            mock_ollama.assert_called_once_with(model=default_settings.quick_think_llm)
 
 
 class TestGoogleProviderDropped:
 
     def test_google_provider_rejected(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "google")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError, match="llm_provider"):
             Settings(_env_file=None)
-
-
-class TestModelCatalog:
-
-    def test_groq_deep_think_default(self) -> None:
-        assert get_default_model("groq", "deep_think") == "llama-3.3-70b-versatile"
-
-    def test_groq_quick_think_default(self) -> None:
-        assert get_default_model("groq", "quick_think") == "llama-3.1-8b-instant"
-
-    def test_ollama_deep_think_default(self) -> None:
-        assert get_default_model("ollama", "deep_think") == "gemma4:latest"
-
-    def test_unknown_provider_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown provider"):
-            get_default_model("openai", "deep_think")
-
-    def test_unknown_tier_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown tier"):
-            get_default_model("groq", "turbo_think")

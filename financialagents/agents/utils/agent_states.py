@@ -6,6 +6,14 @@ from typing import Annotated, Any, Optional
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
 
+from financialagents.agents.analysts.schemas import (
+    FundamentalsAnalystReport,
+    MarketReport,
+    NewsReport,
+    SentimentAnalystReport,
+)
+from financialagents.agents.managers.schemas import ResearchBrief
+
 
 class InvestDebateState(BaseModel):
 
@@ -35,12 +43,12 @@ class AgentState(BaseModel):
     sector: Optional[str] = None
     selected_tickers: list[str] = Field(default_factory=list)
 
-    market_report: Optional[str] = None
-    news_report: Optional[str] = None
-    sentiment_report: Optional[str] = None
-    fundamentals_report: Optional[str] = None
+    market_report: Optional[MarketReport] = None
+    news_report: Optional[NewsReport] = None
+    sentiment_report: Optional[SentimentAnalystReport] = None
+    fundamentals_report: Optional[FundamentalsAnalystReport] = None
 
-    research_summary: Optional[str] = None
+    research_summary: Optional[ResearchBrief] = None
 
     investment_debate_state: Optional[InvestDebateState] = None
     risk_debate_state: Optional[RiskDebateState] = None

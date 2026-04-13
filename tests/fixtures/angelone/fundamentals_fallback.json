@@ -1,0 +1,14 @@
+{
+  "status": true,
+  "message": "SUCCESS",
+  "errorcode": "",
+  "data": {
+    "symbol": "RELIANCE-EQ",
+    "companyName": "RELIANCE INDUSTRIES LTD",
+    "marketCap": 1995432.0,
+    "pe": 29.9,
+    "pb": 2.2,
+    "dividendYield": 0.3,
+    "eps": 98.5
+  }
+}

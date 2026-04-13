@@ -1,0 +1,24 @@
+{
+  "response": {"status": 200},
+  "symbol": {"id": 1234, "symbol": "INFY"},
+  "messages": [
+    {
+      "id": 500000001,
+      "body": "$INFY breaking out above 18. Target 20 short term.",
+      "created_at": "2024-01-20T14:30:00Z",
+      "entities": {"sentiment": {"basic": "Bullish"}}
+    },
+    {
+      "id": 500000002,
+      "body": "$INFY earnings Thursday. Expecting margin pressure.",
+      "created_at": "2024-01-20T15:00:00Z",
+      "entities": {"sentiment": {"basic": "Bearish"}}
+    },
+    {
+      "id": 500000003,
+      "body": "$INFY watching for setup.",
+      "created_at": "2024-01-20T15:30:00Z",
+      "entities": {"sentiment": null}
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+[
+  {"token": "2885", "symbol": "RELIANCE-EQ", "name": "RELIANCE", "expiry": "", "strike": "-1", "lotsize": "1", "instrumenttype": "", "exch_seg": "NSE", "tick_size": "5"},
+  {"token": "1594", "symbol": "INFY-EQ", "name": "INFY", "expiry": "", "strike": "-1", "lotsize": "1", "instrumenttype": "", "exch_seg": "NSE", "tick_size": "5"},
+  {"token": "11536", "symbol": "TCS-EQ", "name": "TCS", "expiry": "", "strike": "-1", "lotsize": "1", "instrumenttype": "", "exch_seg": "NSE", "tick_size": "5"}
+]

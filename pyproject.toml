@@ -16,6 +16,18 @@ dependencies = [
     "langchain-core>=0.3",
     "pydantic-settings==2.13.1",
     "python-dotenv>=1.0",
+    "smartapi-python==1.5.5",
+    "pyotp==2.9.0",
+    "httpx==0.28.1",
+    "beautifulsoup4>=4.14.3",
+    "lxml>=6.0.3",
+    "praw==7.8.1",
+    "aiosqlite==0.22.1",
+    "aiolimiter==1.2.1",
+    "trendspyg==0.4.2",
+    "pandas==3.0.2",
+    "pandas-ta==0.4.71b0",
+    "pyarrow>=16.0",
 ]
 
 [project.scripts]
@@ -28,6 +40,7 @@ dev = [
     "ruff",
     "pytest>=9.0",
     "pytest-asyncio>=1.0",
+    "pytest-httpx==0.36.2",
 ]
 
 [tool.setuptools.packages.find]
