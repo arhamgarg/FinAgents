@@ -7,9 +7,9 @@ from langchain_core.runnables import RunnableConfig
 
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    MarketReport,
     NewsReport,
     SentimentAnalystReport,
+    TechnicalReport,
 )
 from financialagents.agents.managers.schemas import ResearchBrief
 from financialagents.agents.utils.agent_states import AgentState
@@ -26,13 +26,13 @@ def normalize_weights(weights: dict[str, float]) -> dict[str, float]:
 
 
 def build_research_manager_prompt(
-    market_report: MarketReport | None,
+    technical_report: TechnicalReport | None,
     fundamentals_report: FundamentalsAnalystReport | None,
     news_report: NewsReport | None,
     sentiment_report: SentimentAnalystReport | None,
     weights: dict[str, float],
 ) -> list[BaseMessage]:
-    market_w = weights.get("market", 0.25)
+    technical_w = weights.get("technical", 0.25)
     fund_w = weights.get("fundamentals", 0.25)
     news_w = weights.get("news", 0.25)
     sent_w = weights.get("sentiment", 0.25)
@@ -47,7 +47,7 @@ def build_research_manager_prompt(
         "3. Assess overall data quality and confidence\n"
         "4. Produce a ResearchBrief that serves as input for bull/bear debate\n\n"
         f"Analyst emphasis (higher = more weight in your synthesis): "
-        f"Market={market_w:.0%}, Fundamentals={fund_w:.0%}, "
+        f"Technical={technical_w:.0%}, Fundamentals={fund_w:.0%}, "
         f"News={news_w:.0%}, Sentiment={sent_w:.0%}. "
         f"Prioritize findings from higher-weighted analysts when forming your consensus view.\n\n"
         "You MUST produce a ResearchBrief JSON with ALL fields populated:\n"
@@ -64,24 +64,24 @@ def build_research_manager_prompt(
     def fmt_opt(val: float | None, suffix: str = "") -> str:
         return f"{val:.2f}{suffix}" if val is not None else "N/A"
 
-    if market_report is None or market_report.confidence == 0.0:
-        market_section = (
-            f"### Market Analyst (Technical Analysis) — Weight: {market_w:.0%}\n"
-            f"  Status: NO DATA AVAILABLE (confidence: {market_report.confidence if market_report else 0.0:.1f})\n"
-            f"  Notes: {market_report.notes if market_report else 'Report missing'}\n"
+    if technical_report is None or technical_report.confidence == 0.0:
+        technical_section = (
+            f"### Technical Analyst — Weight: {technical_w:.0%}\n"
+            f"  Status: NO DATA AVAILABLE (confidence: {technical_report.confidence if technical_report else 0.0:.1f})\n"
+            f"  Notes: {technical_report.notes if technical_report else 'Report missing'}\n"
         )
     else:
-        market_section = (
-            f"### Market Analyst (Technical Analysis) — Weight: {market_w:.0%}\n"
-            f"  Confidence: {market_report.confidence:.2f}\n"
-            f"  Current Price: {fmt_opt(market_report.current_price, ' INR')}\n"
-            f"  RSI: {fmt_opt(market_report.rsi)} — {market_report.rsi_interpretation}\n"
-            f"  MACD Signal: {market_report.macd_signal}\n"
-            f"  Bollinger Position: {market_report.bollinger_position}\n"
-            f"  MA Crossover: {market_report.ma_crossover}\n"
-            f"  Trend Assessment: {market_report.trend_assessment}\n"
-            f"  Data Sources: {', '.join(market_report.data_sources) or 'none'}\n"
-            f"  Notes: {market_report.notes or 'none'}\n"
+        technical_section = (
+            f"### Technical Analyst — Weight: {technical_w:.0%}\n"
+            f"  Confidence: {technical_report.confidence:.2f}\n"
+            f"  Current Price: {fmt_opt(technical_report.current_price, ' INR')}\n"
+            f"  RSI: {fmt_opt(technical_report.rsi)} — {technical_report.rsi_interpretation}\n"
+            f"  MACD Signal: {technical_report.macd_signal}\n"
+            f"  Bollinger Position: {technical_report.bollinger_position}\n"
+            f"  MA Crossover: {technical_report.ma_crossover}\n"
+            f"  Trend Assessment: {technical_report.trend_assessment}\n"
+            f"  Data Sources: {', '.join(technical_report.data_sources) or 'none'}\n"
+            f"  Notes: {technical_report.notes or 'none'}\n"
         )
 
     if fundamentals_report is None or fundamentals_report.confidence == 0.0:
@@ -146,7 +146,7 @@ def build_research_manager_prompt(
     human_content = (
         f"## Research Synthesis Request\n\n"
         f"Synthesize the following four analyst reports into a ResearchBrief.\n\n"
-        f"{market_section}\n"
+        f"{technical_section}\n"
         f"{fundamentals_section}\n"
         f"{news_section}\n"
         f"{sentiment_section}\n"
@@ -175,7 +175,7 @@ async def research_manager_node(
     weights = normalize_weights(settings.analyst_weights)
 
     prompt = build_research_manager_prompt(
-        market_report=state.market_report,
+        technical_report=state.technical_report,
         fundamentals_report=state.fundamentals_report,
         news_report=state.news_report,
         sentiment_report=state.sentiment_report,
@@ -195,7 +195,7 @@ async def research_manager_node(
             raise retry_err from first_err
 
     brief.analyst_confidences = {
-        "market": state.market_report.confidence if state.market_report else 0.0,
+        "technical": state.technical_report.confidence if state.technical_report else 0.0,
         "fundamentals": state.fundamentals_report.confidence if state.fundamentals_report else 0.0,
         "news": state.news_report.confidence if state.news_report else 0.0,
         "sentiment": state.sentiment_report.confidence if state.sentiment_report else 0.0,

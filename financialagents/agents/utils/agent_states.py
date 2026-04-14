@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    MarketReport,
     NewsReport,
     SentimentAnalystReport,
+    TechnicalReport,
 )
 from financialagents.agents.managers.schemas import ResearchBrief
 
@@ -43,7 +43,7 @@ class AgentState(BaseModel):
     sector: Optional[str] = None
     selected_tickers: list[str] = Field(default_factory=list)
 
-    market_report: Optional[MarketReport] = None
+    technical_report: Optional[TechnicalReport] = None
     news_report: Optional[NewsReport] = None
     sentiment_report: Optional[SentimentAnalystReport] = None
     fundamentals_report: Optional[FundamentalsAnalystReport] = None

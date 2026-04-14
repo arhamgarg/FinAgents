@@ -7,7 +7,7 @@ import pytest
 
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    MarketReport,
+    TechnicalReport,
     NewsReport,
     SentimentAnalystReport,
 )
@@ -18,8 +18,8 @@ from financialagents.config import Settings
 
 
 @pytest.fixture
-def mock_market_report() -> MarketReport:
-    return MarketReport(
+def mock_technical_report() -> TechnicalReport:
+    return TechnicalReport(
         rsi=55.0,
         trend_assessment="Uptrend",
         confidence=0.85,
@@ -62,11 +62,11 @@ def mock_sentiment_report() -> SentimentAnalystReport:
 @pytest.fixture
 def mock_research_brief() -> ResearchBrief:
     return ResearchBrief(
-        key_findings=[Finding(analyst="market", key_point="Uptrend", weight=0.25)],
+        key_findings=[Finding(analyst="technical", key_point="Uptrend", weight=0.25)],
         consensus_view="Positive outlook",
         overall_confidence=0.76,
         analyst_confidences={
-            "market": 0.85,
+            "technical": 0.85,
             "fundamentals": 0.90,
             "news": 0.70,
             "sentiment": 0.60,
@@ -76,7 +76,7 @@ def mock_research_brief() -> ResearchBrief:
 
 @pytest.fixture
 def full_state(
-    mock_market_report,
+    mock_technical_report,
     mock_fundamentals_report,
     mock_news_report,
     mock_sentiment_report,
@@ -84,7 +84,7 @@ def full_state(
     return AgentState(
         ticker="TCS",
         date="2024-01-15",
-        market_report=mock_market_report,
+        technical_report=mock_technical_report,
         fundamentals_report=mock_fundamentals_report,
         news_report=mock_news_report,
         sentiment_report=mock_sentiment_report,
@@ -106,7 +106,7 @@ class TestBuildAnalysisGraph:
         node_names = list(graph.nodes.keys())
         expected_nodes = [
             "propagation_node",
-            "market_analyst_node",
+            "technical_analyst_node",
             "fundamentals_analyst_node",
             "news_analyst_node",
             "sentiment_analyst_node",
@@ -125,12 +125,12 @@ class TestValidationNode:
         state = AgentState(
             ticker="TCS",
             date="2024-01-15",
-            market_report=None,
+            technical_report=None,
             fundamentals_report=FundamentalsAnalystReport(confidence=0.9),
             news_report=NewsReport(confidence=0.7),
             sentiment_report=SentimentAnalystReport(confidence=0.6),
         )
-        with pytest.raises(ValueError, match="market_report"):
+        with pytest.raises(ValueError, match="technical_report"):
             validation_node(state)
 
     def test_validation_fails_listing_all_missing(self):
@@ -140,7 +140,7 @@ class TestValidationNode:
         with pytest.raises(ValueError) as exc_info:
             validation_node(state)
         error_msg = str(exc_info.value)
-        assert "market_report" in error_msg
+        assert "technical_report" in error_msg
         assert "fundamentals_report" in error_msg
         assert "news_report" in error_msg
         assert "sentiment_report" in error_msg
@@ -166,7 +166,7 @@ class TestPropagationNode:
 class TestGraphIntegration:
     def test_full_graph_with_mocked_nodes(
         self,
-        mock_market_report,
+        mock_technical_report,
         mock_fundamentals_report,
         mock_news_report,
         mock_sentiment_report,
@@ -174,8 +174,8 @@ class TestGraphIntegration:
     ):
         from financialagents.graph.setup import build_analysis_graph
 
-        async def fake_market(state, config):
-            return {"market_report": mock_market_report}
+        async def fake_technical(state, config):
+            return {"technical_report": mock_technical_report}
 
         async def fake_fundamentals(state, config):
             return {"fundamentals_report": mock_fundamentals_report}
@@ -190,7 +190,7 @@ class TestGraphIntegration:
             return {"research_summary": mock_research_brief}
 
         with (
-            patch("financialagents.agents.analysts.market_analyst.market_analyst_node", fake_market),
+            patch("financialagents.agents.analysts.technical_analyst.technical_analyst_node", fake_technical),
             patch("financialagents.agents.analysts.fundamentals_analyst.fundamentals_analyst_node", fake_fundamentals),
             patch("financialagents.agents.analysts.news_analyst.news_analyst_node", fake_news),
             patch("financialagents.agents.analysts.sentiment_analyst.sentiment_analyst_node", fake_sentiment),
@@ -207,10 +207,10 @@ class TestGraphIntegration:
             result = asyncio.run(graph.ainvoke(initial_state, config=config))
 
         if isinstance(result, dict):
-            assert result.get("market_report") is not None
+            assert result.get("technical_report") is not None
             assert result.get("research_summary") is not None
         else:
-            assert result.market_report is not None
+            assert result.technical_report is not None
             assert result.research_summary is not None
 
 
@@ -218,7 +218,7 @@ class TestGraphIntegration:
 class TestFinancialAgentsGraph:
     def test_propagate_returns_agent_state(
         self,
-        mock_market_report,
+        mock_technical_report,
         mock_fundamentals_report,
         mock_news_report,
         mock_sentiment_report,
@@ -230,7 +230,7 @@ class TestFinancialAgentsGraph:
             return {
                 "ticker": state.ticker,
                 "date": state.date,
-                "market_report": mock_market_report,
+                "technical_report": mock_technical_report,
                 "fundamentals_report": mock_fundamentals_report,
                 "news_report": mock_news_report,
                 "sentiment_report": mock_sentiment_report,
@@ -264,7 +264,7 @@ class TestFinancialAgentsGraph:
             return {
                 "ticker": state.ticker,
                 "date": state.date,
-                "market_report": None,
+                "technical_report": None,
                 "fundamentals_report": None,
                 "news_report": None,
                 "sentiment_report": None,

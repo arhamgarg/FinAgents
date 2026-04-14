@@ -5,11 +5,11 @@ import warnings
 import pytest
 
 
-class TestMarketReport:
+class TestTechnicalReport:
     def test_validates_with_all_fields_populated(self):
-        from financialagents.agents.analysts.schemas import MarketReport
+        from financialagents.agents.analysts.schemas import TechnicalReport
 
-        report = MarketReport(
+        report = TechnicalReport(
             rsi=62.4,
             macd_signal="bullish_crossover",
             confidence=0.85,
@@ -21,9 +21,9 @@ class TestMarketReport:
         assert report.data_sources == ["angelone"]
 
     def test_validates_with_all_optional_fields_none(self):
-        from financialagents.agents.analysts.schemas import MarketReport
+        from financialagents.agents.analysts.schemas import TechnicalReport
 
-        report = MarketReport()
+        report = TechnicalReport()
         assert report.rsi is None
         assert report.macd_signal == ""
         assert report.confidence == pytest.approx(0.0)
@@ -82,7 +82,7 @@ class TestResearchBrief:
             key_findings=[],
             consensus_view="bullish",
             conflicts=["news vs sentiment"],
-            analyst_confidences={"market": 0.85, "fundamentals": 0.9},
+            analyst_confidences={"technical": 0.85, "fundamentals": 0.9},
         )
         assert brief.consensus_view == "bullish"
         assert brief.analyst_confidences["fundamentals"] == pytest.approx(0.9)
@@ -93,29 +93,29 @@ class TestFinding:
         from financialagents.agents.managers.schemas import Finding
 
         finding = Finding(
-            analyst="market",
+            analyst="technical",
             key_point="RSI oversold",
             supporting_data="RSI=28",
             weight=0.25,
         )
-        assert finding.analyst == "market"
+        assert finding.analyst == "technical"
         assert finding.key_point == "RSI oversold"
         assert finding.weight == pytest.approx(0.25)
 
 
 class TestAgentStateTypedFields:
-    def test_accepts_market_report_instance(self):
-        from financialagents.agents.analysts.schemas import MarketReport
+    def test_accepts_technical_report_instance(self):
+        from financialagents.agents.analysts.schemas import TechnicalReport
         from financialagents.agents.utils.agent_states import AgentState
 
-        mr = MarketReport(confidence=0.5, data_sources=["test"])
-        state = AgentState(market_report=mr)
-        assert state.market_report is mr
+        mr = TechnicalReport(confidence=0.5, data_sources=["test"])
+        state = AgentState(technical_report=mr)
+        assert state.technical_report is mr
 
     def test_accepts_all_typed_report_models(self):
         from financialagents.agents.analysts.schemas import (
             FundamentalsAnalystReport,
-            MarketReport,
+            TechnicalReport,
             NewsReport,
             SentimentAnalystReport,
         )
@@ -123,13 +123,13 @@ class TestAgentStateTypedFields:
         from financialagents.agents.utils.agent_states import AgentState
 
         state = AgentState(
-            market_report=MarketReport(confidence=0.5),
+            technical_report=TechnicalReport(confidence=0.5),
             fundamentals_report=FundamentalsAnalystReport(confidence=0.8),
             news_report=NewsReport(confidence=0.6),
             sentiment_report=SentimentAnalystReport(confidence=0.4),
             research_summary=ResearchBrief(consensus_view="neutral"),
         )
-        assert state.market_report is not None
+        assert state.technical_report is not None
         assert state.fundamentals_report is not None
         assert state.news_report is not None
         assert state.sentiment_report is not None
@@ -144,7 +144,7 @@ class TestSettingsAnalystWeights:
 
             s = Settings(_env_file=None)
         assert s.analyst_weights == {
-            "market": 1.0,
+            "technical": 1.0,
             "fundamentals": 1.5,
             "news": 0.8,
             "sentiment": 0.7,

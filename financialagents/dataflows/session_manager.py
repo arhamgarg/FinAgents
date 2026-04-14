@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import pyotp
-from SmartApi.smartConnect import SmartConnect
 
 from financialagents.config import Settings
+
+if TYPE_CHECKING:
+    from SmartApi.smartConnect import SmartConnect as _SmartConnectType
+
+SmartConnect = None  # type: ignore[assignment]
 
 
 class AngelOneAuthError(Exception):
@@ -18,15 +22,20 @@ class SessionManager:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._lock = asyncio.Lock()
-        self._obj: Optional[SmartConnect] = None
+        self._obj: _SmartConnectType | None = None
 
-    async def get_session(self) -> SmartConnect:
+    async def get_session(self) -> _SmartConnectType:
         async with self._lock:
             if self._obj is None:
                 await self._authenticate()
             return self._obj  # type: ignore[return-value]
 
     async def _authenticate(self) -> None:
+        global SmartConnect
+        if SmartConnect is None:
+            from SmartApi.smartConnect import SmartConnect as _RealSmartConnect
+            SmartConnect = _RealSmartConnect
+
         if not all([
             self._settings.angelone_api_key,
             self._settings.angelone_client_id,
@@ -117,7 +126,7 @@ class SessionManager:
 
 
 
-_instance: Optional[SessionManager] = None
+_instance: SessionManager | None = None
 
 
 def get_session_manager(settings: Settings) -> SessionManager:

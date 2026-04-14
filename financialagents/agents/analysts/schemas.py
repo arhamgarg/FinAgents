@@ -3,7 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class MarketReport(BaseModel):
+class TechnicalReport(BaseModel):
 
     rsi: float | None = None
     rsi_interpretation: str = ""

@@ -217,3 +217,28 @@ def test_reset_session_manager(angelone_settings):
     reset_session_manager()
     mgr2 = get_session_manager(angelone_settings)
     assert mgr1 is not mgr2
+
+
+
+def test_import_emits_no_smartconnect_log() -> None:
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", "from financialagents.dataflows import session_manager"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"Import failed (stdout={result.stdout!r}, stderr={result.stderr!r})"
+    )
+    assert "smartConnect:78" not in result.stderr, (
+        f"SmartConnect import-time ERROR log leaked to stderr: {result.stderr!r}"
+    )
+    assert "Exception while retriving IP" not in result.stderr, (
+        f"SmartConnect IP-lookup error leaked to stderr: {result.stderr!r}"
+    )
+    assert "SmartApi" not in result.stderr and "smartConnect" not in result.stderr, (
+        f"SmartApi import-time output leaked to stderr: {result.stderr!r}"
+    )

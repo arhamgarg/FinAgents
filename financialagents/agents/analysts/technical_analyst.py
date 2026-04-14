@@ -9,7 +9,7 @@ import pandas_ta  # noqa: F401 — registers df.ta accessor extension
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
-from financialagents.agents.analysts.schemas import MarketReport
+from financialagents.agents.analysts.schemas import TechnicalReport
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
 from financialagents.dataflows.data_result import DataResult
@@ -93,13 +93,13 @@ def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
     }
 
 
-def build_market_analyst_prompt(
+def build_technical_analyst_prompt(
     ticker: str,
     indicators: dict[str, float | None],
     data_result: DataResult,  # type: ignore[type-arg]
 ) -> list[BaseMessage]:
     system_content = (
-        "You are an expert Indian equity market technical analyst with deep knowledge of "
+        "You are an expert Indian equity technical analyst with deep knowledge of "
         "NSE (National Stock Exchange) and BSE (Bombay Stock Exchange) listed equities. "
         "You follow SEBI regulations and Indian market conventions.\n\n"
         "Market hours: 9:15 AM - 3:30 PM IST (Monday-Friday). "
@@ -113,7 +113,7 @@ def build_market_analyst_prompt(
         "oversold; middle_band indicates consolidation\n"
         "- Golden cross (SMA50 > SMA200): medium-term bullish signal\n"
         "- Death cross (SMA50 < SMA200): medium-term bearish signal\n\n"
-        "You MUST produce a MarketReport JSON object with ALL fields populated. "
+        "You MUST produce a TechnicalReport JSON object with ALL fields populated. "
         "Use the indicator values provided to fill metric fields. "
         "For text fields (rsi_interpretation, macd_signal, bollinger_position, "
         "ma_crossover, trend_assessment), provide concise Indian-market-aware analysis. "
@@ -205,7 +205,7 @@ def build_market_analyst_prompt(
         f"  EMA-20: {fmt(indicators.get('ema_20'))}\n"
         f"  MA Crossover: {ma_crossover_hint}\n\n"
         f"### Instructions\n\n"
-        f"Based on the above indicator values, produce a complete MarketReport JSON with:\n"
+        f"Based on the above indicator values, produce a complete TechnicalReport JSON with:\n"
         f"- All numeric fields filled from the values above\n"
         f"- rsi_interpretation: brief RSI reading (overbought/oversold/neutral)\n"
         f"- macd_signal: one of 'bullish_crossover', 'bearish_crossover', 'neutral'\n"
@@ -225,7 +225,7 @@ def build_market_analyst_prompt(
     ]
 
 
-async def market_analyst_node(
+async def technical_analyst_node(
     state: AgentState, config: RunnableConfig
 ) -> dict[str, Any]:
     configurable = config.get("configurable", {}) if config else {}
@@ -248,18 +248,18 @@ async def market_analyst_node(
 
     if result.status in ("error", "empty") or result.data is None:
         raise ValueError(
-            f"Market analyst requires OHLCV data for {state.ticker}: "
+            f"Technical analyst requires OHLCV data for {state.ticker}: "
             f"{result.error or 'no data available'}"
         )
 
     indicators = compute_technical_indicators(result.data)
 
-    prompt = build_market_analyst_prompt(state.ticker, indicators, result)
+    prompt = build_technical_analyst_prompt(state.ticker, indicators, result)
 
     llm = create_llm_client("deep_think", settings)
-    structured_llm = llm.with_structured_output(MarketReport)
+    structured_llm = llm.with_structured_output(TechnicalReport)
 
-    report: MarketReport
+    report: TechnicalReport
     try:
         report = await structured_llm.ainvoke(prompt)
     except Exception as first_err:
@@ -271,4 +271,4 @@ async def market_analyst_node(
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]
 
-    return {"market_report": report}
+    return {"technical_report": report}

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     analyst_weights: dict[str, float] = Field(
         default_factory=lambda: {
-            "market": 1.0,
+            "technical": 1.0,
             "fundamentals": 1.5,
             "news": 0.8,
             "sentiment": 0.7,

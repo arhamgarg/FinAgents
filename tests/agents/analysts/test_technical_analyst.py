@@ -11,9 +11,9 @@ import pytest
 import pydantic
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    MarketReport,
     NewsReport,
     SentimentAnalystReport,
+    TechnicalReport,
 )
 from financialagents.dataflows.data_result import DataResult
 
@@ -62,8 +62,8 @@ def agent_state_basic():
 
 
 @pytest.fixture
-def valid_market_report() -> MarketReport:
-    return MarketReport(
+def valid_technical_report() -> TechnicalReport:
+    return TechnicalReport(
         rsi=55.3,
         rsi_interpretation="neutral — neither overbought nor oversold",
         macd_signal="bullish_crossover",
@@ -89,7 +89,7 @@ def valid_market_report() -> MarketReport:
 
 class TestComputeTechnicalIndicators:
     def test_returns_expected_keys(self, ohlcv_250: pd.DataFrame):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         result = compute_technical_indicators(ohlcv_250)
 
@@ -109,7 +109,7 @@ class TestComputeTechnicalIndicators:
         assert set(result.keys()) == expected_keys
 
     def test_values_are_floats_or_none(self, ohlcv_250: pd.DataFrame):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         result = compute_technical_indicators(ohlcv_250)
 
@@ -121,7 +121,7 @@ class TestComputeTechnicalIndicators:
                 assert not (val != val), f"Key '{key}' contains NaN"
 
     def test_with_250_rows_all_indicators_non_none(self, ohlcv_250: pd.DataFrame):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         result = compute_technical_indicators(ohlcv_250)
 
@@ -129,14 +129,14 @@ class TestComputeTechnicalIndicators:
             assert val is not None, f"Expected non-None for '{key}' with 250 rows"
 
     def test_sma_200_none_with_only_50_rows(self, ohlcv_50: pd.DataFrame):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         result = compute_technical_indicators(ohlcv_50)
 
         assert result["sma_200"] is None, "SMA-200 should be None with 50 rows"
 
     def test_current_price_matches_last_close(self, ohlcv_250: pd.DataFrame):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         result = compute_technical_indicators(ohlcv_250)
 
@@ -145,7 +145,7 @@ class TestComputeTechnicalIndicators:
         )
 
     def test_empty_dataframe_returns_all_none(self):
-        from financialagents.agents.analysts.market_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
 
         empty_df = pd.DataFrame(
             columns=["open", "high", "low", "close", "volume"]
@@ -163,36 +163,36 @@ class TestComputeTechnicalIndicators:
 
 
 
-class TestMarketAnalystNode:
+class TestTechnicalAnalystNode:
     @pytest.mark.asyncio
-    async def test_returns_market_report(
-        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_market_report: MarketReport
+    async def test_returns_technical_report(
+        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_technical_report: TechnicalReport
     ):
         data_result = DataResult(
             status="ok", data=ohlcv_250, source="angelone"
         )
 
         mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=valid_market_report)
+        mock_structured_llm.ainvoke = AsyncMock(return_value=valid_technical_report)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ), patch(
-            "financialagents.agents.analysts.market_analyst.create_llm_client",
+            "financialagents.agents.analysts.technical_analyst.create_llm_client",
             return_value=mock_llm,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
             runnable_config = {"configurable": {}}
-            result = await market_analyst_node(agent_state_basic, runnable_config)
+            result = await technical_analyst_node(agent_state_basic, runnable_config)
 
-        assert "market_report" in result
-        report = result["market_report"]
-        assert isinstance(report, MarketReport)
+        assert "technical_report" in result
+        report = result["technical_report"]
+        assert isinstance(report, TechnicalReport)
         assert report.confidence > 0
 
     @pytest.mark.asyncio
@@ -202,14 +202,14 @@ class TestMarketAnalystNode:
         )
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            with pytest.raises(ValueError, match="Market analyst requires OHLCV data"):
-                await market_analyst_node(agent_state_basic, {"configurable": {}})
+            with pytest.raises(ValueError, match="Technical analyst requires OHLCV data"):
+                await technical_analyst_node(agent_state_basic, {"configurable": {}})
 
     @pytest.mark.asyncio
     async def test_handles_ohlcv_empty(self, agent_state_basic):
@@ -218,25 +218,25 @@ class TestMarketAnalystNode:
         )
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            with pytest.raises(ValueError, match="Market analyst requires OHLCV data"):
-                await market_analyst_node(agent_state_basic, {"configurable": {}})
+            with pytest.raises(ValueError, match="Technical analyst requires OHLCV data"):
+                await technical_analyst_node(agent_state_basic, {"configurable": {}})
 
     @pytest.mark.asyncio
     async def test_retries_llm_once_on_failure(
-        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_market_report: MarketReport
+        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_technical_report: TechnicalReport
     ):
         data_result = DataResult(
             status="ok", data=ohlcv_250, source="angelone"
         )
 
         mock_ainvoke = AsyncMock(
-            side_effect=[RuntimeError("LLM timeout"), valid_market_report]
+            side_effect=[RuntimeError("LLM timeout"), valid_technical_report]
         )
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = mock_ainvoke
@@ -244,19 +244,19 @@ class TestMarketAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ), patch(
-            "financialagents.agents.analysts.market_analyst.create_llm_client",
+            "financialagents.agents.analysts.technical_analyst.create_llm_client",
             return_value=mock_llm,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            result = await market_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
 
-        assert "market_report" in result
-        assert isinstance(result["market_report"], MarketReport)
+        assert "technical_report" in result
+        assert isinstance(result["technical_report"], TechnicalReport)
         assert mock_ainvoke.call_count == 2
 
     @pytest.mark.asyncio
@@ -276,44 +276,44 @@ class TestMarketAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ), patch(
-            "financialagents.agents.analysts.market_analyst.create_llm_client",
+            "financialagents.agents.analysts.technical_analyst.create_llm_client",
             return_value=mock_llm,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
             with pytest.raises(RuntimeError):
-                await market_analyst_node(agent_state_basic, {"configurable": {}})
+                await technical_analyst_node(agent_state_basic, {"configurable": {}})
 
     @pytest.mark.asyncio
     async def test_data_sources_contains_ohlcv_source(
-        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_market_report: MarketReport
+        self, ohlcv_250: pd.DataFrame, agent_state_basic, valid_technical_report: TechnicalReport
     ):
         data_result = DataResult(
             status="ok", data=ohlcv_250, source="angelone"
         )
 
         mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=valid_market_report)
+        mock_structured_llm.ainvoke = AsyncMock(return_value=valid_technical_report)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with patch(
-            "financialagents.agents.analysts.market_analyst.get_ohlcv",
+            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
             new_callable=AsyncMock,
             return_value=data_result,
         ), patch(
-            "financialagents.agents.analysts.market_analyst.create_llm_client",
+            "financialagents.agents.analysts.technical_analyst.create_llm_client",
             return_value=mock_llm,
         ):
-            from financialagents.agents.analysts.market_analyst import market_analyst_node
+            from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            result = await market_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
 
-        report = result["market_report"]
+        report = result["technical_report"]
         assert "angelone" in report.data_sources
 
 
@@ -321,9 +321,9 @@ class TestMarketAnalystNode:
 class TestSchemaConfidenceValidation:
 
     @pytest.mark.parametrize("bad_value", [1.1, 99.9, -0.01, -1.0, 2.0])
-    def test_market_report_rejects_out_of_range_confidence(self, bad_value: float):
+    def test_technical_report_rejects_out_of_range_confidence(self, bad_value: float):
         with pytest.raises(pydantic.ValidationError):
-            MarketReport(confidence=bad_value)
+            TechnicalReport(confidence=bad_value)
 
     @pytest.mark.parametrize("bad_value", [1.1, 99.9, -0.01, -1.0, 2.0])
     def test_fundamentals_report_rejects_out_of_range_confidence(self, bad_value: float):
@@ -341,6 +341,6 @@ class TestSchemaConfidenceValidation:
             SentimentAnalystReport(confidence=bad_value)
 
     @pytest.mark.parametrize("good_value", [0.0, 0.5, 1.0])
-    def test_market_report_accepts_valid_confidence(self, good_value: float):
-        report = MarketReport(confidence=good_value)
+    def test_technical_report_accepts_valid_confidence(self, good_value: float):
+        report = TechnicalReport(confidence=good_value)
         assert report.confidence == good_value

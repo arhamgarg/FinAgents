@@ -5,7 +5,7 @@ from pydantic import ValidationError
 
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    MarketReport,
+    TechnicalReport,
     NewsReport,
     SentimentAnalystReport,
 )
@@ -23,7 +23,7 @@ class TestAgentStateValidation:
         state = AgentState(ticker="RELIANCE", date="2026-04-07")
         assert state.ticker == "RELIANCE"
         assert state.date == "2026-04-07"
-        assert state.market_report is None
+        assert state.technical_report is None
         assert state.fundamentals_report is None
         assert state.final_trade_decision is None
         assert state.messages == []
@@ -39,7 +39,7 @@ class TestAgentStateValidation:
             date="2026-04-07",
             sector="IT",
             selected_tickers=["TCS", "INFY", "WIPRO"],
-            market_report=MarketReport(rsi=65.0, macd_signal="bullish_crossover", confidence=0.8),
+            technical_report=TechnicalReport(rsi=65.0, macd_signal="bullish_crossover", confidence=0.8),
             news_report=NewsReport(article_count=3, sentiment_direction="positive", confidence=0.7),
             sentiment_report=SentimentAnalystReport(combined_sentiment="bullish", confidence=0.6),
             fundamentals_report=FundamentalsAnalystReport(pe_ratio=28.0, roce=45.0, confidence=0.9),
@@ -50,8 +50,8 @@ class TestAgentStateValidation:
         assert state.sector == "IT"
         assert len(state.selected_tickers) == 3
         assert state.final_trade_decision["signal"] == "BUY"
-        assert isinstance(state.market_report, MarketReport)
-        assert state.market_report.rsi == pytest.approx(65.0)
+        assert isinstance(state.technical_report, TechnicalReport)
+        assert state.technical_report.rsi == pytest.approx(65.0)
 
     def test_rejects_invalid_ticker_type(self) -> None:
         with pytest.raises(ValidationError) as exc_info:
