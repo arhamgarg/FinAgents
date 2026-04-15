@@ -13,10 +13,10 @@ class TestSettingsDefaults:
         assert default_settings.llm_provider == "ollama"
 
     def test_default_deep_think_model(self, default_settings: Settings) -> None:
-        assert default_settings.deep_think_llm == "gemma4:latest"
+        assert default_settings.deep_think_llm == "openai/gpt-oss-120b"
 
     def test_default_quick_think_model(self, default_settings: Settings) -> None:
-        assert default_settings.quick_think_llm == "gemma4:latest"
+        assert default_settings.quick_think_llm == "openai/gpt-oss-20b"
 
     def test_optional_keys_default_to_none(self, default_settings: Settings) -> None:
         assert default_settings.groq_api_key is None

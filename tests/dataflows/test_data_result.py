@@ -46,6 +46,7 @@ class TestDataResult:
         monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
         monkeypatch.setenv("REDDIT_CLIENT_ID", "test-reddit-id")
         monkeypatch.setenv("REDDIT_CLIENT_SECRET", "test-reddit-secret")
+        monkeypatch.setenv("GROQ_API_KEY", "test-groq-api-key-fake")
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
             Settings(_env_file=None)

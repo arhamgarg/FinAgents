@@ -6,6 +6,7 @@ from typing import Optional
 
 import httpx
 
+from financialagents.config import Settings
 from financialagents.dataflows import cache, rate_limits
 from financialagents.dataflows._ticker import sanitize_ticker as _sanitize_ticker
 from financialagents.dataflows.data_result import DataResult
@@ -17,6 +18,7 @@ from financialagents.dataflows.fundamentals_schema import (
     Shareholding,
     Valuation,
 )
+from financialagents.dataflows.session_manager import get_session_manager
 
 
 CSV_URL_TEMPLATE = "https://www.screener.in/company/{ticker}/consolidated/export/"
@@ -329,7 +331,10 @@ def _bytes_to_result(raw: bytes, stale: bool) -> DataResult[FundamentalsReport]:
 
 
 
-async def get_fundamentals(ticker: str) -> DataResult[FundamentalsReport]:
+async def get_fundamentals(
+    ticker: str,
+    settings: Optional[Settings] = None,
+) -> DataResult[FundamentalsReport]:
     try:
         safe_ticker = _sanitize_ticker(ticker)
     except ValueError as exc:
@@ -391,33 +396,50 @@ async def get_fundamentals(ticker: str) -> DataResult[FundamentalsReport]:
     except Exception as exc:  # noqa: BLE001
         errors.append(f"Screener HTML failed: {exc}")
 
+    if settings is None:
+        errors.append(
+            "Angel One fundamentals requires settings; none provided "
+            "(tier-3 skipped to avoid poisoning session manager singleton)"
+        )
+        return DataResult(
+            status="error",
+            source="",
+            error="; ".join(errors),
+        )
     try:
-        from financialagents.config import Settings
-        from financialagents.dataflows.session_manager import get_session_manager
-
-        settings = Settings()
         sm = get_session_manager(settings)
         response_data = await sm.call_with_retry(
             "getFundamentals", safe_ticker
         )
         data = response_data.get("data", {}) if isinstance(response_data, dict) else {}
-        report = FundamentalsReport(
-            ticker=safe_ticker,
-            valuation=Valuation(
-                pe_ratio=data.get("pe"),
-                pb_ratio=data.get("pb"),
-                market_cap_cr=data.get("marketCap"),
-                dividend_yield=data.get("dividendYield"),
-            ),
-            profitability=Profitability(),
-            debt_balance=DebtBalance(),
-            shareholding=Shareholding(),
+        has_any_data = any(
+            [
+                data.get("pe"),
+                data.get("pb"),
+                data.get("marketCap"),
+                data.get("dividendYield"),
+            ]
         )
-        result = DataResult(status="partial", source="angelone", data=report)
-        await cache.set_cached(
-            "fundamentals", cache_key, _report_to_bytes(result), db_path=db_path
-        )
-        return result
+        if not has_any_data:
+            errors.append("Angel One fundamentals returned empty payload")
+        else:
+            report = FundamentalsReport(
+                ticker=safe_ticker,
+                valuation=Valuation(
+                    pe_ratio=data.get("pe"),
+                    pb_ratio=data.get("pb"),
+                    market_cap_cr=data.get("marketCap"),
+                    dividend_yield=data.get("dividendYield"),
+                ),
+                profitability=Profitability(),
+                debt_balance=DebtBalance(),
+                shareholding=Shareholding(),
+            )
+            result = DataResult(status="partial", source="angelone", data=report)
+            await cache.set_cached(
+                "fundamentals", cache_key, _report_to_bytes(result), db_path=db_path
+            )
+            return result
 
     except Exception as exc:  # noqa: BLE001
         errors.append(f"Angel One fundamentals failed: {exc}")

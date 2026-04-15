@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Generator
 from unittest.mock import MagicMock, patch
@@ -30,7 +29,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def default_settings(clean_env: None) -> Settings:
+def default_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    monkeypatch.setenv("LLM_PROVIDER", "ollama")
     return Settings(_env_file=None)
 
 

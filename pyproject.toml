@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.5,<1.0"]
+build-backend = "uv_build"
 
 [project]
 name = "financialagents"
 version = "0.1.0"
 description = "Multi-agent LLM trading signal framework for Indian equities"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.12,<3.14"
 
 dependencies = [
     "langgraph==1.1.6",
@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings==2.13.1",
     "python-dotenv>=1.0",
     "smartapi-python==1.5.5",
+    "logzero>=1.7.0",
     "pyotp==2.9.0",
     "httpx==0.28.1",
     "beautifulsoup4>=4.14.3",
@@ -43,9 +44,9 @@ dev = [
     "pytest-httpx==0.36.2",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["financialagents*"]
+[tool.uv.build-backend]
+module-name = "financialagents"
+module-root = ""
 
 [tool.ty]
 [tool.ty.environment]

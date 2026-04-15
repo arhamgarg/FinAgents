@@ -15,9 +15,9 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    llm_provider: Literal["groq", "ollama"] = "ollama"
-    deep_think_llm: str = "gemma4:latest"
-    quick_think_llm: str = "gemma4:latest"
+    llm_provider: Literal["groq", "ollama"] = "groq"
+    deep_think_llm: str = "openai/gpt-oss-120b"
+    quick_think_llm: str = "openai/gpt-oss-20b"
 
     groq_api_key: Optional[str] = None
 

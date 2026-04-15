@@ -198,3 +198,37 @@ def test_ticker_whitelist_pattern():
     for bad in ["RELIANCE;DROP", "foo/bar", "RELIANCE ", "", "A" * 21, "rel iance"]:
         with pt.raises(ValueError, match="Invalid ticker"):
             _sanitize_ticker(bad)
+
+
+
+@pytest.mark.asyncio
+async def test_accepts_settings_parameter(httpx_mock, monkeypatch, tmp_path):
+    from financialagents.config import Settings
+    from financialagents.dataflows import cache, fundamentals_client, rate_limits
+
+    monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
+    monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
+
+    csv_bytes = _read_fixture("screener/reliance.csv")
+    httpx_mock.add_response(
+        url="https://www.screener.in/company/RELIANCE/consolidated/export/",
+        content=csv_bytes,
+        headers={"content-type": "text/csv; charset=utf-8"},
+    )
+
+    result = await fundamentals_client.get_fundamentals("RELIANCE", Settings())
+    assert result.status in ("ok", "partial")
+    assert result.source == "screener_csv"
+    assert result.data is not None
+
+    result_kw = await fundamentals_client.get_fundamentals(
+        "RELIANCE", settings=Settings()
+    )
+    assert result_kw.source == "cache"
+    assert result_kw.data is not None
+
+    import inspect
+
+    sig = inspect.signature(fundamentals_client.get_fundamentals)
+    assert "settings" in sig.parameters
+    assert sig.parameters["settings"].default is None
