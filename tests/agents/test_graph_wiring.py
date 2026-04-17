@@ -207,8 +207,9 @@ class TestGraphIntegration:
             result = asyncio.run(graph.ainvoke(initial_state, config=config))
 
         if isinstance(result, dict):
-            assert result.get("technical_report") is not None
-            assert result.get("research_summary") is not None
+            state = AgentState.model_validate(result)
+            assert state.technical_report is not None
+            assert state.research_summary is not None
         else:
             assert result.technical_report is not None
             assert result.research_summary is not None

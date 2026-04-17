@@ -18,6 +18,9 @@ class TechnicalReport(BaseModel):
     sma_200: float | None = None
     ema_20: float | None = None
     current_price: float | None = None
+    atr_14: float | None = None
+    circuit_band_pct: float | None = None
+    t2t_flag: bool = False
     trend_assessment: str = ""
     support_levels: list[float] = Field(default_factory=list)
     resistance_levels: list[float] = Field(default_factory=list)

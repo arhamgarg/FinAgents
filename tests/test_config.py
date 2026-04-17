@@ -80,3 +80,40 @@ class TestStartupWarnings:
 
     def test_ollama_without_key_no_warning(self, default_settings: Settings) -> None:
         pass
+
+
+class TestPhase4SettingsFields:
+
+    def test_risk_persona_weights_default(self, default_settings: Settings) -> None:
+        assert default_settings.risk_persona_weights == {
+            "aggressive": 0.25,
+            "neutral": 0.50,
+            "conservative": 0.25,
+        }
+
+    def test_position_sizing_method_default(self, default_settings: Settings) -> None:
+        assert default_settings.position_sizing_method == "atr_based"
+
+    def test_risk_per_trade_pct_default(self, default_settings: Settings) -> None:
+        assert default_settings.risk_per_trade_pct == pytest.approx(0.02)
+
+    def test_kelly_fraction_default(self, default_settings: Settings) -> None:
+        assert default_settings.kelly_fraction == pytest.approx(0.25)
+
+    def test_atr_stop_multiplier_default(self, default_settings: Settings) -> None:
+        assert default_settings.atr_stop_multiplier == pytest.approx(2.0)
+
+    def test_portfolio_value_inr_default(self, default_settings: Settings) -> None:
+        assert default_settings.portfolio_value_inr == pytest.approx(100_000.0)
+
+    def test_position_sizing_method_rejects_invalid_literal(self) -> None:
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            Settings(_env_file=None, position_sizing_method="moon_math")  # ty: ignore[unknown-argument, invalid-argument-type]
+
+    def test_no_debate_compression_max_chars_field(self, default_settings: Settings) -> None:
+        assert not hasattr(default_settings, "debate_compression_max_chars")
+
+    def test_max_debate_rounds_default_unchanged_at_3(self, default_settings: Settings) -> None:
+        assert default_settings.max_debate_rounds == 3

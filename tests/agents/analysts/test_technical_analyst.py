@@ -105,6 +105,7 @@ class TestComputeTechnicalIndicators:
             "sma_200",
             "ema_20",
             "current_price",
+            "atr_14",
         }
         assert set(result.keys()) == expected_keys
 
@@ -156,6 +157,7 @@ class TestComputeTechnicalIndicators:
             "rsi", "macd_line", "macd_signal_val", "macd_hist",
             "bb_upper", "bb_lower", "bb_mid",
             "sma_50", "sma_200", "ema_20", "current_price",
+            "atr_14",
         }
         assert set(result.keys()) == expected_keys
         for key, val in result.items():

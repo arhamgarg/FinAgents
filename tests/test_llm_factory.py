@@ -88,3 +88,44 @@ class TestGoogleProviderDropped:
         monkeypatch.setenv("LLM_PROVIDER", "google")
         with pytest.raises(ValidationError, match="llm_provider"):
             Settings(_env_file=None)
+
+
+class TestMaxOutputTokensPlumbing:
+
+    def test_groq_max_tokens_kwarg_translation(self, groq_settings: Settings) -> None:
+        with patch("langchain_groq.ChatGroq", create=True) as mock_groq:
+            mock_groq.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", groq_settings, max_output_tokens=1024)
+            _, kwargs = mock_groq.call_args
+            assert kwargs.get("max_tokens") == 1024, f"Expected max_tokens=1024, got {kwargs}"
+
+    def test_ollama_num_predict_kwarg_translation(self, default_settings: Settings) -> None:
+        with patch("langchain_ollama.ChatOllama", create=True) as mock_ollama:
+            mock_ollama.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", default_settings, max_output_tokens=1024)
+            _, kwargs = mock_ollama.call_args
+            assert kwargs.get("num_predict") == 1024, f"Expected num_predict=1024, got {kwargs}"
+            assert "max_tokens" not in kwargs, (
+                f"P18 regression: ChatOllama must NOT receive max_tokens (silently ignored). kwargs={kwargs}"
+            )
+
+    def test_no_token_arg_keeps_backward_compat_groq(self, groq_settings: Settings) -> None:
+        with patch("langchain_groq.ChatGroq", create=True) as mock_groq:
+            mock_groq.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", groq_settings)
+            _, kwargs = mock_groq.call_args
+            assert "max_tokens" not in kwargs or kwargs["max_tokens"] is None
+
+    def test_no_token_arg_keeps_backward_compat_ollama(self, default_settings: Settings) -> None:
+        with patch("langchain_ollama.ChatOllama", create=True) as mock_ollama:
+            mock_ollama.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", default_settings)
+            _, kwargs = mock_ollama.call_args
+            assert "num_predict" not in kwargs or kwargs["num_predict"] is None
+
+    def test_max_output_tokens_is_keyword_only(self) -> None:
+        import inspect
+
+        sig = inspect.signature(create_llm_client)
+        assert "max_output_tokens" in sig.parameters
+        assert sig.parameters["max_output_tokens"].default is None

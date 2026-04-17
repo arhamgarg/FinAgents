@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from uuid import uuid4
 
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
@@ -9,8 +10,13 @@ from financialagents.graph.setup import build_analysis_graph
 
 class FinancialAgentsGraph:
 
-    def __init__(self) -> None:
-        self._graph = build_analysis_graph()
+    def __init__(self, full_pipeline: bool = False) -> None:
+        if full_pipeline:
+            from financialagents.graph.setup import build_full_pipeline
+
+            self._graph = build_full_pipeline()
+        else:
+            self._graph = build_analysis_graph()
 
     async def apropagate(
         self,
@@ -22,12 +28,20 @@ class FinancialAgentsGraph:
             settings = Settings()
 
         initial_state = AgentState(ticker=ticker, date=date)
-        config = {"configurable": {"settings": settings}}
+
+        thread_id = f"{ticker}_{date}_{uuid4().hex[:8]}"
+
+        config = {
+            "configurable": {
+                "settings": settings,
+                "thread_id": thread_id,
+            }
+        }
 
         result = await self._graph.ainvoke(initial_state, config=config)
 
         if isinstance(result, dict):
-            return AgentState(**result)
+            return AgentState.model_validate(result)
         return result
 
     def propagate(

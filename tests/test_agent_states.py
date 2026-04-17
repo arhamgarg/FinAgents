@@ -70,16 +70,16 @@ class TestInvestDebateStateValidation:
 
     def test_default_state_valid(self) -> None:
         state = InvestDebateState()
-        assert state.bull_history == []
-        assert state.bear_history == []
+        assert state.bull_history == {}
+        assert state.bear_history == {}
         assert state.current_round == 0
         assert state.max_rounds == 3
         assert state.investment_plan is None
 
     def test_populated_state_valid(self) -> None:
         state = InvestDebateState(
-            bull_history=["Strong earnings growth", "Expanding market share"],
-            bear_history=["High valuation", "Sector headwinds"],
+            bull_history={1: "Strong earnings growth", 2: "Expanding market share"},
+            bear_history={1: "High valuation", 2: "Sector headwinds"},
             current_round=2,
             max_rounds=3,
             investment_plan="Cautious buy with tight stop-loss",
@@ -128,8 +128,8 @@ class TestAgentStateWithDebateNesting:
 
     def test_agent_state_with_invest_debate(self) -> None:
         debate = InvestDebateState(
-            bull_history=["Growth thesis"],
-            bear_history=["Valuation concern"],
+            bull_history={1: "Growth thesis"},
+            bear_history={1: "Valuation concern"},
             current_round=1,
         )
         state = AgentState(
@@ -138,7 +138,7 @@ class TestAgentStateWithDebateNesting:
             investment_debate_state=debate,
         )
         assert state.investment_debate_state is not None
-        assert state.investment_debate_state.bull_history == ["Growth thesis"]
+        assert state.investment_debate_state.bull_history == {1: "Growth thesis"}
 
     def test_agent_state_with_risk_debate(self) -> None:
         risk = RiskDebateState(
@@ -156,7 +156,112 @@ class TestAgentStateWithDebateNesting:
     def test_agent_state_rejects_invalid_debate_type(self) -> None:
         state = AgentState(
             ticker="RELIANCE",
-            investment_debate_state={"bull_history": ["test"], "current_round": 1},  # type: ignore[arg-type]
+            investment_debate_state={"bull_history": {1: "test"}, "current_round": 1},  # type: ignore[arg-type]
         )
         assert state.investment_debate_state is not None
         assert state.investment_debate_state.current_round == 1
+
+
+class TestPhase4InvestDebateStateFields:
+
+    def test_default_bull_history_is_empty_dict(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState()
+        assert state.bull_history == {}
+        assert isinstance(state.bull_history, dict)
+
+    def test_default_bear_history_is_empty_dict(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState()
+        assert state.bear_history == {}
+        assert isinstance(state.bear_history, dict)
+
+    def test_research_brief_snapshot_default_empty_string(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState()
+        assert state.research_brief_snapshot == ""
+
+    def test_bull_turns_accessor_orders_by_key(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState(bull_history={2: "second", 1: "first", 3: "third"})
+        assert state.bull_turns() == ["first", "second", "third"]
+
+    def test_bear_turns_accessor_orders_by_key(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState(bear_history={2: "second", 1: "first"})
+        assert state.bear_turns() == ["first", "second"]
+
+    def test_empty_accessors_return_empty_list(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState()
+        assert state.bull_turns() == []
+        assert state.bear_turns() == []
+
+    def test_construction_with_dict_histories(self) -> None:
+        from financialagents.agents.utils.agent_states import InvestDebateState
+        state = InvestDebateState(
+            bull_history={1: "bull-1"},
+            bear_history={1: "bear-1"},
+            current_round=1,
+            max_rounds=3,
+            research_brief_snapshot="brief text",
+        )
+        assert state.bull_history == {1: "bull-1"}
+        assert state.research_brief_snapshot == "brief text"
+
+
+class TestPhase4RiskDebateStateFields:
+
+    def test_default_trader_signal_snapshot_empty_string(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        state = RiskDebateState()
+        assert state.trader_signal_snapshot == ""
+
+    def test_round_trips_via_model_validate(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        payload = {"trader_signal_snapshot": "action=BUY, conviction=0.7"}
+        state = RiskDebateState.model_validate(payload)
+        assert state.trader_signal_snapshot == "action=BUY, conviction=0.7"
+
+
+class TestPhase4AgentStateFields:
+
+    def test_defaults_are_none(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        state = AgentState()
+        assert state.trader_signal is None
+        assert state.portfolio_context is None
+
+    def test_trader_signal_populated(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.agents.trader.schemas import TradingSignal
+        sig = TradingSignal(action="BUY", conviction=0.7)
+        state = AgentState(ticker="RELIANCE", date="2024-01-15", trader_signal=sig)
+        assert state.trader_signal is not None
+        assert state.trader_signal.action == "BUY"
+        assert state.trader_signal.conviction == 0.7
+
+    def test_portfolio_context_populated(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.agents.managers.schemas import PortfolioContext
+        ctx = PortfolioContext(holdings={"TCS": 5}, total_value_inr=50000.0)
+        state = AgentState(portfolio_context=ctx)
+        assert state.portfolio_context is not None
+        assert state.portfolio_context.holdings == {"TCS": 5}
+
+    def test_model_validate_rehydrates_nested_trading_signal(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        payload = {
+            "ticker": "TCS",
+            "date": "2024-01-15",
+            "trader_signal": {"action": "SELL", "conviction": 0.3},
+        }
+        state = AgentState.model_validate(payload)
+        assert state.trader_signal is not None
+        assert state.trader_signal.action == "SELL"
+        assert state.trader_signal.conviction == 0.3
+
+    def test_existing_trader_investment_plan_preserved(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        state = AgentState(trader_investment_plan="draft plan text")
+        assert state.trader_investment_plan == "draft plan text"

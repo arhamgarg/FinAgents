@@ -137,7 +137,7 @@ async def sentiment_analyst_node(
 
     prompt = build_sentiment_prompt(state.ticker, result.data)
 
-    llm = create_llm_client("deep_think", settings)
+    llm = create_llm_client("quick_think", settings)
     structured_llm = llm.with_structured_output(SentimentAnalystReport)
 
     report: SentimentAnalystReport

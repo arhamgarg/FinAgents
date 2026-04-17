@@ -38,6 +38,7 @@ def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
             "rsi", "macd_line", "macd_signal_val", "macd_hist",
             "bb_upper", "bb_lower", "bb_mid",
             "sma_50", "sma_200", "ema_20", "current_price",
+            "atr_14",
         ]}
 
     rsi = df.ta.rsi(length=14)
@@ -78,6 +79,8 @@ def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
     sma_200 = df.ta.sma(length=200)
     ema_20 = df.ta.ema(length=20)
 
+    atr_series = df.ta.atr(length=14)
+
     return {
         "rsi": _safe_float(rsi),
         "macd_line": macd_line_val,
@@ -89,7 +92,8 @@ def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
         "sma_50": _safe_float(sma_50),
         "sma_200": _safe_float(sma_200),
         "ema_20": _safe_float(ema_20),
-        "current_price": float(df["close"].iloc[-1]),
+        "current_price": _safe_float(df["close"]),
+        "atr_14": _safe_float(atr_series),
     }
 
 
@@ -256,7 +260,7 @@ async def technical_analyst_node(
 
     prompt = build_technical_analyst_prompt(state.ticker, indicators, result)
 
-    llm = create_llm_client("deep_think", settings)
+    llm = create_llm_client("quick_think", settings)
     structured_llm = llm.with_structured_output(TechnicalReport)
 
     report: TechnicalReport
@@ -270,5 +274,16 @@ async def technical_analyst_node(
 
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]
+
+    report.atr_14 = indicators.get("atr_14")
+
+    try:
+        from financialagents.dataflows.surveillance_client import get_surveillance_data
+
+        circuit_band_pct, t2t_flag = await get_surveillance_data(state.ticker)
+        report.circuit_band_pct = circuit_band_pct
+        report.t2t_flag = t2t_flag
+    except Exception:
+        pass
 
     return {"technical_report": report}

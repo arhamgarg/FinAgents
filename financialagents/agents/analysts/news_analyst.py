@@ -102,7 +102,7 @@ async def news_analyst_node(
 
     prompt = build_news_prompt(state.ticker, result.data)
 
-    llm = create_llm_client("deep_think", settings)
+    llm = create_llm_client("quick_think", settings)
     structured_llm = llm.with_structured_output(NewsReport)
 
     report: NewsReport

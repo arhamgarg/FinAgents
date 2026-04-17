@@ -54,6 +54,20 @@ class Settings(BaseSettings):
     max_debate_rounds: int = 3
     max_risk_discuss_rounds: int = 2
 
+    risk_persona_weights: dict[str, float] = Field(
+        default_factory=lambda: {
+            "aggressive": 0.25,
+            "neutral": 0.50,
+            "conservative": 0.25,
+        }
+    )
+
+    position_sizing_method: Literal["atr_based", "kelly", "fixed_fractional"] = "atr_based"
+    risk_per_trade_pct: float = 0.02
+    kelly_fraction: float = 0.25
+    atr_stop_multiplier: float = 2.0
+    portfolio_value_inr: float = 100_000.0
+
     sector_rotation_enabled: bool = True
     max_sectors: int = 3
     stocks_per_sector: int = 5

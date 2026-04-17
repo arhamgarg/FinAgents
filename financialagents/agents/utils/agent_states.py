@@ -12,16 +12,25 @@ from financialagents.agents.analysts.schemas import (
     SentimentAnalystReport,
     TechnicalReport,
 )
-from financialagents.agents.managers.schemas import ResearchBrief
+from financialagents.agents.managers.schemas import PortfolioContext, ResearchBrief
+from financialagents.agents.trader.schemas import TradingSignal
+from financialagents.graph.reducers import merge_by_key
 
 
 class InvestDebateState(BaseModel):
 
-    bull_history: Annotated[list[str], add] = Field(default_factory=list)
-    bear_history: Annotated[list[str], add] = Field(default_factory=list)
+    bull_history: Annotated[dict[int, str], merge_by_key] = Field(default_factory=dict)
+    bear_history: Annotated[dict[int, str], merge_by_key] = Field(default_factory=dict)
     current_round: int = 0
     max_rounds: int = 3
+    research_brief_snapshot: str = ""
     investment_plan: Optional[str] = None
+
+    def bull_turns(self) -> list[str]:
+        return [v for _, v in sorted(self.bull_history.items())]
+
+    def bear_turns(self) -> list[str]:
+        return [v for _, v in sorted(self.bear_history.items())]
 
 
 class RiskDebateState(BaseModel):
@@ -32,6 +41,7 @@ class RiskDebateState(BaseModel):
     current_round: int = 0
     max_rounds: int = 2
     risk_debate_history: Annotated[list[str], add] = Field(default_factory=list)
+    trader_signal_snapshot: str = ""
     final_risk_decision: Optional[str] = None
 
 
@@ -52,6 +62,9 @@ class AgentState(BaseModel):
 
     investment_debate_state: Optional[InvestDebateState] = None
     risk_debate_state: Optional[RiskDebateState] = None
+
+    trader_signal: Optional[TradingSignal] = None
+    portfolio_context: Optional[PortfolioContext] = None
 
     trader_investment_plan: Optional[str] = None
 
