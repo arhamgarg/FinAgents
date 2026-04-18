@@ -105,8 +105,8 @@ class UatResult(NamedTuple):
     hold_reason: str
 
 
-_RE_BUY = re.compile(r"\bBUY\b", re.IGNORECASE)
-_RE_SELL = re.compile(r"\bSELL\b", re.IGNORECASE)
+_RE_BUY = re.compile(r"\b(?:BUY|ACCUMULATE|LONG)\b", re.IGNORECASE)
+_RE_SELL = re.compile(r"\b(?:SELL|REDUCE|TRIM|EXIT|SHORT)\b", re.IGNORECASE)
 
 
 def scan_debate_direction(investment_plan: str) -> str:

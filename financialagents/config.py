@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     quick_think_llm: str = "openai/gpt-oss-20b"
 
     groq_api_key: Optional[str] = None
+    ollama_api_key: Optional[str] = None
 
     angelone_api_key: Optional[str] = None
     angelone_client_id: Optional[str] = None

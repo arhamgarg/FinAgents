@@ -201,4 +201,9 @@ async def research_manager_node(
         "sentiment": state.sentiment_report.confidence if state.sentiment_report else 0.0,
     }
 
+    brief.overall_confidence = sum(
+        weights.get(analyst, 0.0) * conf
+        for analyst, conf in brief.analyst_confidences.items()
+    )
+
     return {"research_summary": brief}

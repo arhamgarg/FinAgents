@@ -57,7 +57,7 @@ def build_investment_plan_prompt(state: InvestDebateState) -> list[BaseMessage]:
 
 
 async def investment_plan_node(
-    state: InvestDebateState, config: RunnableConfig | None = None
+    state: InvestDebateState, config: Optional[RunnableConfig] = None
 ) -> dict[str, Any]:
     configurable = config.get("configurable", {}) if config else {}
     settings: Settings = configurable.get("settings") or Settings()

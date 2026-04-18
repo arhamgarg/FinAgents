@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
@@ -66,7 +68,7 @@ def build_analysis_graph():
 
 
 def debate_init_node(
-    state: AgentState, config: RunnableConfig | None = None
+    state: AgentState, config: Optional[RunnableConfig] = None
 ) -> dict:
     configurable = config.get("configurable", {}) if config else {}
     settings: Settings = configurable.get("settings") or Settings()
@@ -97,7 +99,7 @@ def _reset_invest_debate_subgraph_cache() -> None:
 
 
 async def call_invest_debate_subgraph(
-    state: AgentState, config: RunnableConfig | None = None
+    state: AgentState, config: Optional[RunnableConfig] = None
 ) -> dict:
     global _INVEST_DEBATE_SUBGRAPH
     if _INVEST_DEBATE_SUBGRAPH is None:

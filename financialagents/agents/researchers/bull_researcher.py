@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -41,7 +41,7 @@ def build_bull_prompt(state: InvestDebateState) -> list[BaseMessage]:
 
 
 async def bull_researcher_node(
-    state: InvestDebateState, config: RunnableConfig | None = None
+    state: InvestDebateState, config: Optional[RunnableConfig] = None
 ) -> dict[str, Any]:
     configurable = config.get("configurable", {}) if config else {}
     settings: Settings = configurable.get("settings") or Settings()

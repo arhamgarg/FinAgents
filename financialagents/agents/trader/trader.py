@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -153,7 +153,7 @@ def _apply_position_sizing(
 
 
 async def trader_node(
-    state: AgentState, config: RunnableConfig | None = None
+    state: AgentState, config: Optional[RunnableConfig] = None
 ) -> dict[str, Any]:
     configurable = config.get("configurable", {}) if config else {}
     settings: Settings = configurable.get("settings") or Settings()
