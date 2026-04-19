@@ -118,4 +118,14 @@ async def news_analyst_node(
         report.data_sources = list(report.data_sources) + [result.source]
     report.article_count = len(result.data)
 
+    n = report.article_count
+    if n == 0:
+        report.confidence = 0.0
+    elif n <= 2:
+        report.confidence = 0.3
+    elif n <= 5:
+        report.confidence = 0.6
+    else:
+        report.confidence = 1.0
+
     return {"news_report": report}

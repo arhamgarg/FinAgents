@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import weakref
 
 from aiolimiter import AsyncLimiter
 
@@ -15,19 +16,37 @@ STOCKTWITS_MIN_DELAY = float(os.getenv("STOCKTWITS_MIN_DELAY", "20.0"))
 GOOGLE_TRENDS_MIN_DELAY = float(os.getenv("GOOGLE_TRENDS_MIN_DELAY", "5.0"))
 JITTER_MAX = float(os.getenv("RATE_JITTER_MAX", "2.0"))
 
-_LIMITERS: dict[str, AsyncLimiter] = {
-    "screener.in": AsyncLimiter(max_rate=1, time_period=SCREENER_MIN_DELAY),
-    "www.moneycontrol.com": AsyncLimiter(max_rate=1, time_period=MONEYCONTROL_MIN_DELAY),
-    "economictimes.indiatimes.com": AsyncLimiter(max_rate=1, time_period=ECONOMICTIMES_MIN_DELAY),
-    "www.livemint.com": AsyncLimiter(max_rate=1, time_period=LIVEMINT_MIN_DELAY),
-    "www.nseindia.com": AsyncLimiter(max_rate=1, time_period=NSE_MIN_DELAY),
-    "api.stocktwits.com": AsyncLimiter(max_rate=1, time_period=STOCKTWITS_MIN_DELAY),
-    "trends.google.com": AsyncLimiter(max_rate=1, time_period=GOOGLE_TRENDS_MIN_DELAY),
-}
+_HOST_CONFIG: dict[str, tuple[int, float]] = {
+    "screener.in": (1, SCREENER_MIN_DELAY),
+    "www.moneycontrol.com": (1, MONEYCONTROL_MIN_DELAY),
+    "economictimes.indiatimes.com": (1, ECONOMICTIMES_MIN_DELAY),
+    "www.livemint.com": (1, LIVEMINT_MIN_DELAY),
+    "www.nseindia.com": (1, NSE_MIN_DELAY),
+    "api.stocktwits.com": (1, STOCKTWITS_MIN_DELAY),
+    "trends.google.com": (1, GOOGLE_TRENDS_MIN_DELAY),
+ }
+
+_LIMITERS_BY_LOOP: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, dict[str, AsyncLimiter]
+] = weakref.WeakKeyDictionary()
+
+
+def _get_limiter(host: str) -> AsyncLimiter:
+    rate, period = _HOST_CONFIG[host]
+    loop = asyncio.get_running_loop()
+    per_loop = _LIMITERS_BY_LOOP.get(loop)
+    if per_loop is None:
+        per_loop = {}
+        _LIMITERS_BY_LOOP[loop] = per_loop
+    limiter = per_loop.get(host)
+    if limiter is None:
+        limiter = AsyncLimiter(max_rate=rate, time_period=period)
+        per_loop[host] = limiter
+    return limiter
 
 
 async def acquire(host: str) -> None:
-    limiter = _LIMITERS[host]
+    limiter = _get_limiter(host)
     async with limiter:
         pass
     await asyncio.sleep(random.uniform(0.0, JITTER_MAX))

@@ -32,6 +32,10 @@ def _safe_float(series: pd.Series | None) -> float | None:
     return f
 
 
+def _count_non_none(values: list[object]) -> int:
+    return sum(1 for v in values if v is not None)
+
+
 def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
     if df.empty:
         return {k: None for k in [
@@ -285,5 +289,17 @@ async def technical_analyst_node(
         report.t2t_flag = t2t_flag
     except Exception:
         pass
+
+    report.confidence = _count_non_none([
+        report.current_price,
+        report.rsi,
+        report.macd_line,
+        report.macd_hist,
+        report.bb_upper,
+        report.bb_lower,
+        report.sma_50,
+        report.sma_200,
+        report.atr_14,
+    ]) / 9
 
     return {"technical_report": report}

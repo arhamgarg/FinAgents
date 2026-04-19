@@ -103,6 +103,23 @@ class UatResult(NamedTuple):
     debate_direction: str
     trader_action: str
     hold_reason: str
+    nonzero_analyst_count: int
+    analyst_confidences: dict[str, float]
+
+
+def _format_per_analyst(conf: dict[str, float]) -> str:
+    return (
+        f"t={conf.get('technical', 0.0):.2f} "
+        f"f={conf.get('fundamentals', 0.0):.2f} "
+        f"n={conf.get('news', 0.0):.2f} "
+        f"s={conf.get('sentiment', 0.0):.2f}"
+    )
+
+
+DATA_RICH_MIN_NONZERO = 3
+DATA_RICH_CONF_THRESHOLD = 0.6
+DATA_POOR_CONF_THRESHOLD = 0.4
+HOLD_RATE_PASS_PCT = 50.0
 
 
 _RE_BUY = re.compile(r"\b(?:BUY|ACCUMULATE|LONG)\b", re.IGNORECASE)
@@ -119,31 +136,64 @@ def scan_debate_direction(investment_plan: str) -> str:
     return "MIXED"
 
 
+def _tier_hold_rate(
+    results: list[UatResult],
+    tier_predicate,
+    conf_threshold: float,
+) -> tuple[int, int, float | None]:
+    cohort = [
+        r
+        for r in results
+        if tier_predicate(r)
+        and r.overall_confidence >= conf_threshold
+        and r.debate_direction in {"BUY", "SELL"}
+    ]
+    total = len(cohort)
+    holds = sum(1 for r in cohort if r.trader_action == "HOLD")
+    pct = (holds / total * 100.0) if total else None
+    return holds, total, pct
+
+
+def _format_tier_line(label: str, threshold: float, holds: int, total: int, pct: float | None) -> str:
+    if pct is None:
+        return (
+            f"- **{label}** (overall_confidence >= {threshold:.1f} AND directional): "
+            f"{holds} / {total} = N/A (empty tier — counts as N/A per "
+        )
+    verdict = "PASS" if pct < HOLD_RATE_PASS_PCT else "FAIL"
+    return (
+        f"- **{label}** (overall_confidence >= {threshold:.1f} AND directional): "
+        f"{holds} / {total} = {pct:.1f}% — {verdict} (criterion: < {HOLD_RATE_PASS_PCT:.0f}%)"
+    )
+
+
 def format_results_table(results: list[UatResult]) -> str:
     lines = [
-        "| ticker | overall_confidence | debate_direction | trader_action | hold_reason |",
-        "|--------|--------------------|-------------------|----------------|-------------|",
+        "| ticker | overall_confidence | per_analyst (t/f/n/s) | debate_direction | trader_action | nonzero_analysts | hold_reason |",
+        "|--------|-------------------|-----------------------|------------------|---------------|------------------|-------------|",
     ]
     for r in results:
         reason = (r.hold_reason or "").replace("|", "\\|")[:80]
         lines.append(
-            f"| {r.ticker} | {r.overall_confidence:.2f} | {r.debate_direction} "
-            f"| {r.trader_action} | {reason} |"
+            f"| {r.ticker} | {r.overall_confidence:.2f} | {_format_per_analyst(r.analyst_confidences)} "
+            f"| {r.debate_direction} | {r.trader_action} | {r.nonzero_analyst_count}/4 | {reason} |"
         )
-    directional_confident = [
-        r
-        for r in results
-        if r.overall_confidence >= 0.6 and r.debate_direction in {"BUY", "SELL"}
-    ]
-    total = len(directional_confident)
-    holds = sum(1 for r in directional_confident if r.trader_action == "HOLD")
-    pct = (holds / total * 100.0) if total else 0.0
-    lines.append("")
-    lines.append(
-        f"**Hold-rate (overall_confidence >= 0.6 AND directional debate): "
-        f"{holds} / {total} = {pct:.1f}%** "
-        f"— phase-gate criterion: < 50%"
+
+    rich_holds, rich_total, rich_pct = _tier_hold_rate(
+        results,
+        lambda r: r.nonzero_analyst_count >= DATA_RICH_MIN_NONZERO,
+        DATA_RICH_CONF_THRESHOLD,
     )
+    poor_holds, poor_total, poor_pct = _tier_hold_rate(
+        results,
+        lambda r: r.nonzero_analyst_count < DATA_RICH_MIN_NONZERO,
+        DATA_POOR_CONF_THRESHOLD,
+    )
+
+    lines.append("")
+    lines.append("**Tiered hold-rate (ROADMAP SC-5, / **")
+    lines.append(_format_tier_line("data-rich", DATA_RICH_CONF_THRESHOLD, rich_holds, rich_total, rich_pct))
+    lines.append(_format_tier_line("data-poor", DATA_POOR_CONF_THRESHOLD, poor_holds, poor_total, poor_pct))
     return "\n".join(lines) + "\n"
 
 
@@ -157,6 +207,12 @@ async def run_pipeline(ticker: str, date: str) -> UatResult:
         if state.research_summary is not None
         else 0.0
     )
+    per_analyst: dict[str, float] = (
+        dict(state.research_summary.analyst_confidences)
+        if state.research_summary is not None
+        else {}
+    )
+    nonzero_count = sum(1 for v in per_analyst.values() if v > 0)
     plan = (
         state.investment_debate_state.investment_plan
         if state.investment_debate_state is not None
@@ -165,13 +221,15 @@ async def run_pipeline(ticker: str, date: str) -> UatResult:
     signal = state.trader_signal
     if signal is None:
         return UatResult(
-            ticker, overall, scan_debate_direction(plan), "HOLD", "trader_signal missing"
+            ticker, overall, scan_debate_direction(plan),
+            "HOLD", "trader_signal missing", nonzero_count, per_analyst,
         )
     reason = signal.circuit_band_note or ""
     if not reason and signal.action == "HOLD":
         reason = (signal.rationale or "")[:80]
     return UatResult(
-        ticker, overall, scan_debate_direction(plan), signal.action, reason
+        ticker, overall, scan_debate_direction(plan),
+        signal.action, reason, nonzero_count, per_analyst,
     )
 
 
@@ -214,7 +272,16 @@ def main() -> int:
     if args.dry_run:
         print(f"[dry-run] Selected {len(tickers)} tickers: {', '.join(tickers)}")
         print("[dry-run] OQ-1 'No Band' exclusion: OK")
-        synthetic = [UatResult(t, 0.70, "BUY", "BUY", "") for t in tickers]
+        synthetic = [
+            UatResult(
+                t, 0.70, "BUY", "BUY", "",
+                3 if i % 2 == 0 else 2,
+                {"technical": 0.78, "fundamentals": 0.6, "news": 0.6, "sentiment": 0.0}
+                if i % 2 == 0
+                else {"technical": 0.78, "fundamentals": 0.0, "news": 0.3, "sentiment": 0.0},
+            )
+            for i, t in enumerate(tickers)
+        ]
         table = format_results_table(synthetic)
         print("[dry-run] Synthetic results table:")
         print(table)
@@ -228,7 +295,7 @@ def main() -> int:
             result = asyncio.run(run_pipeline(ticker, args.date))
         except Exception as exc:
             result = UatResult(
-                ticker, 0.0, "MIXED", "HOLD", f"pipeline error: {exc}"[:80]
+                ticker, 0.0, "MIXED", "HOLD", f"pipeline error: {exc}"[:80], 0, {}
             )
         results.append(result)
 
@@ -257,27 +324,49 @@ def main() -> int:
     args.output.write_text(new_content)
     print(f"Results appended to {args.output}")
 
-    directional = [
-        r
-        for r in results
-        if r.overall_confidence >= 0.6 and r.debate_direction in {"BUY", "SELL"}
-    ]
-    total = len(directional)
-    holds = sum(1 for r in directional if r.trader_action == "HOLD")
-    pct = (holds / total * 100.0) if total else 0.0
-    if total == 0:
+    rich_holds, rich_total, rich_pct = _tier_hold_rate(
+        results,
+        lambda r: r.nonzero_analyst_count >= DATA_RICH_MIN_NONZERO,
+        DATA_RICH_CONF_THRESHOLD,
+    )
+    poor_holds, poor_total, poor_pct = _tier_hold_rate(
+        results,
+        lambda r: r.nonzero_analyst_count < DATA_RICH_MIN_NONZERO,
+        DATA_POOR_CONF_THRESHOLD,
+    )
+
+    if rich_total == 0 and poor_total == 0:
         print(
-            "WARNING: no directional+confident tickers — hold-rate undefined; "
-            "adversarial batch too weak."
+            "WARNING: both tiers empty — no directional+confident tickers "
+            "in either tier; hold-rate undefined; adversarial batch too weak."
         )
         return 1
-    if pct >= 50.0:
+
+    rich_fail = rich_pct is not None and rich_pct >= HOLD_RATE_PASS_PCT
+    poor_fail = poor_pct is not None and poor_pct >= HOLD_RATE_PASS_PCT
+
+    rich_msg = (
+        "data-rich: N/A (empty)" if rich_pct is None
+        else f"data-rich: {rich_holds}/{rich_total} = {rich_pct:.1f}% "
+             f"({'FAIL' if rich_fail else 'PASS'})"
+    )
+    poor_msg = (
+        "data-poor: N/A (empty)" if poor_pct is None
+        else f"data-poor: {poor_holds}/{poor_total} = {poor_pct:.1f}% "
+             f"({'FAIL' if poor_fail else 'PASS'})"
+    )
+
+    if rich_fail or poor_fail:
         print(
-            f"FAIL: hold-rate {pct:.1f}% >= 50% — "
+            f"FAIL: tiered hold-rate — {rich_msg}; {poor_msg} — "
             " iteration required (max 3 iterations)."
         )
         return 1
-    print(f"PASS: hold-rate {pct:.1f}% < 50% — phase gate satisfied.")
+
+    print(
+        f"PASS: tiered hold-rate — {rich_msg}; {poor_msg} — "
+        " phase gate satisfied /."
+    )
     return 0
 
 

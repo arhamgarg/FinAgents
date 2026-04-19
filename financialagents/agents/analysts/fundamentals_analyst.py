@@ -13,6 +13,10 @@ from financialagents.dataflows.interface import get_fundamentals
 from financialagents.llm_clients.factory import create_llm_client
 
 
+def _count_non_none(values: list[object]) -> int:
+    return sum(1 for v in values if v is not None)
+
+
 def build_fundamentals_prompt(
     ticker: str, report: FundamentalsReport
 ) -> list[BaseMessage]:
@@ -132,5 +136,13 @@ async def fundamentals_analyst_node(
 
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]
+
+    report.confidence = _count_non_none([
+        report.pe_ratio,
+        report.pb_ratio,
+        report.roce,
+        report.debt_to_equity,
+        report.promoter_holding_pct,
+    ]) / 5
 
     return {"fundamentals_report": report}

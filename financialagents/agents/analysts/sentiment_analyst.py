@@ -161,4 +161,10 @@ async def sentiment_analyst_node(
         result.data.reddit.post_count + len(result.data.stocktwits.messages)
     )
 
+    llm_emitted = report.confidence
+    if report.post_count == 0:
+        report.confidence = 0.0
+    else:
+        report.confidence = min(llm_emitted, report.post_count / 10, 1.0)
+
     return {"sentiment_report": report}
