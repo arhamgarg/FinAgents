@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     NewsReport,
-    SentimentAnalystReport,
     TechnicalReport,
 )
 from financialagents.agents.managers.schemas import PortfolioContext, ResearchBrief
@@ -55,7 +54,6 @@ class AgentState(BaseModel):
 
     technical_report: Optional[TechnicalReport] = None
     news_report: Optional[NewsReport] = None
-    sentiment_report: Optional[SentimentAnalystReport] = None
     fundamentals_report: Optional[FundamentalsAnalystReport] = None
 
     research_summary: Optional[ResearchBrief] = None

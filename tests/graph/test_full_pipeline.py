@@ -7,7 +7,6 @@ from unittest.mock import patch
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     NewsReport,
-    SentimentAnalystReport,
     TechnicalReport,
 )
 from financialagents.agents.managers.schemas import ResearchBrief
@@ -22,7 +21,6 @@ class TestFullPipelineFlag:
         tech_report = TechnicalReport(confidence=0.8)
         fund_report = FundamentalsAnalystReport(confidence=0.8)
         news_report = NewsReport(confidence=0.7)
-        sent_report = SentimentAnalystReport(confidence=0.6)
         brief = ResearchBrief(
             consensus_view="bullish on RELIANCE",
             overall_confidence=0.75,
@@ -36,9 +34,6 @@ class TestFullPipelineFlag:
 
         async def fake_news(state, config):
             return {"news_report": news_report}
-
-        async def fake_sent(state, config):
-            return {"sentiment_report": sent_report}
 
         async def fake_rm(state, config):
             return {"research_summary": brief}
@@ -81,10 +76,6 @@ class TestFullPipelineFlag:
                 patch(
                     "financialagents.agents.analysts.news_analyst.news_analyst_node",
                     fake_news,
-                ),
-                patch(
-                    "financialagents.agents.analysts.sentiment_analyst.sentiment_analyst_node",
-                    fake_sent,
                 ),
                 patch(
                     "financialagents.agents.managers.research_manager.research_manager_node",

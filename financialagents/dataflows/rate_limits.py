@@ -12,7 +12,6 @@ MONEYCONTROL_MIN_DELAY = float(os.getenv("MONEYCONTROL_MIN_DELAY", "2.0"))
 ECONOMICTIMES_MIN_DELAY = float(os.getenv("ECONOMICTIMES_MIN_DELAY", "2.0"))
 LIVEMINT_MIN_DELAY = float(os.getenv("LIVEMINT_MIN_DELAY", "2.0"))
 NSE_MIN_DELAY = float(os.getenv("NSE_MIN_DELAY", "1.0"))
-STOCKTWITS_MIN_DELAY = float(os.getenv("STOCKTWITS_MIN_DELAY", "20.0"))
 GOOGLE_TRENDS_MIN_DELAY = float(os.getenv("GOOGLE_TRENDS_MIN_DELAY", "5.0"))
 JITTER_MAX = float(os.getenv("RATE_JITTER_MAX", "2.0"))
 
@@ -22,7 +21,6 @@ _HOST_CONFIG: dict[str, tuple[int, float]] = {
     "economictimes.indiatimes.com": (1, ECONOMICTIMES_MIN_DELAY),
     "www.livemint.com": (1, LIVEMINT_MIN_DELAY),
     "www.nseindia.com": (1, NSE_MIN_DELAY),
-    "api.stocktwits.com": (1, STOCKTWITS_MIN_DELAY),
     "trends.google.com": (1, GOOGLE_TRENDS_MIN_DELAY),
  }
 

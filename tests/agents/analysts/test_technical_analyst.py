@@ -12,7 +12,6 @@ import pydantic
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     NewsReport,
-    SentimentAnalystReport,
     TechnicalReport,
 )
 from financialagents.dataflows.data_result import DataResult
@@ -336,11 +335,6 @@ class TestSchemaConfidenceValidation:
     def test_news_report_rejects_out_of_range_confidence(self, bad_value: float):
         with pytest.raises(pydantic.ValidationError):
             NewsReport(confidence=bad_value)
-
-    @pytest.mark.parametrize("bad_value", [1.1, 99.9, -0.01, -1.0, 2.0])
-    def test_sentiment_report_rejects_out_of_range_confidence(self, bad_value: float):
-        with pytest.raises(pydantic.ValidationError):
-            SentimentAnalystReport(confidence=bad_value)
 
     @pytest.mark.parametrize("good_value", [0.0, 0.5, 1.0])
     def test_technical_report_accepts_valid_confidence(self, good_value: float):

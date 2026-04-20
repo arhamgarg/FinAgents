@@ -10,7 +10,6 @@ from financialagents.agents.analysts.fundamentals_analyst import (
 )
 from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 from financialagents.agents.analysts.news_analyst import news_analyst_node
-from financialagents.agents.analysts.sentiment_analyst import sentiment_analyst_node
 from financialagents.agents.managers.research_manager import research_manager_node
 from financialagents.agents.utils.agent_states import AgentState, InvestDebateState
 from financialagents.config import Settings
@@ -28,8 +27,6 @@ def validation_node(state: AgentState) -> dict:
         missing.append("fundamentals_report")
     if state.news_report is None:
         missing.append("news_report")
-    if state.sentiment_report is None:
-        missing.append("sentiment_report")
     if missing:
         raise ValueError(
             f"Pipeline validation failed: missing analyst reports: {missing}. "
@@ -38,29 +35,28 @@ def validation_node(state: AgentState) -> dict:
     return {}
 
 
-def build_analysis_graph():
-    builder = StateGraph(AgentState)
-
-    builder.add_node("propagation_node", propagation_node)
+def _build_analysis_fanout(builder: StateGraph) -> None:
     builder.add_node("technical_analyst_node", technical_analyst_node)
     builder.add_node("fundamentals_analyst_node", fundamentals_analyst_node)
     builder.add_node("news_analyst_node", news_analyst_node)
-    builder.add_node("sentiment_analyst_node", sentiment_analyst_node)
     builder.add_node("validation_node", validation_node)
-    builder.add_node("research_manager_node", research_manager_node)
-
-    builder.add_edge(START, "propagation_node")
 
     builder.add_edge("propagation_node", "technical_analyst_node")
     builder.add_edge("propagation_node", "fundamentals_analyst_node")
     builder.add_edge("propagation_node", "news_analyst_node")
-    builder.add_edge("propagation_node", "sentiment_analyst_node")
 
     builder.add_edge("technical_analyst_node", "validation_node")
     builder.add_edge("fundamentals_analyst_node", "validation_node")
     builder.add_edge("news_analyst_node", "validation_node")
-    builder.add_edge("sentiment_analyst_node", "validation_node")
 
+
+def build_analysis_graph():
+    builder = StateGraph(AgentState)
+    builder.add_node("propagation_node", propagation_node)
+    builder.add_node("research_manager_node", research_manager_node)
+
+    builder.add_edge(START, "propagation_node")
+    _build_analysis_fanout(builder)
     builder.add_edge("validation_node", "research_manager_node")
     builder.add_edge("research_manager_node", END)
 
@@ -129,27 +125,13 @@ def build_full_pipeline():
     builder = StateGraph(AgentState)
 
     builder.add_node("propagation_node", propagation_node)
-    builder.add_node("technical_analyst_node", technical_analyst_node)
-    builder.add_node("fundamentals_analyst_node", fundamentals_analyst_node)
-    builder.add_node("news_analyst_node", news_analyst_node)
-    builder.add_node("sentiment_analyst_node", sentiment_analyst_node)
-    builder.add_node("validation_node", validation_node)
     builder.add_node("research_manager_node", research_manager_node)
+    builder.add_edge(START, "propagation_node")
+    _build_analysis_fanout(builder)
+    builder.add_edge("validation_node", "research_manager_node")
 
     builder.add_node("debate_init_node", debate_init_node)
     builder.add_node("invest_debate_node", call_invest_debate_subgraph)
-
-    builder.add_edge(START, "propagation_node")
-    builder.add_edge("propagation_node", "technical_analyst_node")
-    builder.add_edge("propagation_node", "fundamentals_analyst_node")
-    builder.add_edge("propagation_node", "news_analyst_node")
-    builder.add_edge("propagation_node", "sentiment_analyst_node")
-    builder.add_edge("technical_analyst_node", "validation_node")
-    builder.add_edge("fundamentals_analyst_node", "validation_node")
-    builder.add_edge("news_analyst_node", "validation_node")
-    builder.add_edge("sentiment_analyst_node", "validation_node")
-    builder.add_edge("validation_node", "research_manager_node")
-
     builder.add_edge("research_manager_node", "debate_init_node")
     builder.add_edge("debate_init_node", "invest_debate_node")
 

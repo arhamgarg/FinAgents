@@ -67,7 +67,7 @@ class TestCache:
             ).fetchall()
         }
         conn.close()
-        expected = {"scrip_master", "ohlcv", "fundamentals", "news", "sentiment", "sectoral"}
+        expected = {"scrip_master", "ohlcv", "fundamentals", "news", "sectoral", "surveillance"}
         assert expected.issubset(tables)
 
     @pytest.mark.asyncio

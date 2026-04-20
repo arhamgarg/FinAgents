@@ -10,7 +10,6 @@ from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     TechnicalReport,
     NewsReport,
-    SentimentAnalystReport,
 )
 from financialagents.agents.managers.schemas import Finding, ResearchBrief
 from financialagents.agents.utils.agent_states import AgentState
@@ -58,24 +57,10 @@ def news_report() -> NewsReport:
 
 
 @pytest.fixture
-def sentiment_report() -> SentimentAnalystReport:
-    return SentimentAnalystReport(
-        reddit_score=0.6,
-        stocktwits_score=0.5,
-        combined_sentiment="bullish",
-        sentiment_assessment="Moderate retail bullishness",
-        confidence=0.60,
-        data_sources=["reddit"],
-        notes="",
-    )
-
-
-@pytest.fixture
 def populated_state(
     technical_report: TechnicalReport,
     fundamentals_report: FundamentalsAnalystReport,
     news_report: NewsReport,
-    sentiment_report: SentimentAnalystReport,
 ) -> AgentState:
     return AgentState(
         ticker="RELIANCE",
@@ -83,7 +68,6 @@ def populated_state(
         technical_report=technical_report,
         fundamentals_report=fundamentals_report,
         news_report=news_report,
-        sentiment_report=sentiment_report,
     )
 
 
@@ -91,17 +75,16 @@ def populated_state(
 def mock_research_brief() -> ResearchBrief:
     return ResearchBrief(
         key_findings=[
-            Finding(analyst="technical", key_point="Mild uptrend", weight=0.25),
-            Finding(analyst="fundamentals", key_point="Healthy balance sheet", weight=0.375),
-            Finding(analyst="news", key_point="Positive news flow", weight=0.20),
-            Finding(analyst="sentiment", key_point="Moderate retail bullishness", weight=0.175),
+            Finding(analyst="technical", key_point="Mild uptrend", weight=0.303),
+            Finding(analyst="fundamentals", key_point="Healthy balance sheet", weight=0.455),
+            Finding(analyst="news", key_point="Positive news flow", weight=0.242),
         ],
         consensus_view="Overall positive outlook for RELIANCE",
         conflicts=[],
         data_quality_summary="High quality data across all analysts",
         analyst_confidences={},
         overall_confidence=0.78,
-        notes="All four analysts in agreement",
+        notes="All three analysts in agreement",
     )
 
 
@@ -115,16 +98,19 @@ class TestNormalizeWeights:
     def test_weights_sum_to_one(self):
         from financialagents.agents.managers.research_manager import normalize_weights
 
-        raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8, "sentiment": 0.7}
+        raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         result = normalize_weights(raw)
+        assert abs(result["technical"] - 0.303) < 1e-3
+        assert abs(result["fundamentals"] - 0.455) < 1e-3
+        assert abs(result["news"] - 0.242) < 1e-3
         assert abs(sum(result.values()) - 1.0) < 1e-9
 
     def test_preserves_relative_ordering(self):
         from financialagents.agents.managers.research_manager import normalize_weights
 
-        raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8, "sentiment": 0.7}
+        raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         result = normalize_weights(raw)
-        assert result["fundamentals"] > result["technical"] > result["news"] > result["sentiment"]
+        assert result["fundamentals"] > result["technical"] > result["news"]
 
     def test_zero_total_returns_equal_weights(self):
         from financialagents.agents.managers.research_manager import normalize_weights
@@ -137,14 +123,13 @@ class TestNormalizeWeights:
     def test_negative_weights_clamped_to_zero(self):
         from financialagents.agents.managers.research_manager import normalize_weights
 
-        raw = {"technical": -1.0, "fundamentals": 2.0, "news": -0.5, "sentiment": 1.0}
+        raw = {"technical": -1.0, "fundamentals": 2.0, "news": 1.0}
         result = normalize_weights(raw)
 
         assert abs(sum(result.values()) - 1.0) < 1e-9
         assert result["technical"] == 0.0
-        assert result["news"] == 0.0
         assert abs(result["fundamentals"] - 2.0 / 3) < 1e-9
-        assert abs(result["sentiment"] - 1.0 / 3) < 1e-9
+        assert abs(result["news"] - 1.0 / 3) < 1e-9
 
 
 
@@ -200,11 +185,10 @@ class TestResearchManagerNode:
         assert "technical" in brief.analyst_confidences
         assert "fundamentals" in brief.analyst_confidences
         assert "news" in brief.analyst_confidences
-        assert "sentiment" in brief.analyst_confidences
+        assert "sentiment" not in brief.analyst_confidences
         assert abs(brief.analyst_confidences["technical"] - 0.85) < 1e-6
         assert abs(brief.analyst_confidences["fundamentals"] - 0.90) < 1e-6
         assert abs(brief.analyst_confidences["news"] - 0.70) < 1e-6
-        assert abs(brief.analyst_confidences["sentiment"] - 0.60) < 1e-6
 
     def test_prompt_includes_weight_emphasis(
         self,
@@ -216,14 +200,13 @@ class TestResearchManagerNode:
             normalize_weights,
         )
 
-        weights = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8, "sentiment": 0.7}
+        weights = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         norm_weights = normalize_weights(weights)
 
         messages = build_research_manager_prompt(
             technical_report=populated_state.technical_report,
             fundamentals_report=populated_state.fundamentals_report,
             news_report=populated_state.news_report,
-            sentiment_report=populated_state.sentiment_report,
             weights=norm_weights,
         )
 
@@ -262,7 +245,6 @@ class TestResearchManagerNode:
         self,
         fundamentals_report: FundamentalsAnalystReport,
         news_report: NewsReport,
-        sentiment_report: SentimentAnalystReport,
     ):
         from financialagents.agents.managers.research_manager import (
             build_research_manager_prompt,
@@ -276,13 +258,12 @@ class TestResearchManagerNode:
         )
 
         weights = normalize_weights(
-            {"technical": 1.0, "fundamentals": 1.5, "news": 0.8, "sentiment": 0.7}
+            {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         )
         messages = build_research_manager_prompt(
             technical_report=zero_technical_report,
             fundamentals_report=fundamentals_report,
             news_report=news_report,
-            sentiment_report=sentiment_report,
             weights=weights,
         )
 
@@ -320,7 +301,7 @@ class TestResearchManagerNode:
         from financialagents.agents.managers.research_manager import research_manager_node
 
         settings = Settings(_env_file=None)
-        settings.analyst_weights = {"technical": 2.0, "fundamentals": 1.0, "news": 1.0, "sentiment": 1.0}
+        settings.analyst_weights = {"technical": 2.0, "fundamentals": 1.0, "news": 1.0}
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_research_brief)

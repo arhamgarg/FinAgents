@@ -53,15 +53,3 @@ class NewsReport(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     data_sources: list[str] = Field(default_factory=list)
     notes: str = ""
-
-
-class SentimentAnalystReport(BaseModel):
-
-    reddit_score: float = 0.0
-    stocktwits_score: float = 0.0
-    combined_sentiment: str = ""
-    post_count: int = 0
-    sentiment_assessment: str = ""
-    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    data_sources: list[str] = Field(default_factory=list)
-    notes: str = ""

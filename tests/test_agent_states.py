@@ -7,7 +7,6 @@ from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     TechnicalReport,
     NewsReport,
-    SentimentAnalystReport,
 )
 from financialagents.agents.managers.schemas import ResearchBrief
 from financialagents.agents.utils.agent_states import (
@@ -41,7 +40,6 @@ class TestAgentStateValidation:
             selected_tickers=["TCS", "INFY", "WIPRO"],
             technical_report=TechnicalReport(rsi=65.0, macd_signal="bullish_crossover", confidence=0.8),
             news_report=NewsReport(article_count=3, sentiment_direction="positive", confidence=0.7),
-            sentiment_report=SentimentAnalystReport(combined_sentiment="bullish", confidence=0.6),
             fundamentals_report=FundamentalsAnalystReport(pe_ratio=28.0, roce=45.0, confidence=0.9),
             research_summary=ResearchBrief(consensus_view="Overall bullish outlook"),
             trader_investment_plan="Buy at 3800, SL 3700",

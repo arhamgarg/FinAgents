@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import io
-import math
 from datetime import datetime, timedelta
 from typing import Literal, Optional
 
@@ -79,11 +78,7 @@ def _candles_to_dataframe(rows: list[list]) -> pd.DataFrame:
     df["low"] = df["low"].astype(float)
     df["close"] = df["close"].astype(float)
     df["volume"] = df["volume"].astype(int)
-    return (
-        df.drop_duplicates(subset=["timestamp"])
-        .sort_values("timestamp")
-        .reset_index(drop=True)
-    )
+    return df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
 
 
 async def get_ohlcv(
@@ -100,9 +95,7 @@ async def get_ohlcv(
     if cached is not None:
         blob, stale = cached
         df = pd.read_parquet(io.BytesIO(blob))
-        return DataResult[pd.DataFrame](
-            status="ok", data=df, source=SOURCE, stale=stale
-        )
+        return DataResult[pd.DataFrame](status="ok", data=df, source=SOURCE, stale=stale)
 
     try:
         token = await scrip_master.resolve_token(ticker, exchange="NSE")

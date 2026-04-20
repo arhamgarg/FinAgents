@@ -17,7 +17,6 @@ class TestDataResult:
         assert result.source == "screener_csv"
         assert result.stale is False
         assert result.fetched_at.tzinfo is not None
-        import datetime
         assert result.fetched_at.utcoffset().total_seconds() == 0
 
     def test_empty_result_with_list_payload(self) -> None:
@@ -36,16 +35,12 @@ class TestDataResult:
     def test_missing_optional_keys_warns(self, clean_env: None) -> None:
         with pytest.warns(UserWarning, match="ANGELONE_API_KEY"):
             Settings(_env_file=None)
-        with pytest.warns(UserWarning, match="REDDIT_CLIENT_ID"):
-            Settings(_env_file=None)
 
     def test_all_optional_keys_set_no_warnings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("ANGELONE_API_KEY", "test-key")
         monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
         monkeypatch.setenv("ANGELONE_PIN", "1234")
         monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-        monkeypatch.setenv("REDDIT_CLIENT_ID", "test-reddit-id")
-        monkeypatch.setenv("REDDIT_CLIENT_SECRET", "test-reddit-secret")
         monkeypatch.setenv("GROQ_API_KEY", "test-groq-api-key-fake")
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
@@ -58,5 +53,5 @@ class TestDataResult:
         assert "ohlcv" in settings.data_vendors
         assert "fundamentals" in settings.data_vendors
         assert "news" in settings.data_vendors
-        assert "sentiment" in settings.data_vendors
         assert "sectoral" in settings.data_vendors
+        assert "sentiment" not in settings.data_vendors

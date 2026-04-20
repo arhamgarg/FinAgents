@@ -60,23 +60,9 @@ class TestNewsReport:
         assert report.confidence == pytest.approx(0.7)
 
 
-class TestSentimentAnalystReport:
-    def test_validates_with_reddit_score_and_combined(self):
-        from financialagents.agents.analysts.schemas import SentimentAnalystReport
-
-        report = SentimentAnalystReport(
-            reddit_score=0.65,
-            combined_sentiment="bullish",
-            confidence=0.6,
-        )
-        assert report.reddit_score == pytest.approx(0.65)
-        assert report.combined_sentiment == "bullish"
-        assert report.confidence == pytest.approx(0.6)
-
-
 class TestResearchBrief:
     def test_validates_with_key_findings_and_confidences(self):
-        from financialagents.agents.managers.schemas import Finding, ResearchBrief
+        from financialagents.agents.managers.schemas import ResearchBrief
 
         brief = ResearchBrief(
             key_findings=[],
@@ -117,7 +103,6 @@ class TestAgentStateTypedFields:
             FundamentalsAnalystReport,
             TechnicalReport,
             NewsReport,
-            SentimentAnalystReport,
         )
         from financialagents.agents.managers.schemas import ResearchBrief
         from financialagents.agents.utils.agent_states import AgentState
@@ -126,13 +111,11 @@ class TestAgentStateTypedFields:
             technical_report=TechnicalReport(confidence=0.5),
             fundamentals_report=FundamentalsAnalystReport(confidence=0.8),
             news_report=NewsReport(confidence=0.6),
-            sentiment_report=SentimentAnalystReport(confidence=0.4),
             research_summary=ResearchBrief(consensus_view="neutral"),
         )
         assert state.technical_report is not None
         assert state.fundamentals_report is not None
         assert state.news_report is not None
-        assert state.sentiment_report is not None
         assert state.research_summary is not None
 
 
@@ -144,8 +127,8 @@ class TestSettingsAnalystWeights:
 
             s = Settings(_env_file=None)
         assert s.analyst_weights == {
-            "technical": 1.0,
-            "fundamentals": 1.5,
-            "news": 0.8,
-            "sentiment": 0.7,
+            "technical": 0.303,
+            "fundamentals": 0.455,
+            "news": 0.242,
         }
+        assert abs(sum(s.analyst_weights.values()) - 1.0) < 1e-9

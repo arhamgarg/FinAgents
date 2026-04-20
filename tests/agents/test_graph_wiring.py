@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -9,7 +9,6 @@ from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     TechnicalReport,
     NewsReport,
-    SentimentAnalystReport,
 )
 from financialagents.agents.managers.schemas import Finding, ResearchBrief
 from financialagents.agents.utils.agent_states import AgentState
@@ -49,17 +48,6 @@ def mock_news_report() -> NewsReport:
 
 
 @pytest.fixture
-def mock_sentiment_report() -> SentimentAnalystReport:
-    return SentimentAnalystReport(
-        reddit_score=0.6,
-        combined_sentiment="bullish",
-        sentiment_assessment="Bullish retail",
-        confidence=0.60,
-        data_sources=["reddit"],
-    )
-
-
-@pytest.fixture
 def mock_research_brief() -> ResearchBrief:
     return ResearchBrief(
         key_findings=[Finding(analyst="technical", key_point="Uptrend", weight=0.25)],
@@ -69,7 +57,6 @@ def mock_research_brief() -> ResearchBrief:
             "technical": 0.85,
             "fundamentals": 0.90,
             "news": 0.70,
-            "sentiment": 0.60,
         },
     )
 
@@ -79,7 +66,6 @@ def full_state(
     mock_technical_report,
     mock_fundamentals_report,
     mock_news_report,
-    mock_sentiment_report,
 ) -> AgentState:
     return AgentState(
         ticker="TCS",
@@ -87,7 +73,6 @@ def full_state(
         technical_report=mock_technical_report,
         fundamentals_report=mock_fundamentals_report,
         news_report=mock_news_report,
-        sentiment_report=mock_sentiment_report,
     )
 
 
@@ -109,7 +94,6 @@ class TestBuildAnalysisGraph:
             "technical_analyst_node",
             "fundamentals_analyst_node",
             "news_analyst_node",
-            "sentiment_analyst_node",
             "validation_node",
             "research_manager_node",
         ]
@@ -128,7 +112,6 @@ class TestValidationNode:
             technical_report=None,
             fundamentals_report=FundamentalsAnalystReport(confidence=0.9),
             news_report=NewsReport(confidence=0.7),
-            sentiment_report=SentimentAnalystReport(confidence=0.6),
         )
         with pytest.raises(ValueError, match="technical_report"):
             validation_node(state)
@@ -143,7 +126,6 @@ class TestValidationNode:
         assert "technical_report" in error_msg
         assert "fundamentals_report" in error_msg
         assert "news_report" in error_msg
-        assert "sentiment_report" in error_msg
 
     def test_validation_passes_when_all_reports_present(self, full_state: AgentState):
         from financialagents.graph.setup import validation_node
@@ -169,10 +151,8 @@ class TestGraphIntegration:
         mock_technical_report,
         mock_fundamentals_report,
         mock_news_report,
-        mock_sentiment_report,
         mock_research_brief,
     ):
-        from financialagents.graph.setup import build_analysis_graph
 
         async def fake_technical(state, config):
             return {"technical_report": mock_technical_report}
@@ -183,9 +163,6 @@ class TestGraphIntegration:
         async def fake_news(state, config):
             return {"news_report": mock_news_report}
 
-        async def fake_sentiment(state, config):
-            return {"sentiment_report": mock_sentiment_report}
-
         async def fake_research_manager(state, config):
             return {"research_summary": mock_research_brief}
 
@@ -193,7 +170,6 @@ class TestGraphIntegration:
             patch("financialagents.agents.analysts.technical_analyst.technical_analyst_node", fake_technical),
             patch("financialagents.agents.analysts.fundamentals_analyst.fundamentals_analyst_node", fake_fundamentals),
             patch("financialagents.agents.analysts.news_analyst.news_analyst_node", fake_news),
-            patch("financialagents.agents.analysts.sentiment_analyst.sentiment_analyst_node", fake_sentiment),
             patch("financialagents.agents.managers.research_manager.research_manager_node", fake_research_manager),
         ):
             from importlib import reload
@@ -222,7 +198,6 @@ class TestFinancialAgentsGraph:
         mock_technical_report,
         mock_fundamentals_report,
         mock_news_report,
-        mock_sentiment_report,
         mock_research_brief,
     ):
         from financialagents.graph.trading_graph import FinancialAgentsGraph
@@ -234,7 +209,6 @@ class TestFinancialAgentsGraph:
                 "technical_report": mock_technical_report,
                 "fundamentals_report": mock_fundamentals_report,
                 "news_report": mock_news_report,
-                "sentiment_report": mock_sentiment_report,
                 "research_summary": mock_research_brief,
                 "messages": [],
                 "selected_tickers": [],
@@ -268,7 +242,6 @@ class TestFinancialAgentsGraph:
                 "technical_report": None,
                 "fundamentals_report": None,
                 "news_report": None,
-                "sentiment_report": None,
                 "research_summary": mock_research_brief,
                 "messages": [],
                 "selected_tickers": [],

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import importlib
 import random
-from unittest.mock import MagicMock, patch, call
 
 import pytest
 
@@ -23,17 +22,16 @@ class TestRateLimits:
         monkeypatch.delenv("SCREENER_MIN_DELAY", raising=False)
         importlib.reload(rate_limits_module)
 
-    def test_all_seven_hosts_present(self) -> None:
+    def test_all_expected_hosts_present(self) -> None:
         expected_hosts = {
             "screener.in",
             "www.moneycontrol.com",
             "economictimes.indiatimes.com",
             "www.livemint.com",
             "www.nseindia.com",
-            "api.stocktwits.com",
             "trends.google.com",
         }
-        assert set(rate_limits_module._LIMITERS.keys()) == expected_hosts
+        assert set(rate_limits_module._HOST_CONFIG.keys()) == expected_hosts
 
     @pytest.mark.asyncio
     async def test_unknown_host_raises_key_error(self) -> None:

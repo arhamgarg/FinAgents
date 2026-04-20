@@ -27,28 +27,20 @@ class Settings(BaseSettings):
     angelone_pin: Optional[str] = None
     angelone_totp_secret: Optional[str] = None
 
-    reddit_client_id: Optional[str] = None
-    reddit_client_secret: Optional[str] = None
-    reddit_user_agent: str = "financialagents/1.0"
-
-    stocktwits_token: Optional[str] = None
-
     data_vendors: dict[str, str] = Field(
         default_factory=lambda: {
             "ohlcv": "angelone",
             "fundamentals": "screener",
             "news": "moneycontrol",
-            "sentiment": "reddit",
             "sectoral": "nse",
         }
     )
 
     analyst_weights: dict[str, float] = Field(
         default_factory=lambda: {
-            "technical": 1.0,
-            "fundamentals": 1.5,
-            "news": 0.8,
-            "sentiment": 0.7,
+            "technical": 0.303,
+            "fundamentals": 0.455,
+            "news": 0.242,
         }
     )
 
@@ -86,12 +78,6 @@ class Settings(BaseSettings):
         if not self.angelone_api_key:
             warnings.warn(
                 "ANGELONE_API_KEY is not set. OHLCV and fundamentals fallback will return DataResult(status='empty') at use time.",
-                UserWarning,
-                stacklevel=2,
-            )
-        if not self.reddit_client_id or not self.reddit_client_secret:
-            warnings.warn(
-                "REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET not set. Reddit sentiment will return DataResult(status='empty') at use time.",
                 UserWarning,
                 stacklevel=2,
             )

@@ -8,7 +8,6 @@ from langchain_core.runnables import RunnableConfig
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     NewsReport,
-    SentimentAnalystReport,
     TechnicalReport,
 )
 from financialagents.agents.managers.schemas import ResearchBrief
@@ -29,17 +28,15 @@ def build_research_manager_prompt(
     technical_report: TechnicalReport | None,
     fundamentals_report: FundamentalsAnalystReport | None,
     news_report: NewsReport | None,
-    sentiment_report: SentimentAnalystReport | None,
     weights: dict[str, float],
 ) -> list[BaseMessage]:
-    technical_w = weights.get("technical", 0.25)
-    fund_w = weights.get("fundamentals", 0.25)
-    news_w = weights.get("news", 0.25)
-    sent_w = weights.get("sentiment", 0.25)
+    technical_w = weights.get("technical", 1 / 3)
+    fund_w = weights.get("fundamentals", 1 / 3)
+    news_w = weights.get("news", 1 / 3)
 
     system_content = (
         "You are the Research Manager for an Indian equity analysis pipeline. "
-        "You synthesize reports from four specialist analysts into a unified investment brief. "
+        "You synthesize reports from three specialist analysts into a unified investment brief. "
         "You operate in the NSE/BSE context under SEBI regulatory framework.\n\n"
         "Your role is to:\n"
         "1. Extract key findings from each analyst report\n"
@@ -47,8 +44,7 @@ def build_research_manager_prompt(
         "3. Assess overall data quality and confidence\n"
         "4. Produce a ResearchBrief that serves as input for bull/bear debate\n\n"
         f"Analyst emphasis (higher = more weight in your synthesis): "
-        f"Technical={technical_w:.0%}, Fundamentals={fund_w:.0%}, "
-        f"News={news_w:.0%}, Sentiment={sent_w:.0%}. "
+        f"Technical={technical_w:.0%}, Fundamentals={fund_w:.0%}, News={news_w:.0%}. "
         f"Prioritize findings from higher-weighted analysts when forming your consensus view.\n\n"
         "You MUST produce a ResearchBrief JSON with ALL fields populated:\n"
         "- key_findings: list of Finding objects (one per analyst, include analyst name, "
@@ -124,32 +120,12 @@ def build_research_manager_prompt(
             f"  Notes: {news_report.notes or 'none'}\n"
         )
 
-    if sentiment_report is None or sentiment_report.confidence == 0.0:
-        sentiment_section = (
-            f"### Sentiment Analyst (Social Media) — Weight: {sent_w:.0%}\n"
-            f"  Status: NO DATA AVAILABLE (confidence: {sentiment_report.confidence if sentiment_report else 0.0:.1f})\n"
-            f"  Notes: {sentiment_report.notes if sentiment_report else 'Report missing'}\n"
-        )
-    else:
-        sentiment_section = (
-            f"### Sentiment Analyst (Social Media) — Weight: {sent_w:.0%}\n"
-            f"  Confidence: {sentiment_report.confidence:.2f}\n"
-            f"  Reddit Score: {sentiment_report.reddit_score:.2f}\n"
-            f"  StockTwits Score: {sentiment_report.stocktwits_score:.2f}\n"
-            f"  Combined Sentiment: {sentiment_report.combined_sentiment}\n"
-            f"  Post Count: {sentiment_report.post_count}\n"
-            f"  Assessment: {sentiment_report.sentiment_assessment}\n"
-            f"  Data Sources: {', '.join(sentiment_report.data_sources) or 'none'}\n"
-            f"  Notes: {sentiment_report.notes or 'none'}\n"
-        )
-
     human_content = (
         f"## Research Synthesis Request\n\n"
-        f"Synthesize the following four analyst reports into a ResearchBrief.\n\n"
+        f"Synthesize the following three analyst reports into a ResearchBrief.\n\n"
         f"{technical_section}\n"
         f"{fundamentals_section}\n"
         f"{news_section}\n"
-        f"{sentiment_section}\n"
         f"### Instructions\n\n"
         f"Produce a ResearchBrief JSON that:\n"
         f"1. Extracts the most important finding from each analyst as a Finding object\n"
@@ -178,7 +154,6 @@ async def research_manager_node(
         technical_report=state.technical_report,
         fundamentals_report=state.fundamentals_report,
         news_report=state.news_report,
-        sentiment_report=state.sentiment_report,
         weights=weights,
     )
 
@@ -198,7 +173,6 @@ async def research_manager_node(
         "technical": state.technical_report.confidence if state.technical_report else 0.0,
         "fundamentals": state.fundamentals_report.confidence if state.fundamentals_report else 0.0,
         "news": state.news_report.confidence if state.news_report else 0.0,
-        "sentiment": state.sentiment_report.confidence if state.sentiment_report else 0.0,
     }
 
     brief.overall_confidence = sum(

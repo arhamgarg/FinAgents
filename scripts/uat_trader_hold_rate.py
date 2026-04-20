@@ -111,12 +111,11 @@ def _format_per_analyst(conf: dict[str, float]) -> str:
     return (
         f"t={conf.get('technical', 0.0):.2f} "
         f"f={conf.get('fundamentals', 0.0):.2f} "
-        f"n={conf.get('news', 0.0):.2f} "
-        f"s={conf.get('sentiment', 0.0):.2f}"
+        f"n={conf.get('news', 0.0):.2f}"
     )
 
 
-DATA_RICH_MIN_NONZERO = 3
+DATA_RICH_MIN_NONZERO = 2
 DATA_RICH_CONF_THRESHOLD = 0.6
 DATA_POOR_CONF_THRESHOLD = 0.4
 HOLD_RATE_PASS_PCT = 50.0
@@ -169,14 +168,14 @@ def _format_tier_line(label: str, threshold: float, holds: int, total: int, pct:
 
 def format_results_table(results: list[UatResult]) -> str:
     lines = [
-        "| ticker | overall_confidence | per_analyst (t/f/n/s) | debate_direction | trader_action | nonzero_analysts | hold_reason |",
-        "|--------|-------------------|-----------------------|------------------|---------------|------------------|-------------|",
+        "| ticker | overall_confidence | per_analyst (t/f/n) | debate_direction | trader_action | nonzero_analysts | hold_reason |",
+        "|--------|-------------------|---------------------|------------------|---------------|------------------|-------------|",
     ]
     for r in results:
         reason = (r.hold_reason or "").replace("|", "\\|")[:80]
         lines.append(
             f"| {r.ticker} | {r.overall_confidence:.2f} | {_format_per_analyst(r.analyst_confidences)} "
-            f"| {r.debate_direction} | {r.trader_action} | {r.nonzero_analyst_count}/4 | {reason} |"
+            f"| {r.debate_direction} | {r.trader_action} | {r.nonzero_analyst_count}/3 | {reason} |"
         )
 
     rich_holds, rich_total, rich_pct = _tier_hold_rate(
@@ -275,10 +274,10 @@ def main() -> int:
         synthetic = [
             UatResult(
                 t, 0.70, "BUY", "BUY", "",
-                3 if i % 2 == 0 else 2,
-                {"technical": 0.78, "fundamentals": 0.6, "news": 0.6, "sentiment": 0.0}
+                3 if i % 2 == 0 else 1,
+                {"technical": 0.78, "fundamentals": 0.6, "news": 0.6}
                 if i % 2 == 0
-                else {"technical": 0.78, "fundamentals": 0.0, "news": 0.3, "sentiment": 0.0},
+                else {"technical": 0.78, "fundamentals": 0.0, "news": 0.0},
             )
             for i, t in enumerate(tickers)
         ]

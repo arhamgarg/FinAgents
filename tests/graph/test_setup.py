@@ -92,7 +92,6 @@ class TestBuildAnalysisGraphByteIdentical:
             "technical_analyst_node",
             "fundamentals_analyst_node",
             "news_analyst_node",
-            "sentiment_analyst_node",
             "validation_node",
             "research_manager_node",
         }

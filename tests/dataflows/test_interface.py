@@ -9,21 +9,20 @@ import pytest
 
 from financialagents.dataflows.data_result import DataResult
 
-FIVE_FUNCTIONS = [
+INTERFACE_FUNCTIONS = [
     "get_ohlcv",
     "get_fundamentals",
     "get_news",
-    "get_sentiment",
     "get_sectoral_indices",
 ]
 
 
 
 
-def test_interface_exposes_five_functions():
+def test_interface_exposes_all_functions():
     from financialagents.dataflows import interface
 
-    for name in FIVE_FUNCTIONS:
+    for name in INTERFACE_FUNCTIONS:
         assert hasattr(interface, name), f"interface.{name} is missing"
 
 
@@ -101,26 +100,6 @@ async def test_get_news_delegates():
 
 
 @pytest.mark.asyncio
-async def test_get_sentiment_delegates():
-    from financialagents.dataflows import interface
-    from financialagents.dataflows.sentiment_schema import SentimentReport
-
-    fake_report = SentimentReport(ticker="RELIANCE")
-    fake_result = DataResult[SentimentReport](
-        status="empty", data=fake_report, source="sentiment"
-    )
-    mock_fn = AsyncMock(return_value=fake_result)
-
-    with patch("financialagents.dataflows.interface.sentiment_client.get_sentiment", mock_fn):
-        result = await interface.get_sentiment("RELIANCE")
-
-    assert result is fake_result
-    mock_fn.assert_called_once_with("RELIANCE", None)
-
-
-
-
-@pytest.mark.asyncio
 async def test_get_sectoral_indices_delegates():
     from financialagents.dataflows import interface
 
@@ -141,7 +120,7 @@ async def test_get_sectoral_indices_delegates():
 def test_all_functions_are_async():
     from financialagents.dataflows import interface
 
-    for name in FIVE_FUNCTIONS:
+    for name in INTERFACE_FUNCTIONS:
         fn = getattr(interface, name)
         assert inspect.iscoroutinefunction(fn), (
             f"interface.{name} is not async — violates async-first requirement"

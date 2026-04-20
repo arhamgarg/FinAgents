@@ -47,7 +47,6 @@ def mock_research_brief() -> ResearchBrief:
             "technical": 0.85,
             "fundamentals": 0.90,
             "news": 0.70,
-            "sentiment": 0.60,
         },
     )
 
@@ -369,7 +368,6 @@ def test_pipe12_no_forbidden_analyst_reads() -> None:
     forbidden = [
         "state.fundamentals_report",
         "state.news_report",
-        "state.sentiment_report",
         "technical_report.rsi_interpretation",
         "technical_report.macd_signal",
         "technical_report.trend_assessment",
