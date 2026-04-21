@@ -33,6 +33,9 @@ class TestAgentStateValidation:
         assert state.date == ""
 
     def test_full_state_valid(self) -> None:
+        from financialagents.agents.managers.schemas import PortfolioDecision
+        from financialagents.agents.trader.schemas import TradingSignal
+
         state = AgentState(
             ticker="TCS",
             date="2026-04-07",
@@ -43,11 +46,16 @@ class TestAgentStateValidation:
             fundamentals_report=FundamentalsAnalystReport(pe_ratio=28.0, roce=45.0, confidence=0.9),
             research_summary=ResearchBrief(consensus_view="Overall bullish outlook"),
             trader_investment_plan="Buy at 3800, SL 3700",
-            final_trade_decision={"signal": "BUY", "confidence": 0.85},
+            final_trade_decision=PortfolioDecision(
+                signal=TradingSignal(action="BUY", conviction=0.85),
+                approved=True,
+                decision="approve",
+            ),
         )
         assert state.sector == "IT"
         assert len(state.selected_tickers) == 3
-        assert state.final_trade_decision["signal"] == "BUY"
+        assert state.final_trade_decision is not None
+        assert state.final_trade_decision.signal.action == "BUY"
         assert isinstance(state.technical_report, TechnicalReport)
         assert state.technical_report.rsi == pytest.approx(65.0)
 
@@ -100,7 +108,7 @@ class TestRiskDebateStateValidation:
         assert state.conservative_assessment is None
         assert state.current_round == 0
         assert state.max_rounds == 2
-        assert state.risk_debate_history == []
+        assert state.risk_debate_history == {}
         assert state.final_risk_decision is None
 
     def test_populated_state_valid(self) -> None:
@@ -110,7 +118,7 @@ class TestRiskDebateStateValidation:
             conservative_assessment="Risk high, position 2% of portfolio",
             current_round=1,
             max_rounds=2,
-            risk_debate_history=["Round 1 summary"],
+            risk_debate_history={0: "Round 1 summary"},
             final_risk_decision="Position 5% with tight stop-loss",
         )
         assert state.aggressive_assessment is not None
@@ -263,3 +271,65 @@ class TestPhase4AgentStateFields:
         from financialagents.agents.utils.agent_states import AgentState
         state = AgentState(trader_investment_plan="draft plan text")
         assert state.trader_investment_plan == "draft plan text"
+
+
+class TestPhase42RiskDebateStateFields:
+
+    def test_default_risk_debate_history_is_empty_dict(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        state = RiskDebateState()
+        assert state.risk_debate_history == {}
+        assert isinstance(state.risk_debate_history, dict)
+
+    def test_risk_turns_accessor_orders_by_key(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        state = RiskDebateState(risk_debate_history={2: "second", 0: "first", 1: "middle"})
+        assert state.risk_turns() == ["first", "middle", "second"]
+
+    def test_risk_turns_empty_when_history_empty(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        assert RiskDebateState().risk_turns() == []
+
+    def test_construction_with_dict_history(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        state = RiskDebateState(risk_debate_history={0: "turn-0"})
+        assert state.risk_debate_history == {0: "turn-0"}
+
+    def test_list_history_rejected_post_migration(self) -> None:
+        import pydantic
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        with pytest.raises(pydantic.ValidationError):
+            RiskDebateState(risk_debate_history=["old-list-form"])  # ty: ignore[invalid-argument-type]
+
+    def test_synthesized_position_size_pct_default_none(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        assert RiskDebateState().synthesized_position_size_pct is None
+
+    def test_synthesized_position_size_pct_accepts_float(self) -> None:
+        from financialagents.agents.utils.agent_states import RiskDebateState
+        state = RiskDebateState(synthesized_position_size_pct=0.0325)
+        assert state.synthesized_position_size_pct == pytest.approx(0.0325)
+
+
+class TestPhase42AgentStateFinalTradeDecisionRetype:
+
+    def test_final_trade_decision_is_portfolio_decision_type(self) -> None:
+        from financialagents.agents.managers.schemas import PortfolioDecision
+        from financialagents.agents.trader.schemas import TradingSignal
+        from financialagents.agents.utils.agent_states import AgentState
+
+        pd = PortfolioDecision(
+            signal=TradingSignal(action="BUY", conviction=0.7),
+            approved=True,
+            decision="approve",
+            pm_notes="concentration ok",
+        )
+        state = AgentState(final_trade_decision=pd)
+        assert isinstance(state.final_trade_decision, PortfolioDecision)
+        assert state.final_trade_decision.decision == "approve"
+
+    def test_final_trade_decision_rejects_raw_dict_literal(self) -> None:
+        import pydantic
+        from financialagents.agents.utils.agent_states import AgentState
+        with pytest.raises(pydantic.ValidationError):
+            AgentState(final_trade_decision={"signal": "BUY"})  # ty: ignore[invalid-argument-type]

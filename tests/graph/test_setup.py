@@ -99,3 +99,163 @@ class TestBuildAnalysisGraphByteIdentical:
             f"ROADMAP SC-3 regression: build_analysis_graph() node set drifted. "
             f"Expected {expected}, got {nodes}."
         )
+
+
+class TestRiskInitNode:
+
+    def test_seeds_risk_debate_state_with_max_rounds(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.config import Settings
+        from financialagents.graph.setup import risk_init_node
+
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=2)
+        config = {"configurable": {"settings": settings}}
+        state = AgentState(ticker="T", date="2026-04-21")
+        result = risk_init_node(state, config)
+
+        risk_state = result["risk_debate_state"]
+        assert risk_state.max_rounds == 2
+        assert risk_state.current_round == 0
+        assert risk_state.risk_debate_history == {}
+
+    def test_trader_signal_snapshot_populated_from_model_dump_json(self) -> None:
+        from financialagents.agents.trader.schemas import TradingSignal
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.config import Settings
+        from financialagents.graph.setup import risk_init_node
+
+        sig = TradingSignal(action="BUY", conviction=0.7, entry_price=100.0)
+        state = AgentState(ticker="T", date="2026-04-21", trader_signal=sig)
+        config = {"configurable": {"settings": Settings(_env_file=None)}}
+        result = risk_init_node(state, config)
+        assert '"action":"BUY"' in result["risk_debate_state"].trader_signal_snapshot
+
+    def test_clamps_max_rounds_at_minimum_one(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.config import Settings
+        from financialagents.graph.setup import risk_init_node
+
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=0)
+        config = {"configurable": {"settings": settings}}
+        result = risk_init_node(AgentState(), config)
+        assert result["risk_debate_state"].max_rounds == 1
+
+    def test_clamps_negative_max_rounds(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.config import Settings
+        from financialagents.graph.setup import risk_init_node
+
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=-5)
+        result = risk_init_node(
+            AgentState(), {"configurable": {"settings": settings}}
+        )
+        assert result["risk_debate_state"].max_rounds == 1
+
+    def test_none_trader_signal_yields_empty_snapshot(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.config import Settings
+        from financialagents.graph.setup import risk_init_node
+
+        state = AgentState(ticker="T", date="2026-04-21", trader_signal=None)
+        result = risk_init_node(
+            state, {"configurable": {"settings": Settings(_env_file=None)}}
+        )
+        assert result["risk_debate_state"].trader_signal_snapshot == ""
+
+    def test_none_config_uses_default_settings(self) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.graph.setup import risk_init_node
+
+        result = risk_init_node(AgentState(), None)
+        assert "risk_debate_state" in result
+
+
+class TestCallRiskDebateSubgraphRecursionLimit:
+
+    def test_applies_recursion_limit_formula(self) -> None:
+        import asyncio
+        from unittest.mock import AsyncMock, patch
+
+        from financialagents.agents.utils.agent_states import AgentState, RiskDebateState
+        import financialagents.graph.setup as setup_mod
+
+        setup_mod._reset_risk_debate_subgraph_cache()
+
+        captured = {}
+
+        class _FakeCompiledSubgraph:
+            def __init__(self):
+                async def _ainvoke(state, config=None):
+                    captured["config"] = config
+                    return state.model_dump()
+                self.ainvoke = AsyncMock(side_effect=_ainvoke)
+
+        fake_subgraph = _FakeCompiledSubgraph()
+
+        def _fake_build():
+            return fake_subgraph
+
+        with patch(
+            "financialagents.graph.subgraphs.risk_debate.build_risk_debate_subgraph",
+            _fake_build,
+        ):
+            setup_mod._reset_risk_debate_subgraph_cache()
+            state = AgentState(risk_debate_state=RiskDebateState(max_rounds=2))
+            asyncio.run(setup_mod.call_risk_debate_subgraph(state, None))
+
+        assert captured["config"]["recursion_limit"] == 2 * 3 + 10
+        setup_mod._reset_risk_debate_subgraph_cache()
+
+    def test_assertion_when_risk_debate_state_is_none(self) -> None:
+        import asyncio
+
+        from financialagents.agents.utils.agent_states import AgentState
+        import financialagents.graph.setup as setup_mod
+
+        setup_mod._reset_risk_debate_subgraph_cache()
+        state = AgentState(risk_debate_state=None)
+        with pytest.raises(AssertionError, match="risk_init_node must run"):
+            asyncio.run(setup_mod.call_risk_debate_subgraph(state, None))
+
+
+class TestBuildFullPipelineTopology:
+
+    def test_pipeline_registers_phase_4_2_nodes(self) -> None:
+        from financialagents.graph.setup import build_full_pipeline
+
+        graph = build_full_pipeline()
+        node_names = set(graph.nodes.keys())
+        assert "risk_init_node" in node_names
+        assert "risk_debate_node" in node_names
+        assert "portfolio_manager_node" in node_names
+
+    def test_pipeline_has_trader_to_risk_init_edge(self) -> None:
+        from financialagents.graph.setup import build_full_pipeline
+
+        graph = build_full_pipeline()
+        edges = [(e.source, e.target) for e in graph.get_graph().edges]
+        assert ("trader_node", "risk_init_node") in edges
+        assert ("risk_init_node", "risk_debate_node") in edges
+        assert ("risk_debate_node", "portfolio_manager_node") in edges
+
+    def test_pipeline_ends_at_portfolio_manager_to_END(self) -> None:
+        from financialagents.graph.setup import build_full_pipeline
+
+        graph = build_full_pipeline()
+        edges = [(e.source, e.target) for e in graph.get_graph().edges]
+        assert any(
+            src == "portfolio_manager_node" and tgt in ("__end__",)
+            for src, tgt in edges
+        )
+
+    def test_build_analysis_graph_byte_identical_3_analyst(self) -> None:
+        from financialagents.graph.setup import build_analysis_graph
+
+        graph = build_analysis_graph()
+        node_names = set(graph.nodes.keys())
+        assert "technical_analyst_node" in node_names
+        assert "fundamentals_analyst_node" in node_names
+        assert "news_analyst_node" in node_names
+        assert "sentiment_analyst_node" not in node_names
+        assert "risk_init_node" not in node_names
+        assert "portfolio_manager_node" not in node_names

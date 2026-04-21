@@ -7,6 +7,7 @@ def create_groq_client(
     model: str,
     api_key: str | None,
     max_tokens: int | None = None,
+    temperature: float | None = None,
 ) -> BaseChatModel:
     if not api_key:
         raise ValueError(
@@ -18,4 +19,6 @@ def create_groq_client(
     kwargs: dict[str, object] = {"model": model, "api_key": api_key}
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
-    return ChatGroq(**kwargs)  # ty: ignore[unknown-argument, invalid-argument-type]
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    return ChatGroq(**kwargs)  # ty: ignore[invalid-argument-type]

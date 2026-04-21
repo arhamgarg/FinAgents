@@ -9,6 +9,7 @@ def create_llm_client(
     tier: str,
     config: Settings,
     max_output_tokens: int | None = None,
+    temperature: float | None = None,
 ) -> BaseChatModel:
     if tier not in ("deep_think", "quick_think"):
         raise ValueError(
@@ -25,6 +26,7 @@ def create_llm_client(
             model=model_name,
             api_key=config.groq_api_key,
             max_tokens=max_output_tokens,
+            temperature=temperature,
         )
 
     elif provider == "ollama":
@@ -33,6 +35,7 @@ def create_llm_client(
         return create_ollama_client(
             model=model_name,
             num_predict=max_output_tokens,
+            temperature=temperature,
         )
 
     else:

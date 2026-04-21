@@ -129,3 +129,59 @@ class TestMaxOutputTokensPlumbing:
         sig = inspect.signature(create_llm_client)
         assert "max_output_tokens" in sig.parameters
         assert sig.parameters["max_output_tokens"].default is None
+
+
+class TestFactoryTemperaturePassthrough:
+
+    def test_groq_receives_temperature_when_provided(self, groq_settings: Settings) -> None:
+        with patch("langchain_groq.ChatGroq", create=True) as mock_groq:
+            mock_groq.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client(
+                "quick_think", groq_settings, max_output_tokens=1024, temperature=0.9
+            )
+            _, kwargs = mock_groq.call_args
+            assert kwargs.get("temperature") == 0.9, (
+                f"Expected temperature=0.9, got {kwargs}"
+            )
+            assert kwargs.get("max_tokens") == 1024, f"Expected max_tokens=1024, got {kwargs}"
+
+    def test_groq_omits_temperature_when_not_provided(self, groq_settings: Settings) -> None:
+        with patch("langchain_groq.ChatGroq", create=True) as mock_groq:
+            mock_groq.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", groq_settings, max_output_tokens=1024)
+            _, kwargs = mock_groq.call_args
+            assert "temperature" not in kwargs, (
+                f"Backward-compat regression: temperature should not be passed when None; "
+                f"kwargs={kwargs}"
+            )
+
+    def test_ollama_receives_temperature_when_provided(self, default_settings: Settings) -> None:
+        with patch("langchain_ollama.ChatOllama", create=True) as mock_ollama:
+            mock_ollama.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client(
+                "quick_think", default_settings, max_output_tokens=1024, temperature=0.3
+            )
+            _, kwargs = mock_ollama.call_args
+            assert kwargs.get("temperature") == 0.3, (
+                f"Expected temperature=0.3, got {kwargs}"
+            )
+            assert kwargs.get("num_predict") == 1024, (
+                f"Expected num_predict=1024, got {kwargs}"
+            )
+
+    def test_ollama_omits_temperature_when_not_provided(self, default_settings: Settings) -> None:
+        with patch("langchain_ollama.ChatOllama", create=True) as mock_ollama:
+            mock_ollama.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", default_settings, max_output_tokens=1024)
+            _, kwargs = mock_ollama.call_args
+            assert "temperature" not in kwargs, (
+                f"Backward-compat regression: temperature should not be passed when None; "
+                f"kwargs={kwargs}"
+            )
+
+    def test_temperature_kwarg_signature(self) -> None:
+        import inspect
+
+        sig = inspect.signature(create_llm_client)
+        assert "temperature" in sig.parameters
+        assert sig.parameters["temperature"].default is None

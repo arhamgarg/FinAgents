@@ -9,7 +9,8 @@ from financialagents.agents.analysts.schemas import (
     NewsReport,
     TechnicalReport,
 )
-from financialagents.agents.managers.schemas import ResearchBrief
+from financialagents.agents.managers.schemas import PortfolioDecision, ResearchBrief
+from financialagents.agents.risk_mgmt.schemas import PersonaAssessment
 from financialagents.agents.trader.schemas import TradingSignal
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
@@ -60,8 +61,64 @@ class TestFullPipelineFlag:
                 )
             }
 
+        async def fake_aggressive(state, config=None):
+            return {
+                "aggressive_assessment": PersonaAssessment(
+                    main_argument="agg",
+                    recommended_position_size_pct=0.0,
+                    confidence=0.1,
+                ).model_dump_json()
+            }
+
+        async def fake_neutral(state, config=None):
+            return {
+                "neutral_assessment": PersonaAssessment(
+                    main_argument="neu",
+                    recommended_position_size_pct=0.0,
+                    confidence=0.1,
+                ).model_dump_json()
+            }
+
+        async def fake_conservative(state, config=None):
+            return {
+                "conservative_assessment": PersonaAssessment(
+                    main_argument="con",
+                    recommended_position_size_pct=0.0,
+                    confidence=0.1,
+                ).model_dump_json()
+            }
+
+        async def fake_consolidation(state, config=None):
+            round_key = state.current_round
+            return {
+                "risk_debate_history": {round_key: "fake consolidation synthesis"},
+                "current_round": state.current_round + 1,
+                "synthesized_position_size_pct": 0.0,
+            }
+
+        async def fake_pm(state, config=None):
+            signal = (
+                state.trader_signal.model_copy()
+                if state.trader_signal is not None
+                else TradingSignal(
+                    action="HOLD", conviction=0.0, rationale="no trader signal"
+                )
+            )
+            signal.action = "HOLD"
+            signal.position_size_pct = None
+            signal.position_size_shares = None
+            return {
+                "final_trade_decision": PortfolioDecision(
+                    signal=signal,
+                    approved=False,
+                    decision="veto",
+                    pm_notes="fake PM for test_full_pipeline",
+                )
+            }
+
         import financialagents.graph.setup as setup_mod
         import financialagents.graph.subgraphs.invest_debate as sub_mod
+        import financialagents.graph.subgraphs.risk_debate as risk_sub_mod
 
         try:
             with (
@@ -97,14 +154,37 @@ class TestFullPipelineFlag:
                     "financialagents.agents.trader.trader.trader_node",
                     fake_trader,
                 ),
+                patch(
+                    "financialagents.agents.risk_mgmt.aggressive.aggressive_risk_node",
+                    fake_aggressive,
+                ),
+                patch(
+                    "financialagents.agents.risk_mgmt.neutral.neutral_risk_node",
+                    fake_neutral,
+                ),
+                patch(
+                    "financialagents.agents.risk_mgmt.conservative.conservative_risk_node",
+                    fake_conservative,
+                ),
+                patch(
+                    "financialagents.agents.risk_mgmt.consolidation.risk_debate_consolidation_node",
+                    fake_consolidation,
+                ),
+                patch(
+                    "financialagents.agents.managers.portfolio_manager.portfolio_manager_node",
+                    fake_pm,
+                ),
             ):
                 importlib.reload(setup_mod)
                 importlib.reload(sub_mod)
+                importlib.reload(risk_sub_mod)
                 setup_mod._INVEST_DEBATE_SUBGRAPH = None
+                setup_mod._RISK_DEBATE_SUBGRAPH = None
 
                 graph = setup_mod.build_full_pipeline()
                 settings = Settings(_env_file=None)
                 settings.max_debate_rounds = 3
+                settings.max_risk_discuss_rounds = 1
                 config = {
                     "configurable": {"settings": settings, "thread_id": "test-123"}
                 }
@@ -112,8 +192,10 @@ class TestFullPipelineFlag:
                 result = asyncio.run(graph.ainvoke(initial, config=config))
         finally:
             importlib.reload(sub_mod)
+            importlib.reload(risk_sub_mod)
             importlib.reload(setup_mod)
             setup_mod._INVEST_DEBATE_SUBGRAPH = None
+            setup_mod._RISK_DEBATE_SUBGRAPH = None
 
         final = (
             AgentState.model_validate(result) if isinstance(result, dict) else result

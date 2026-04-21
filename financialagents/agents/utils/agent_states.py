@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from operator import add
-from typing import Annotated, Any, Optional
+from typing import Annotated, Optional
 
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, Field
@@ -11,7 +11,11 @@ from financialagents.agents.analysts.schemas import (
     NewsReport,
     TechnicalReport,
 )
-from financialagents.agents.managers.schemas import PortfolioContext, ResearchBrief
+from financialagents.agents.managers.schemas import (
+    PortfolioContext,
+    PortfolioDecision,
+    ResearchBrief,
+)
 from financialagents.agents.trader.schemas import TradingSignal
 from financialagents.graph.reducers import merge_by_key
 
@@ -39,9 +43,13 @@ class RiskDebateState(BaseModel):
     conservative_assessment: Optional[str] = None
     current_round: int = 0
     max_rounds: int = 2
-    risk_debate_history: Annotated[list[str], add] = Field(default_factory=list)
+    risk_debate_history: Annotated[dict[int, str], merge_by_key] = Field(default_factory=dict)
     trader_signal_snapshot: str = ""
+    synthesized_position_size_pct: Optional[float] = None
     final_risk_decision: Optional[str] = None
+
+    def risk_turns(self) -> list[str]:
+        return [v for _, v in sorted(self.risk_debate_history.items())]
 
 
 class AgentState(BaseModel):
@@ -66,7 +74,7 @@ class AgentState(BaseModel):
 
     trader_investment_plan: Optional[str] = None
 
-    final_trade_decision: Optional[dict[str, Any]] = None
+    final_trade_decision: Optional[PortfolioDecision] = None
 
     memory_context: Optional[str] = None
 

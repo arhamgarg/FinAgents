@@ -11,7 +11,11 @@ from financialagents.agents.analysts.fundamentals_analyst import (
 from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 from financialagents.agents.analysts.news_analyst import news_analyst_node
 from financialagents.agents.managers.research_manager import research_manager_node
-from financialagents.agents.utils.agent_states import AgentState, InvestDebateState
+from financialagents.agents.utils.agent_states import (
+    AgentState,
+    InvestDebateState,
+    RiskDebateState,
+)
 from financialagents.config import Settings
 
 
@@ -85,6 +89,28 @@ def debate_init_node(
     }
 
 
+def risk_init_node(
+    state: AgentState, config: Optional[RunnableConfig] = None
+) -> dict:
+    configurable = config.get("configurable", {}) if config else {}
+    settings: Settings = configurable.get("settings") or Settings()
+
+    max_rounds = max(1, settings.max_risk_discuss_rounds)
+
+    trader_signal_json = ""
+    if state.trader_signal is not None:
+        trader_signal_json = state.trader_signal.model_dump_json()
+
+    return {
+        "risk_debate_state": RiskDebateState(
+            risk_debate_history={},
+            current_round=0,
+            max_rounds=max_rounds,
+            trader_signal_snapshot=trader_signal_json,
+        )
+    }
+
+
 
 _INVEST_DEBATE_SUBGRAPH = None  # type: ignore[var-annotated]
 
@@ -92,6 +118,14 @@ _INVEST_DEBATE_SUBGRAPH = None  # type: ignore[var-annotated]
 def _reset_invest_debate_subgraph_cache() -> None:
     global _INVEST_DEBATE_SUBGRAPH
     _INVEST_DEBATE_SUBGRAPH = None
+
+
+_RISK_DEBATE_SUBGRAPH = None  # type: ignore[var-annotated]
+
+
+def _reset_risk_debate_subgraph_cache() -> None:
+    global _RISK_DEBATE_SUBGRAPH
+    _RISK_DEBATE_SUBGRAPH = None
 
 
 async def call_invest_debate_subgraph(
@@ -121,6 +155,33 @@ async def call_invest_debate_subgraph(
     return {"investment_debate_state": updated_debate}
 
 
+async def call_risk_debate_subgraph(
+    state: AgentState, config: Optional[RunnableConfig] = None
+) -> dict:
+    global _RISK_DEBATE_SUBGRAPH
+    if _RISK_DEBATE_SUBGRAPH is None:
+        from financialagents.graph.subgraphs.risk_debate import (
+            build_risk_debate_subgraph,
+        )
+
+        _RISK_DEBATE_SUBGRAPH = build_risk_debate_subgraph()
+
+    risk_state = state.risk_debate_state
+    assert risk_state is not None, (
+        "risk_init_node must run before risk_debate_subgraph "
+        "(state.risk_debate_state is None)"
+    )
+
+    recursion_limit = risk_state.max_rounds * 3 + 10
+
+    result = await _RISK_DEBATE_SUBGRAPH.ainvoke(
+        risk_state,
+        config={"recursion_limit": recursion_limit},
+    )
+    updated_risk = RiskDebateState.model_validate(result)
+    return {"risk_debate_state": updated_risk}
+
+
 def build_full_pipeline():
     builder = StateGraph(AgentState)
 
@@ -139,7 +200,19 @@ def build_full_pipeline():
 
     builder.add_node("trader_node", _trader_node)
     builder.add_edge("invest_debate_node", "trader_node")
-    builder.add_edge("trader_node", END)
+
+    builder.add_node("risk_init_node", risk_init_node)
+    builder.add_node("risk_debate_node", call_risk_debate_subgraph)
+
+    from financialagents.agents.managers.portfolio_manager import (
+        portfolio_manager_node as _portfolio_manager_node,
+    )
+
+    builder.add_node("portfolio_manager_node", _portfolio_manager_node)
+    builder.add_edge("trader_node", "risk_init_node")
+    builder.add_edge("risk_init_node", "risk_debate_node")
+    builder.add_edge("risk_debate_node", "portfolio_manager_node")
+    builder.add_edge("portfolio_manager_node", END)
 
     return builder.compile()
 
