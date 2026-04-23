@@ -20,6 +20,14 @@ One row per retired file. Format: file | last-active SHA (recovery via `git show
 | `tests/dataflows/test_sentiment_client.py` | `71b960dd2ecb64665c8b84e250d1948a418c01cd` | , 2026-04-20 | Test subject is the retired sentiment_client | None — archived with subject  |
 | `tests/fixtures/sentiment/` (5 JSON fixtures) | `891b9a6054bad256d0bda46ed7353aec168c3aa9` | , 2026-04-20 | Fixtures consumed only by the retired sentiment tests | None — archived with consumers |
 
+
+
+| file | last-active SHA | retirement phase + date | reason | replacement |
+|------|-----------------|-------------------------|--------|-------------|
+| `financialagents/dataflows/sectoral_client.py` | `9cfd90d0d805d6cf2b9e862ef81e9a9d61f8db07` |  drop, 2026-04-23 | Never wired to a consumer;  parked "no consumer" through v1.1; milestone scope removed | None — sectoral index consumption is out of scope |
+| `tests/dataflows/test_sectoral_client.py` | `9ea487bc1dd6c6bece1263315e19cea5569e0cf5` |  drop, 2026-04-23 | Test subject is the retired sectoral_client | None — archived with subject  |
+| `financialagents/agents/sector_rotation/__init__.py` | `1ec96507384eab1ccaa0359e58b3f67a12fd5fd5` |  drop, 2026-04-23 | Empty scaffold (zero-byte `__init__.py` only); directory deleted rather than archived | None — scaffold held no code |
+
 ## Recovery
 
 To view any archived file at its last-active state:

@@ -8,14 +8,13 @@ import aiosqlite
 
 CACHE_DB_PATH = Path(".cache/financialagents.db")
 
-Category = Literal["scrip_master", "ohlcv", "fundamentals", "news", "sectoral", "surveillance"]
+Category = Literal["scrip_master", "ohlcv", "fundamentals", "news", "surveillance"]
 
 TTL_SECONDS: dict[str, int] = {
     "scrip_master": 86400,
     "ohlcv": 86400,
     "fundamentals": 86400,
     "news": 1800,
-    "sectoral": 300,
     "surveillance": 86400,
 }
 

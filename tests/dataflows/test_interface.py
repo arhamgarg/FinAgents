@@ -13,7 +13,6 @@ INTERFACE_FUNCTIONS = [
     "get_ohlcv",
     "get_fundamentals",
     "get_news",
-    "get_sectoral_indices",
 ]
 
 
@@ -95,24 +94,6 @@ async def test_get_news_delegates():
 
     assert result is fake_result
     mock_fn.assert_called_once_with("RELIANCE")
-
-
-
-
-@pytest.mark.asyncio
-async def test_get_sectoral_indices_delegates():
-    from financialagents.dataflows import interface
-
-    fake_result = DataResult[dict](status="ok", data={}, source="nse")
-    mock_fn = AsyncMock(return_value=fake_result)
-
-    with patch(
-        "financialagents.dataflows.interface.sectoral_client.get_sectoral_indices", mock_fn
-    ):
-        result = await interface.get_sectoral_indices()
-
-    assert result is fake_result
-    mock_fn.assert_called_once_with(None)
 
 
 

@@ -10,13 +10,11 @@ from financialagents.dataflows import (
     fundamentals_client,
     news_client,
     ohlcv_client,
-    sectoral_client,
 )
 from financialagents.dataflows.data_result import DataResult
 from financialagents.dataflows.fundamentals_schema import FundamentalsReport
 from financialagents.dataflows.news_schema import NewsArticle
 from financialagents.dataflows.ohlcv_client import Interval
-from financialagents.dataflows.sectoral_client import SectoralIndexSnapshot
 
 
 async def get_ohlcv(
@@ -40,15 +38,8 @@ async def get_news(ticker: str) -> DataResult[list[NewsArticle]]:
     return await news_client.get_news(ticker)
 
 
-async def get_sectoral_indices(
-    now: Optional[datetime] = None,
-) -> DataResult[dict[str, SectoralIndexSnapshot]]:
-    return await sectoral_client.get_sectoral_indices(now)
-
-
 __all__ = [
     "get_ohlcv",
     "get_fundamentals",
     "get_news",
-    "get_sectoral_indices",
 ]

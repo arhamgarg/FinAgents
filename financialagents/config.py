@@ -32,7 +32,6 @@ class Settings(BaseSettings):
             "ohlcv": "angelone",
             "fundamentals": "screener",
             "news": "moneycontrol",
-            "sectoral": "nse",
         }
     )
 
@@ -60,10 +59,6 @@ class Settings(BaseSettings):
     kelly_fraction: float = 0.25
     atr_stop_multiplier: float = 2.0
     portfolio_value_inr: float = 100_000.0
-
-    sector_rotation_enabled: bool = True
-    max_sectors: int = 3
-    stocks_per_sector: int = 5
 
     output_language: str = "en"
 
