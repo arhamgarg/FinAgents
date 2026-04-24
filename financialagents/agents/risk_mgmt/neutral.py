@@ -12,6 +12,7 @@ from financialagents.llm_clients.factory import create_llm_client
 
 NEUTRAL_TEMPERATURE = 0.6
 NEUTRAL_SCENARIO = (
+    "All signals under review are positional delivery trades on NSE/BSE cash segment — evaluate risk on multi-day-to-multi-week holding horizons. "
     "You are the neutral risk persona for an Indian equity pipeline. "
     "Ground your reasoning in the post-COVID 2023 NIFTY-50 range-bound "
     "consolidation (17,000–19,000): disciplined position-sizing outperformed "

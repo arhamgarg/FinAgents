@@ -25,22 +25,20 @@ class TestSettingsDefaults:
 
 class TestSettingsEnvLoading:
 
-    def test_env_overrides_provider(
-        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_overrides_provider(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
         monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
         s = Settings(_env_file=None)
         assert s.llm_provider == "groq"
 
-    def test_env_overrides_model(
-        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_overrides_model(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DEEP_THINK_LLM", "custom-model")
         s = Settings(_env_file=None)
         assert s.deep_think_llm == "custom-model"
 
-    def test_invalid_provider_rejected(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_invalid_provider_rejected(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "openai")
         with pytest.raises(Exception):
             Settings(_env_file=None)
@@ -53,12 +51,6 @@ class TestDebateParams:
 
     def test_default_risk_rounds(self, default_settings: Settings) -> None:
         assert default_settings.max_risk_discuss_rounds == 2
-
-    def test_default_max_sectors(self, default_settings: Settings) -> None:
-        assert default_settings.max_sectors == 3
-
-    def test_default_stocks_per_sector(self, default_settings: Settings) -> None:
-        assert default_settings.stocks_per_sector == 5
 
     def test_env_overrides_debate_rounds(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
@@ -117,3 +109,29 @@ class TestPhase4SettingsFields:
 
     def test_max_debate_rounds_default_unchanged_at_3(self, default_settings: Settings) -> None:
         assert default_settings.max_debate_rounds == 3
+
+    def test_default_time_horizon_is_positional(self) -> None:
+        s = Settings(_env_file=None, llm_provider="ollama", groq_api_key=None)
+        assert s.default_time_horizon == "positional"
+
+    def test_default_time_horizon_rejects_intraday(self) -> None:
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            Settings(
+                _env_file=None,
+                llm_provider="ollama",
+                groq_api_key=None,
+                default_time_horizon="intraday",
+            )  # ty: ignore[invalid-argument-type]
+
+    def test_default_time_horizon_rejects_swing(self) -> None:
+        import pydantic
+
+        with pytest.raises(pydantic.ValidationError):
+            Settings(
+                _env_file=None,
+                llm_provider="ollama",
+                groq_api_key=None,
+                default_time_horizon="swing",
+            )  # ty: ignore[invalid-argument-type]

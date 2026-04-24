@@ -5,8 +5,8 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from financialagents.dataflows.data_result import DataResult
 from financialagents.config import Settings
+from financialagents.dataflows.data_result import DataResult
 
 
 class TestDataResult:
@@ -20,9 +20,7 @@ class TestDataResult:
         assert result.fetched_at.utcoffset().total_seconds() == 0
 
     def test_empty_result_with_list_payload(self) -> None:
-        result = DataResult[list](
-            status="empty", error="REDDIT_CLIENT_ID not set", source="reddit"
-        )
+        result = DataResult[list](status="empty", error="REDDIT_CLIENT_ID not set", source="reddit")
         assert result.status == "empty"
         assert result.data is None
         assert result.error == "REDDIT_CLIENT_ID not set"
@@ -53,5 +51,4 @@ class TestDataResult:
         assert "ohlcv" in settings.data_vendors
         assert "fundamentals" in settings.data_vendors
         assert "news" in settings.data_vendors
-        assert "sectoral" in settings.data_vendors
         assert "sentiment" not in settings.data_vendors

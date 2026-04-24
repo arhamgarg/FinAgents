@@ -62,6 +62,8 @@ class Settings(BaseSettings):
 
     output_language: str = "en"
 
+    default_time_horizon: Literal["positional"] = "positional"
+
     @model_validator(mode="after")
     def warn_missing_optional_keys(self) -> Settings:
         if self.llm_provider == "groq" and not self.groq_api_key:

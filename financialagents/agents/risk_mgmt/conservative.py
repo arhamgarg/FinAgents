@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Optional
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -12,8 +13,12 @@ from financialagents.config import Settings
 from financialagents.llm_clients.factory import create_llm_client
 
 CONSERVATIVE_TEMPERATURE = 0.3
-T2T_REJECTION_TOKEN = "T2T intraday rejection"
+
+
+log = logging.getLogger(__name__)
+
 CONSERVATIVE_SCENARIO = (
+    "All signals under review are positional delivery trades on NSE/BSE cash segment — evaluate risk on multi-day-to-multi-week holding horizons. "
     "You are the conservative risk persona for an Indian equity pipeline. "
     "Ground your reasoning in Yes Bank March 2020: holders who refused to "
     "trim positions saw a 90% drawdown in weeks. Preserved capital is "
@@ -38,10 +43,7 @@ def build_conservative_prompt(state: RiskDebateState) -> list[BaseMessage]:
         "(b) counter_to_prior_persona — fill with your rebuttal to the aggressive "
         "AND neutral personas' cases; "
         "(c) recommended_position_size_pct (float 0.0-1.0); "
-        "(d) confidence (float 0.0-1.0).\n\n"
-        " (MANDATORY): If `trader_signal.t2t_flag` is True AND the signal "
-        f"has BUY or SELL action, you MUST recommend position_size_pct=0.0 and "
-        f"cite '{T2T_REJECTION_TOKEN}' verbatim in your main_argument."
+        "(d) confidence (float 0.0-1.0)."
     )
     human_content = (
         "## Trader Signal (JSON)\n\n"
@@ -62,24 +64,15 @@ def _enforce_guard_04(
 ) -> PersonaAssessment:
     try:
         signal_data = json.loads(trader_signal_snapshot)
+        log.debug(
+            " audit: t2t_flag=%s, action=%s, time_horizon=%s "
+            "(positional-only policy — override retired in 4.2.1)",
+            signal_data.get("t2t_flag", False),
+            signal_data.get("action", "HOLD"),
+            signal_data.get("time_horizon", "positional"),
+        )
     except (json.JSONDecodeError, TypeError):
-        return assessment
-
-    t2t_flag = bool(signal_data.get("t2t_flag", False))
-    action = signal_data.get("action", "HOLD")
-
-    if not (t2t_flag and action in ("BUY", "SELL")):
-        return assessment
-
-    if T2T_REJECTION_TOKEN in (assessment.main_argument or ""):
-        return assessment
-
-    forced_clause = (
-        f"[ override] {T2T_REJECTION_TOKEN} — "
-        f"deterministic post-LLM enforcement. "
-    )
-    assessment.main_argument = forced_clause + (assessment.main_argument or "")
-    assessment.recommended_position_size_pct = 0.0
+        pass
     return assessment
 
 

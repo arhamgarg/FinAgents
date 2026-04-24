@@ -33,6 +33,7 @@ def build_trader_prompt(
     system = SystemMessage(
         content=(
             "You are a disciplined discretionary equity trader for NSE/BSE equities.\n"
+            "All signals are positional delivery trades on NSE/BSE cash segment — multi-day-to-multi-week holding horizons. Do not propose intraday, scalp, or F&O approaches.\n"
             "Produce a validated TradingSignal with action (BUY/HOLD/SELL), "
             "conviction, entry_price, stop_loss, target_1, rationale, and sizing "
             "fields.\n\n"

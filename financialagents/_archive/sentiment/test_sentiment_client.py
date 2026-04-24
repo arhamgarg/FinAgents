@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,7 +11,6 @@ from financialagents.dataflows import sentiment_client
 from financialagents.dataflows.data_result import DataResult
 from financialagents.dataflows.sentiment_schema import (
     RedditSentiment,
-    SentimentReport,
     StockTwitsSentiment,
     TrendsSentiment,
 )
@@ -111,7 +109,6 @@ async def test_stocktwits_empty_is_ok():
 @pytest.mark.asyncio
 async def test_stocktwits_populated():
     import json as _json
-    from unittest.mock import MagicMock
 
     payload = _json.loads((FIXTURES_DIR / "stocktwits_stream.json").read_text())
 

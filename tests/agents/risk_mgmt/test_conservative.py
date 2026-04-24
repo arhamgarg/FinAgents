@@ -8,7 +8,6 @@ import pytest
 from financialagents.agents.risk_mgmt.conservative import (
     CONSERVATIVE_SCENARIO,
     CONSERVATIVE_TEMPERATURE,
-    T2T_REJECTION_TOKEN,
     _enforce_guard_04,
     build_conservative_prompt,
     conservative_risk_node,
@@ -60,6 +59,7 @@ class TestConservativePromptStructure:
         system = msgs[0].content
         assert isinstance(system, str)
         assert CONSERVATIVE_SCENARIO.split("\n")[0] in system
+        assert "positional delivery trades on NSE/BSE cash segment" in system
 
     def test_system_message_references_persona_assessment_and_counter(
         self, fresh_risk_state: RiskDebateState
@@ -70,16 +70,6 @@ class TestConservativePromptStructure:
         assert "PersonaAssessment" in system
         assert "counter_to_prior_persona" in system
         assert "recommended_position_size_pct" in system
-
-    def test_system_message_contains_guard04_directive(
-        self, fresh_risk_state: RiskDebateState
-    ) -> None:
-        msgs = build_conservative_prompt(fresh_risk_state)
-        system = msgs[0].content
-        assert isinstance(system, str)
-        assert "t2t_flag" in system
-        assert T2T_REJECTION_TOKEN in system
-        assert "position_size_pct=0.0" in system
 
     def test_human_message_embeds_trader_signal_snapshot(
         self, fresh_risk_state: RiskDebateState
@@ -231,10 +221,7 @@ class TestConservativeNodeBehavior:
         assert "conservative_assessment" in result
 
 
-class TestGuard04BeltSuspendersOverride:
-
-    def test_constant_is_canonical_token(self) -> None:
-        assert T2T_REJECTION_TOKEN == "T2T intraday rejection"
+class TestGuard04AuditPassThrough:
 
     def test_helper_passes_through_when_no_signal(self) -> None:
         assessment = PersonaAssessment(
@@ -275,63 +262,22 @@ class TestGuard04BeltSuspendersOverride:
         out = _enforce_guard_04(assessment, '{"action":"HOLD","t2t_flag":true}')
         assert out.main_argument == "HOLD reasoning"
 
-    def test_helper_passes_through_when_belt_honored(self) -> None:
-        already_honored = PersonaAssessment(
-            main_argument=f"{T2T_REJECTION_TOKEN}: skip intraday.",
-            recommended_position_size_pct=0.0,
-            confidence=0.9,
-        )
-        out = _enforce_guard_04(already_honored, '{"action":"BUY","t2t_flag":true}')
-        assert out.main_argument == already_honored.main_argument
-        assert out.recommended_position_size_pct == 0.0
-
-    def test_helper_fires_on_silent_llm_with_buy_and_t2t(self) -> None:
-        silent = PersonaAssessment(
+    def test_helper_passes_through_when_buy_and_t2t_true(self) -> None:
+        assessment = PersonaAssessment(
             main_argument="Momentum is strong — size up aggressively.",
             recommended_position_size_pct=0.04,
             confidence=0.7,
         )
-        out = _enforce_guard_04(silent, '{"action":"BUY","t2t_flag":true}')
-        assert T2T_REJECTION_TOKEN in out.main_argument
-        assert out.main_argument.startswith("[ override]")
-        assert out.recommended_position_size_pct == 0.0
-        assert "Momentum is strong" in out.main_argument
+        out = _enforce_guard_04(assessment, '{"action":"BUY","t2t_flag":true}')
+        assert out.main_argument == "Momentum is strong — size up aggressively."
+        assert out.recommended_position_size_pct == 0.04
 
-    def test_helper_fires_on_silent_llm_with_sell_and_t2t(self) -> None:
-        silent = PersonaAssessment(
+    def test_helper_passes_through_when_sell_and_t2t_true(self) -> None:
+        assessment = PersonaAssessment(
             main_argument="Short conviction — size 3%.",
             recommended_position_size_pct=0.03,
             confidence=0.6,
         )
-        out = _enforce_guard_04(silent, '{"action":"SELL","t2t_flag":true}')
-        assert T2T_REJECTION_TOKEN in out.main_argument
-        assert out.recommended_position_size_pct == 0.0
-
-    def test_node_applies_override_end_to_end(
-        self, default_settings: Settings
-    ) -> None:
-        state = RiskDebateState(
-            trader_signal_snapshot='{"action":"BUY","t2t_flag":true}',
-            current_round=0,
-            max_rounds=2,
-        )
-        silent_assessment = PersonaAssessment(
-            main_argument="Strong BUY momentum.",
-            recommended_position_size_pct=0.04,
-            confidence=0.7,
-        )
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=silent_assessment)
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-
-        with patch(
-            "financialagents.agents.risk_mgmt.conservative.create_llm_client",
-            return_value=mock_llm,
-        ):
-            config = {"configurable": {"settings": default_settings}}
-            result = asyncio.run(conservative_risk_node(state, config))
-
-        parsed = PersonaAssessment.model_validate_json(result["conservative_assessment"])
-        assert T2T_REJECTION_TOKEN in parsed.main_argument
-        assert parsed.recommended_position_size_pct == 0.0
+        out = _enforce_guard_04(assessment, '{"action":"SELL","t2t_flag":true}')
+        assert out.main_argument == "Short conviction — size 3%."
+        assert out.recommended_position_size_pct == 0.03

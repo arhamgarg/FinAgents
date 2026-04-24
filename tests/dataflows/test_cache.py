@@ -62,12 +62,10 @@ class TestCache:
         conn = sqlite3.connect(db)
         tables = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
         conn.close()
-        expected = {"scrip_master", "ohlcv", "fundamentals", "news", "sectoral", "surveillance"}
+        expected = {"scrip_master", "ohlcv", "fundamentals", "news", "surveillance"}
         assert expected.issubset(tables)
 
     @pytest.mark.asyncio
@@ -78,11 +76,12 @@ class TestCache:
 
     def test_sql_uses_parameterized_placeholders(self) -> None:
         import inspect
+
         import financialagents.dataflows.cache as cache_module
 
         source = inspect.getsource(cache_module)
         assert "WHERE key = ?" in source or "(key, value, fetched_at) VALUES (?, ?, ?)" in source
-        assert 'f"SELECT' not in source.replace("f\"SELECT value, fetched_at FROM", "ALLOWED")
+        assert 'f"SELECT' not in source.replace('f"SELECT value, fetched_at FROM', "ALLOWED")
         assert "(key," in source
 
     @pytest.mark.asyncio

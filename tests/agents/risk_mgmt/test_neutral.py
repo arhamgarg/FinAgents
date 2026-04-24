@@ -54,6 +54,7 @@ class TestNeutralPromptStructure:
         system = msgs[0].content
         assert isinstance(system, str)
         assert NEUTRAL_SCENARIO.split("\n")[0] in system
+        assert "positional delivery trades on NSE/BSE cash segment" in system
 
     def test_system_message_references_persona_assessment_and_counter(
         self, fresh_risk_state: RiskDebateState

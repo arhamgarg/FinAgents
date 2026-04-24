@@ -41,14 +41,16 @@ def _build_mock_assessment() -> PersonaAssessment:
 
 
 class TestAggressivePromptStructure:
-    def test_system_message_contains_covid_2020_scenario(
+    def test_system_message_contains_tata_motors_2020_2024_scenario(
         self, fresh_risk_state: RiskDebateState
     ) -> None:
         msgs = build_aggressive_prompt(fresh_risk_state)
         system = msgs[0].content
         assert isinstance(system, str)
-        assert "COVID-2020" in system or "March 2020" in system
-        assert "TCS" in system
+        assert "Tata Motors" in system
+        assert "JLR" in system
+        assert "2020-2024" in system or "10x" in system
+        assert "positional delivery trades on NSE/BSE cash segment" in system
         assert AGGRESSIVE_SCENARIO.split("\n")[0] in system
 
     def test_system_message_references_persona_assessment_and_counter(

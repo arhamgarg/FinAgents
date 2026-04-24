@@ -61,11 +61,17 @@ class TestTradingSignalOptionalFields:
             sig = TradingSignal(action="BUY", conviction=0.5, sizing_method=method)
             assert sig.sizing_method == method
 
-    def test_time_horizon_literal_accepted(self) -> None:
+    def test_time_horizon_positional_only(self) -> None:
         from financialagents.agents.trader.schemas import TradingSignal
-        for horizon in ("intraday", "swing", "positional"):
-            sig = TradingSignal(action="BUY", conviction=0.5, time_horizon=horizon)
-            assert sig.time_horizon == horizon
+        sig = TradingSignal(action="BUY", conviction=0.5, time_horizon="positional")
+        assert sig.time_horizon == "positional"
+
+    @pytest.mark.parametrize("retired_horizon", ["intraday", "swing"])
+    def test_time_horizon_rejects_retired_values(self, retired_horizon: str) -> None:
+        from financialagents.agents.trader.schemas import TradingSignal
+        import pydantic
+        with pytest.raises(pydantic.ValidationError):
+            TradingSignal(action="BUY", conviction=0.5, time_horizon=retired_horizon)  # type: ignore[arg-type]
 
     def test_circuit_band_note_populated(self) -> None:
         from financialagents.agents.trader.schemas import TradingSignal

@@ -26,4 +26,4 @@ class TradingSignal(BaseModel):
     t2t_flag: bool = False
 
     sizing_method: Literal["atr_based", "kelly", "fixed_fractional"] = "atr_based"
-    time_horizon: Literal["intraday", "swing", "positional"] = "positional"
+    time_horizon: Literal["positional"] = "positional"
