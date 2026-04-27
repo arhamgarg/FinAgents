@@ -43,6 +43,21 @@ class TestSettingsEnvLoading:
         with pytest.raises(Exception):
             Settings(_env_file=None)
 
+    def test_fa_data_dir_env(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
+        target = str(tmp_path / "fa")
+        monkeypatch.setenv("FA_DATA_DIR", target)
+        s = Settings(_env_file=None)
+        assert s.fa_data_dir == target
+
+    def test_fa_data_dir_default_none(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("FA_DATA_DIR", raising=False)
+        s = Settings(_env_file=None)
+        assert s.fa_data_dir is None
+
 
 class TestDebateParams:
 

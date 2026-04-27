@@ -22,6 +22,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "ANGELONE_TOTP_SECRET",
         "MAX_DEBATE_ROUNDS",
         "MAX_RISK_DISCUSS_ROUNDS",
+        "FA_DATA_DIR",
     ]:
         monkeypatch.delenv(key, raising=False)
 

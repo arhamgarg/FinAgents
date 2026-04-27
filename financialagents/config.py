@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     groq_api_key: Optional[str] = None
     ollama_api_key: Optional[str] = None
 
+    fa_data_dir: Optional[str] = None
+
     angelone_api_key: Optional[str] = None
     angelone_client_id: Optional[str] = None
     angelone_pin: Optional[str] = None
