@@ -13,6 +13,8 @@ dependencies = [
     "langchain==1.2.15",
     "langchain-groq==1.1.2",
     "langchain-ollama==1.1.0",
+    "langchain-openai==1.2.1",
+    "langchain-cerebras==0.8.2",
     "langchain-core>=0.3",
     "pydantic-settings==2.13.1",
     "python-dotenv>=1.0",

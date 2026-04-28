@@ -64,7 +64,7 @@ def cmd_run(
     provider: Optional[str] = typer.Option(
         None,
         "--provider",
-        help="Override LLM provider (groq|ollama).",
+        help="Override LLM provider (openrouter|cerebras|groq|ollama).",
     ),
 ) -> None:
     from financialagents.cli.run_command import run_pipeline

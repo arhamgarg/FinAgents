@@ -19,7 +19,27 @@ def create_llm_client(
     model_name = config.deep_think_llm if tier == "deep_think" else config.quick_think_llm
     provider = config.llm_provider
 
-    if provider == "groq":
+    if provider == "openrouter":
+        from financialagents.llm_clients.openrouter_client import create_openrouter_client
+
+        return create_openrouter_client(
+            model=model_name,
+            api_key=config.openrouter_api_key,
+            max_tokens=max_output_tokens,
+            temperature=temperature,
+        )
+
+    elif provider == "cerebras":
+        from financialagents.llm_clients.cerebras_client import create_cerebras_client
+
+        return create_cerebras_client(
+            model=model_name,
+            api_key=config.cerebras_api_key,
+            max_tokens=max_output_tokens,
+            temperature=temperature,
+        )
+
+    elif provider == "groq":
         from financialagents.llm_clients.groq_client import create_groq_client
 
         return create_groq_client(
@@ -40,5 +60,6 @@ def create_llm_client(
 
     else:
         raise ValueError(
-            f"Unsupported LLM provider '{provider}'. Valid options: 'groq', 'ollama'"
+            f"Unsupported LLM provider '{provider}'. "
+            "Valid options: 'openrouter', 'cerebras', 'groq', 'ollama'"
         )

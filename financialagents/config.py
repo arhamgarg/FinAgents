@@ -15,10 +15,12 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    llm_provider: Literal["groq", "ollama"] = "groq"
-    deep_think_llm: str = "openai/gpt-oss-120b"
-    quick_think_llm: str = "openai/gpt-oss-20b"
+    llm_provider: Literal["openrouter", "cerebras", "groq", "ollama"] = "openrouter"
+    deep_think_llm: str = "openrouter/auto"
+    quick_think_llm: str = "openrouter/auto"
 
+    openrouter_api_key: Optional[str] = None
+    cerebras_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
     ollama_api_key: Optional[str] = None
 
@@ -68,6 +70,18 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def warn_missing_optional_keys(self) -> Settings:
+        if self.llm_provider == "openrouter" and not self.openrouter_api_key:
+            warnings.warn(
+                "OPENROUTER_API_KEY is not set. OpenRouter provider calls will fail at use time.",
+                UserWarning,
+                stacklevel=2,
+            )
+        if self.llm_provider == "cerebras" and not self.cerebras_api_key:
+            warnings.warn(
+                "CEREBRAS_API_KEY is not set. Cerebras provider calls will fail at use time.",
+                UserWarning,
+                stacklevel=2,
+            )
         if self.llm_provider == "groq" and not self.groq_api_key:
             warnings.warn(
                 "GROQ_API_KEY is not set. Groq provider calls will fail at use time.",

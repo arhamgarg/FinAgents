@@ -207,6 +207,75 @@ class TestFaRun:
         rows = _read_signals(tmp_signals_db)
         assert rows[0]["date"] == freeze_ist_today
 
+    def test_run_pipeline_marks_errored_when_state_has_no_final_decision(
+        self, tmp_signals_db, capsys, monkeypatch
+    ) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.cli.run_command import run_pipeline
+
+        partial_state = AgentState(ticker="RELIANCE", date="2026-04-26")
+        assert partial_state.final_trade_decision is None
+
+        fake_graph = MagicMock()
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.FinancialAgentsGraph",
+            lambda **kw: fake_graph,
+        )
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.signals_db_path",
+            lambda settings=None: tmp_signals_db,
+        )
+
+        async def fake_stream(*args, **kwargs):
+            yield _make_event(
+                kind="node_status",
+                node_name="bear_researcher_node",
+                status="completed",
+            )
+            yield _make_event(kind="completed", final_state=partial_state)
+
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.stream_pipeline_events",
+            fake_stream,
+        )
+
+        update_success_spy = AsyncMock()
+        monkeypatch.setattr(
+            "financialagents.storage.signals.update_success",
+            update_success_spy,
+        )
+
+        rc = asyncio.run(
+            run_pipeline(
+                ticker="RELIANCE",
+                date="2026-04-26",
+                json_output=False,
+                provider_override="ollama",
+                debug=False,
+            )
+        )
+        assert rc == 1
+
+        update_success_spy.assert_not_awaited()
+
+        rows = _read_signals(tmp_signals_db)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["status"] == "errored", (
+            f"expected 'errored' but got {row['status']!r}"
+        )
+        assert row["action"] is None
+        err = row["error_msg"] or ""
+        assert (
+            "no final trade decision" in err.lower()
+            or "pipeline completed without producing" in err.lower()
+        ), f"unexpected error_msg: {err!r}"
+        assert row["payload_json"] is not None
+        out = capsys.readouterr().out
+        assert "RELIANCE" in out
+
     def test_first_ctrl_c(
         self, tmp_signals_db, capsys, monkeypatch
     ) -> None:

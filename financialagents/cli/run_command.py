@@ -17,7 +17,7 @@ from financialagents.observability.events import stream_pipeline_events
 from financialagents.storage.paths import signals_db_path
 
 _SECRET_PATTERN = re.compile(
-    r"((?:GROQ_API_KEY|ANGELONE_[A-Z_]+|REDDIT_[A-Z_]+|(?<![A-Z_])api_key))"
+    r"((?:OPENROUTER_API_KEY|CEREBRAS_API_KEY|GROQ_API_KEY|ANGELONE_[A-Z_]+|REDDIT_[A-Z_]+|(?<![A-Z_])api_key))"
     r"[=:]\s*['\"]?\S+['\"]?",
     re.IGNORECASE,
 )
@@ -162,6 +162,21 @@ async def run_pipeline(
 
         payload_json = state.model_dump_json(exclude={"messages"})
         pd_ = state.final_trade_decision
+
+        if pd_ is None:
+            await update_errored(
+                run_id,
+                error_msg=(
+                    "pipeline completed without producing a "
+                    "final trade decision"
+                ),
+                payload_json=payload_json,
+                db_path=db_path,
+            )
+            if not json_output:
+                out_console.print(render_signal_card(state))
+            return 1
+
         ts = pd_.signal if pd_ is not None else None
         await update_success(
             run_id,
@@ -186,7 +201,7 @@ async def run_pipeline(
         )
         out_console.print("[yellow]Cancelled[/yellow]")
         return 130
-    except BaseException as e:
+    except Exception as e:
         redacted = _redact_secrets(str(e))
         await update_errored(run_id, error_msg=redacted, db_path=db_path)
         if debug:

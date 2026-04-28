@@ -14,6 +14,7 @@ from financialagents.storage.signals import (
     load_history,
     load_signal_by_run_id,
     open_signals_db,
+    prune_before,
     update_cancelled,
     update_errored,
     update_success,
@@ -240,6 +241,43 @@ class TestSignalsRunIdValidation:
                 provider="ollama", model="llama3.1:70b",
                 db_path=tmp_signals_db,
             )
+
+
+class TestSignalsPrune:
+
+    @pytest.mark.asyncio
+    async def test_prune_before_returns_zero_on_missing_db(
+        self, tmp_path: Path,
+    ) -> None:
+        missing = tmp_path / "does_not_exist.db"
+        assert not missing.exists(), (
+            "fixture sanity: target path must not exist"
+        )
+        n = await prune_before(missing, "2026-01-01")
+        assert n == 0
+        assert not missing.exists(), (
+            "prune_before must not create the DB file as a side-effect"
+        )
+
+    @pytest.mark.asyncio
+    async def test_prune_before_returns_count_after_migrations(
+        self, tmp_signals_db: Path,
+    ) -> None:
+        await run_migrations(tmp_signals_db)
+        await insert_running(
+            "aaaaaaaa", "RELIANCE", "2026-04-26",
+            provider="ollama", model="llama3.1:70b",
+            db_path=tmp_signals_db,
+        )
+        await insert_running(
+            "bbbbbbbb", "TCS", "2026-04-26",
+            provider="ollama", model="llama3.1:70b",
+            db_path=tmp_signals_db,
+        )
+        n = await prune_before(tmp_signals_db, "2099-01-01")
+        assert n == 2
+        remaining = await load_history(tmp_signals_db, limit=10)
+        assert remaining == []
 
 
 _ = aiosqlite

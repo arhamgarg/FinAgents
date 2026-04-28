@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -81,7 +82,7 @@ class TestRunPageSidebarForm:
             None,
         )
         assert provider is not None, "Provider selectbox not found"
-        assert set(provider.options) == {"ollama", "groq"}, (
+        assert list(provider.options) == ["openrouter", "cerebras", "groq", "ollama"], (
             f"Provider options mismatch: {provider.options!r}"
         )
 
@@ -121,4 +122,213 @@ class TestRunPageFormSubmission:
         assert at.session_state["pending_run"]["config"]["ticker"] == "TCS", (
             f"pending_run after TCS quick-pick: "
             f"{at.session_state['pending_run']!r}"
+        )
+
+
+
+
+class TestModelFieldPropagation:
+
+    def test_user_model_input_flows_into_settings(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_start_pipeline(graph, initial_state, config):
+            captured["settings"] = config["configurable"]["settings"]
+
+        class FakeGraph:
+            def __init__(self, full_pipeline: bool = False) -> None:
+                self._graph = MagicMock()
+
+        with patch(
+            "financialagents.dashboard.live_fragment.start_pipeline",
+            new=fake_start_pipeline,
+        ), patch(
+            "financialagents.graph.trading_graph.FinancialAgentsGraph",
+            new=FakeGraph,
+        ), patch(
+            "financialagents.storage.migrations.run_migrations",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "financialagents.storage.signals.insert_running",
+            new=AsyncMock(return_value=None),
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH)).run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+            model_input = next(
+                (t for t in at.sidebar.text_input if t.label == "Model"),
+                None,
+            )
+            assert model_input is not None, "Model text_input not found"
+            model_input.set_value("groq:llama-3.1-405b")
+            submit = next(
+                (b for b in at.sidebar.button if b.label == "Run pipeline"),
+                None,
+            )
+            assert submit is not None, "Run pipeline submit not found"
+            submit.click()
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"After submit: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert "settings" in captured, (
+            "fake_start_pipeline was not invoked — the kickoff block "
+            "did not run; check pipeline_running guard"
+        )
+        settings = captured["settings"]
+        assert settings.deep_think_llm == "groq:llama-3.1-405b", (
+            " settings.deep_think_llm must reflect user-selected "
+            f"Model, got {settings.deep_think_llm!r}"
+        )
+        assert settings.quick_think_llm == "groq:llama-3.1-405b", (
+            " settings.quick_think_llm must also reflect the "
+            "user-selected Model (analyst nodes route through the "
+            f"quick tier per, got {settings.quick_think_llm!r}"
+        )
+
+
+
+
+class TestResubmissionStateReset:
+
+    def test_consecutive_runs_reset_session_state(self) -> None:
+        from financialagents.observability.events import PipelineEvent
+
+        stale_event = PipelineEvent(
+            kind="completed", status="completed", final_state=None,
+        )
+        captured_run_ids: list[str] = []
+
+        def fake_start_pipeline(graph, initial_state, config):
+            captured_run_ids.append(config["configurable"]["thread_id"])
+
+        class FakeGraph:
+            def __init__(self, full_pipeline: bool = False) -> None:
+                self._graph = MagicMock()
+
+        with patch(
+            "financialagents.dashboard.live_fragment.start_pipeline",
+            new=fake_start_pipeline,
+        ), patch(
+            "financialagents.graph.trading_graph.FinancialAgentsGraph",
+            new=FakeGraph,
+        ), patch(
+            "financialagents.storage.migrations.run_migrations",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "financialagents.storage.signals.insert_running",
+            new=AsyncMock(return_value=None),
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = stale_event
+            at.session_state["persisted"] = True
+            at.session_state["stage_state"] = None
+            at.session_state["run_id"] = "deadbeef"
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"Initial mount raised: {[str(e.value) for e in at.exception]}"
+            )
+
+            ticker_input = next(
+                (t for t in at.sidebar.text_input if t.label == "Ticker"),
+                None,
+            )
+            assert ticker_input is not None, "Ticker text_input not found"
+            ticker_input.set_value("TCS")
+            submit = next(
+                (b for b in at.sidebar.button if b.label == "Run pipeline"),
+                None,
+            )
+            assert submit is not None, "Run pipeline submit not found"
+            submit.click()
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"After submit: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert at.session_state["last_completed_event"] is None, (
+            " last_completed_event must be reset to None before "
+            f"kickoff; got {at.session_state['last_completed_event']!r}"
+        )
+        assert at.session_state["persisted"] is False, (
+            " persisted must be reset to False before kickoff; "
+            f"got {at.session_state['persisted']!r}"
+        )
+        assert len(captured_run_ids) == 1, (
+            f"start_pipeline call count: {len(captured_run_ids)}"
+        )
+        assert captured_run_ids[0] != "deadbeef", (
+            " kickoff must generate a fresh run_id, not reuse the "
+            f"stale one; got {captured_run_ids[0]!r}"
+        )
+        assert at.session_state["run_id"] == captured_run_ids[0], (
+            "session_state.run_id must equal the new thread_id"
+        )
+
+
+
+
+class TestErroredEventPersists:
+
+    def test_errored_event_calls_update_errored(self) -> None:
+        from financialagents.observability.events import PipelineEvent
+
+        errored_event = PipelineEvent(
+            kind="errored",
+            status="errored",
+            error=Exception("groq api_key=sk-secret-401-unauthorized"),
+        )
+        captured_calls: list[dict] = []
+
+        async def fake_update_errored(
+            run_id: str, *, error_msg: str,
+            payload_json=None, db_path,
+        ) -> None:
+            captured_calls.append({
+                "run_id": run_id,
+                "error_msg": error_msg,
+                "db_path": str(db_path),
+            })
+
+        with patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = errored_event
+            at.session_state["run_id"] = "12345678"
+            at.session_state["run_db_path"] = "/tmp/test_signals.db"
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert len(captured_calls) == 1, (
+            f"update_errored call count: {len(captured_calls)}; "
+            f"calls: {captured_calls!r}"
+        )
+        call = captured_calls[0]
+        assert call["run_id"] == "12345678", (
+            f"update_errored run_id mismatch: {call['run_id']!r}"
+        )
+        assert "api_key=***" in call["error_msg"], (
+            f"_redact_secrets did not redact api_key in error_msg: "
+            f"{call['error_msg']!r}"
+        )
+        assert "sk-secret-401-unauthorized" not in call["error_msg"], (
+            "raw secret leaked through to error_msg: "
+            f"{call['error_msg']!r}"
+        )
+        assert at.session_state["persisted"] is True, (
+            " persisted must flip to True after update_errored; "
+            f"got {at.session_state['persisted']!r}"
+        )
+        error_blobs = [e.value for e in at.error]
+        assert any("Pipeline errored" in blob for blob in error_blobs), (
+            f"st.error panel missing; got: {error_blobs!r}"
         )

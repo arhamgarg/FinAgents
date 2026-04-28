@@ -41,6 +41,16 @@ def _format_pct(value: Optional[float]) -> str:
 
 def render_signal_card(state) -> Panel:
     pd_ = state.final_trade_decision
+    if pd_ is None:
+        return Panel(
+            Text(
+                "No final trade decision produced.",
+                style="yellow",
+            ),
+            title=f"{state.ticker} · {state.date}",
+            title_align="left",
+            border_style="yellow",
+        )
     ts = pd_.signal
     action = ts.action
     approval = _approval_label(pd_.decision, pd_.approved)

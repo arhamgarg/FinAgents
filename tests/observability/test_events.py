@@ -76,8 +76,16 @@ class _MockGraph:
         self.scripted = scripted
 
     async def astream(self, *args: Any, **kwargs: Any):
+        from financialagents.observability.events import STAGE_FOR_NODE
+
         for ns, payload in self.scripted:
-            yield ns, payload
+            if isinstance(payload, dict) and any(
+                k in STAGE_FOR_NODE for k in payload
+            ):
+                mode = "updates"
+            else:
+                mode = "values"
+            yield ns, mode, payload
 
 
 class TestPipelineEventStream:
@@ -213,9 +221,9 @@ class TestPipelineEventStream:
 
         class _SlowGraph:
             async def astream(self, *args: Any, **kwargs: Any):
-                yield (), {"trader_node": {}}
+                yield (), "updates", {"trader_node": {}}
                 await asyncio.sleep(10)
-                yield (), {}  # pragma: no cover
+                yield (), "values", {}  # pragma: no cover
 
         evs: list[Any] = []
 

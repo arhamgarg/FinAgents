@@ -186,6 +186,8 @@ async def load_signal_by_run_id(
 
 
 async def prune_before(db_path: Path, before_date: str) -> int:
+    if not db_path.exists():
+        return 0
     async with open_signals_db(db_path) as db:
         cur = await db.execute(
             "DELETE FROM signals WHERE created_at < ?", (before_date,),

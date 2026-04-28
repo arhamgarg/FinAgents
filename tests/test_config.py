@@ -13,14 +13,25 @@ class TestSettingsDefaults:
         assert default_settings.llm_provider == "ollama"
 
     def test_default_deep_think_model(self, default_settings: Settings) -> None:
-        assert default_settings.deep_think_llm == "openai/gpt-oss-120b"
+        assert default_settings.deep_think_llm == "openrouter/auto"
 
     def test_default_quick_think_model(self, default_settings: Settings) -> None:
-        assert default_settings.quick_think_llm == "openai/gpt-oss-20b"
+        assert default_settings.quick_think_llm == "openrouter/auto"
 
     def test_optional_keys_default_to_none(self, default_settings: Settings) -> None:
         assert default_settings.groq_api_key is None
+        assert default_settings.openrouter_api_key is None
+        assert default_settings.cerebras_api_key is None
         assert default_settings.angelone_api_key is None
+
+    def test_schema_default_provider_is_openrouter(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("LLM_PROVIDER", raising=False)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            s = Settings(_env_file=None)
+        assert s.llm_provider == "openrouter"
 
 
 class TestSettingsEnvLoading:
@@ -84,6 +95,26 @@ class TestStartupWarnings:
             Settings(_env_file=None)
             groq_warnings = [x for x in w if "GROQ_API_KEY" in str(x.message)]
             assert len(groq_warnings) >= 1
+
+    def test_openrouter_without_key_warns(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings(_env_file=None)
+            hits = [x for x in w if "OPENROUTER_API_KEY" in str(x.message)]
+            assert len(hits) >= 1
+
+    def test_cerebras_without_key_warns(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("LLM_PROVIDER", "cerebras")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            Settings(_env_file=None)
+            hits = [x for x in w if "CEREBRAS_API_KEY" in str(x.message)]
+            assert len(hits) >= 1
 
     def test_ollama_without_key_no_warning(self, default_settings: Settings) -> None:
         pass

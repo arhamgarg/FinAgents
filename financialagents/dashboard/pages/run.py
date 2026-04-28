@@ -8,6 +8,18 @@ import streamlit as st
 from financialagents.cli.ist_dates import ist_today_str
 from financialagents.config import Settings
 
+import re as _re
+
+_SECRET_PATTERN = _re.compile(
+    r"((?:OPENROUTER_API_KEY|CEREBRAS_API_KEY|GROQ_API_KEY|ANGELONE_[A-Z_]+|REDDIT_[A-Z_]+|(?<![A-Z_])api_key))"
+    r"\s*[=:]\s*\S+",
+    _re.IGNORECASE,
+)
+
+
+def _redact_secrets(text: str) -> str:
+    return _SECRET_PATTERN.sub(r"\1=***", text)
+
 
 EMPTY_HEADING: str = "Ready when you are"
 EMPTY_BODY: str = (
@@ -39,10 +51,15 @@ def render_sidebar_form(settings: Settings) -> dict[str, Any] | None:
             today = _date.fromisoformat(today_str)
             date_in = st.date_input("Date", value=today)
             provider_default = _settings_to_provider_default(settings)
+            provider_options = ["openrouter", "cerebras", "groq", "ollama"]
             provider = st.selectbox(
                 "Provider",
-                options=["ollama", "groq"],
-                index=0 if provider_default == "ollama" else 1,
+                options=provider_options,
+                index=(
+                    provider_options.index(provider_default)
+                    if provider_default in provider_options
+                    else 0
+                ),
             )
             model = st.text_input("Model", value=settings.deep_think_llm)
             rounds = st.number_input(
@@ -107,6 +124,11 @@ if config is not None or quick_ticker is not None:
     st.session_state["pending_run"] = {"config": pending_config}
 
     if not st.session_state.get("pipeline_running"):
+        st.session_state.last_completed_event = None
+        st.session_state.persisted = False
+        st.session_state.stage_state = None
+        st.session_state.run_id = None
+
         import asyncio as _asyncio
         import uuid as _uuid
 
@@ -121,6 +143,8 @@ if config is not None or quick_ticker is not None:
         run_settings = settings.model_copy(
             update={
                 "llm_provider": pending_config["provider"],
+                "deep_think_llm": pending_config["model"],
+                "quick_think_llm": pending_config["model"],
                 "max_debate_rounds": int(pending_config["rounds"]),
             }
         )
@@ -214,3 +238,35 @@ if (
                 )
             )
             st.session_state.persisted = True
+
+
+if (
+    _last_ev is not None
+    and _last_ev.kind == "errored"
+):
+    import asyncio as _asyncio_err
+    from pathlib import Path as _Path_err
+
+    from financialagents.storage.signals import update_errored
+
+    err_msg_raw = (
+        str(_last_ev.error) if _last_ev.error is not None
+        else "pipeline errored"
+    )
+    err_msg = _redact_secrets(err_msg_raw)
+
+    if not st.session_state.get("persisted"):
+        _db_path_err = _Path_err(
+            st.session_state.get("run_db_path", "")
+        )
+        if _db_path_err and st.session_state.get("run_id"):
+            _asyncio_err.run(
+                update_errored(
+                    st.session_state.run_id,
+                    error_msg=err_msg,
+                    db_path=_db_path_err,
+                )
+            )
+            st.session_state.persisted = True
+
+    st.error(f"Pipeline errored: {err_msg}")

@@ -67,6 +67,93 @@ class TestGroqProvider:
             assert isinstance(llm, BaseChatModel)
 
 
+class TestOpenRouterProvider:
+
+    def test_openrouter_missing_key_raises(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+        config = Settings(_env_file=None)
+        with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+            create_llm_client("deep_think", config)
+
+    def test_openrouter_with_key_succeeds(self, openrouter_settings: Settings) -> None:
+        with patch(
+            "financialagents.llm_clients.openrouter_client.ChatOpenAI", create=True
+        ) as mock_or:
+            mock_or.return_value = MagicMock(spec=BaseChatModel)
+            llm = create_llm_client("deep_think", openrouter_settings)
+            assert isinstance(llm, BaseChatModel)
+
+    def test_openrouter_passes_base_url(self, openrouter_settings: Settings) -> None:
+        with patch("langchain_openai.ChatOpenAI", create=True) as mock_or:
+            mock_or.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", openrouter_settings)
+            _, kwargs = mock_or.call_args
+            assert kwargs.get("base_url") == "https://openrouter.ai/api/v1"
+
+    def test_openrouter_tier_routing(self, openrouter_settings: Settings) -> None:
+        with patch("langchain_openai.ChatOpenAI", create=True) as mock_or:
+            mock_or.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", openrouter_settings)
+            _, kwargs = mock_or.call_args
+            assert kwargs.get("model") == openrouter_settings.quick_think_llm
+
+    def test_openrouter_max_tokens_kwarg(self, openrouter_settings: Settings) -> None:
+        with patch("langchain_openai.ChatOpenAI", create=True) as mock_or:
+            mock_or.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", openrouter_settings, max_output_tokens=1024)
+            _, kwargs = mock_or.call_args
+            assert kwargs.get("max_tokens") == 1024
+
+    def test_openrouter_temperature_kwarg(self, openrouter_settings: Settings) -> None:
+        with patch("langchain_openai.ChatOpenAI", create=True) as mock_or:
+            mock_or.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", openrouter_settings, temperature=0.7)
+            _, kwargs = mock_or.call_args
+            assert kwargs.get("temperature") == 0.7
+
+
+class TestCerebrasProvider:
+
+    def test_cerebras_missing_key_raises(
+        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("LLM_PROVIDER", "cerebras")
+        config = Settings(_env_file=None)
+        with pytest.raises(ValueError, match="CEREBRAS_API_KEY"):
+            create_llm_client("deep_think", config)
+
+    def test_cerebras_with_key_succeeds(self, cerebras_settings: Settings) -> None:
+        with patch(
+            "financialagents.llm_clients.cerebras_client.ChatCerebras", create=True
+        ) as mock_cb:
+            mock_cb.return_value = MagicMock(spec=BaseChatModel)
+            llm = create_llm_client("deep_think", cerebras_settings)
+            assert isinstance(llm, BaseChatModel)
+
+    def test_cerebras_tier_routing(self, cerebras_settings: Settings) -> None:
+        with patch("langchain_cerebras.ChatCerebras", create=True) as mock_cb:
+            mock_cb.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("quick_think", cerebras_settings)
+            _, kwargs = mock_cb.call_args
+            assert kwargs.get("model") == cerebras_settings.quick_think_llm
+
+    def test_cerebras_max_tokens_kwarg(self, cerebras_settings: Settings) -> None:
+        with patch("langchain_cerebras.ChatCerebras", create=True) as mock_cb:
+            mock_cb.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", cerebras_settings, max_output_tokens=1024)
+            _, kwargs = mock_cb.call_args
+            assert kwargs.get("max_tokens") == 1024
+
+    def test_cerebras_temperature_kwarg(self, cerebras_settings: Settings) -> None:
+        with patch("langchain_cerebras.ChatCerebras", create=True) as mock_cb:
+            mock_cb.return_value = MagicMock(spec=BaseChatModel)
+            create_llm_client("deep_think", cerebras_settings, temperature=0.7)
+            _, kwargs = mock_cb.call_args
+            assert kwargs.get("temperature") == 0.7
+
+
 class TestOllamaProvider:
 
     def test_ollama_no_key_required(self, default_settings: Settings) -> None:

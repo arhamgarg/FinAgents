@@ -9,6 +9,10 @@ from financialagents.config import Settings
 
 def list_configured_providers(settings: Settings) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
+    if settings.openrouter_api_key:
+        out.append(("openrouter", settings.deep_think_llm))
+    if settings.cerebras_api_key:
+        out.append(("cerebras", settings.deep_think_llm))
     if settings.groq_api_key:
         out.append(("groq", settings.deep_think_llm))
     out.append(("ollama", settings.deep_think_llm))

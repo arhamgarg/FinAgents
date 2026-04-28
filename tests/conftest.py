@@ -16,6 +16,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "DEEP_THINK_LLM",
         "QUICK_THINK_LLM",
         "GROQ_API_KEY",
+        "OPENROUTER_API_KEY",
+        "CEREBRAS_API_KEY",
         "ANGELONE_API_KEY",
         "ANGELONE_CLIENT_ID",
         "ANGELONE_PIN",
@@ -37,6 +39,20 @@ def default_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settin
 def groq_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("LLM_PROVIDER", "groq")
     monkeypatch.setenv("GROQ_API_KEY", "test-groq-api-key-fake")
+    return Settings(_env_file=None)
+
+
+@pytest.fixture
+def openrouter_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-api-key-fake")
+    return Settings(_env_file=None)
+
+
+@pytest.fixture
+def cerebras_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
+    monkeypatch.setenv("LLM_PROVIDER", "cerebras")
+    monkeypatch.setenv("CEREBRAS_API_KEY", "test-cerebras-api-key-fake")
     return Settings(_env_file=None)
 
 

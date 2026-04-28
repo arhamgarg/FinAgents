@@ -35,6 +35,7 @@ class TestDataResult:
             Settings(_env_file=None)
 
     def test_all_optional_keys_set_no_warnings(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("LLM_PROVIDER", "groq")
         monkeypatch.setenv("ANGELONE_API_KEY", "test-key")
         monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
         monkeypatch.setenv("ANGELONE_PIN", "1234")

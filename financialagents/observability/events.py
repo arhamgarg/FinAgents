@@ -93,7 +93,7 @@ async def stream_pipeline_events(
     started_nodes: set[str] = set()
 
     try:
-        async for ns, payload in graph.astream(
+        async for ns, mode, payload in graph.astream(
             initial_state,
             config=config,
             stream_mode=["updates", "values"],
