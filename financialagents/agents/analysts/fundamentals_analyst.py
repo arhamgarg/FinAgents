@@ -132,7 +132,16 @@ async def fundamentals_analyst_node(
         try:
             report = await structured_llm.ainvoke(prompt)
         except Exception as retry_err:
-            raise retry_err from first_err
+            return {
+                "fundamentals_report": FundamentalsAnalystReport(
+                    confidence=0.0,
+                    data_sources=[result.source] if result.source else [],
+                    notes=(
+                        f"LLM error after retry: {retry_err!r} "
+                        f"(initial: {first_err!r})"
+                    ),
+                )
+            }
 
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]

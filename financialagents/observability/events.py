@@ -99,9 +99,7 @@ async def stream_pipeline_events(
             stream_mode=["updates", "values"],
             subgraphs=True,
         ):
-            if isinstance(payload, dict) and any(
-                k in STAGE_FOR_NODE for k in payload
-            ):
+            if mode == "updates" and isinstance(payload, dict):
                 for node_name, delta in payload.items():
                     if node_name not in STAGE_FOR_NODE:
                         continue
@@ -140,7 +138,7 @@ async def stream_pipeline_events(
                                     node_name=node_name,
                                     round=new_round,
                                 )
-            else:
+            elif mode == "values" and ns == ():
                 last_state = payload
                 try:
                     snapshot = (
