@@ -5,28 +5,13 @@ Multi-agent LLM trading-signal framework for the Indian stock market
 a trader, three risk personas, and a portfolio manager to produce
 well-reasoned trading signals via LangGraph.
 
-The pipeline runs locally against your Ollama models by default (zero
-LLM cost) or against Groq when you set `GROQ_API_KEY`. Market data flows
-from Angel One SmartAPI; news and fundamentals are scraped from
-Screener.in / NSE / MoneyControl.
-
 ## Quickstart
 
-Prerequisites: Python 3.12 or 3.13 and [`uv`](https://docs.astral.sh/uv/)
-installed:
-
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Then:
-
-```bash
-git clone <repo>
+git clone https://github.com/arhamgarg/financial-agents.git
 cd financial-agents
 uv sync --all-extras
-cp .env.example .env       # add ANGELONE_* and (optionally) GROQ_API_KEY
-uv run fa run RELIANCE     # run the full pipeline; default provider = ollama
+uv run fa run RELIANCE     # run the full pipeline; default provider = openrouter
 uv run fa dashboard        # browser-based dashboard at http://localhost:8501
 ```
 
@@ -38,13 +23,13 @@ and ticker selection.
 
 Five subcommands under `fa` (also installed as `financialagents`):
 
-| Command | Purpose |
-|---------|---------|
-| `fa run <ticker>` | Run the full pipeline. Flags: `--date YYYY-MM-DD`, `--provider {ollama,groq}`, `--json`, `--debug`. Defaults: today in IST, `LLM_PROVIDER` env or `ollama`. |
-| `fa history` | Browse the signal log. Flags: `--ticker`, `--since`, `--limit N`, `--all`, `--expand`, `--prune --before <date>`, `--yes`. |
-| `fa show <run-id>` | Render the full Signal panel for a recorded run. |
-| `fa dashboard` | Launch the Streamlit dashboard. Flags: `--port`, `--host`. |
-| `fa export` | Export the signal log. Flags: `--format {json,csv}`, `--ticker`, `--since`, `--until`, `--out FILE`, `--yes`. |
+| Command            | Purpose                                                                                                                    |
+|--------------------|----------------------------------------------------------------------------------------------------------------------------|
+| `fa run <ticker>`  | Run the full pipeline. Flags: `--date YYYY-MM-DD`, `--provider {openrouter,cerebras,groq,ollama}`, `--json`, `--debug`.    |
+| `fa history`       | Browse the signal log. Flags: `--ticker`, `--since`, `--limit N`, `--all`, `--expand`, `--prune --before <date>`, `--yes`. |
+| `fa show <run-id>` | Render the full Signal panel for a recorded run.                                                                           |
+| `fa dashboard`     | Launch the Streamlit dashboard. Flags: `--port`, `--host`.                                                                 |
+| `fa export`        | Export the signal log. Flags: `--format {json,csv}`, `--ticker`, `--since`, `--until`, `--out FILE`, `--yes`.              |
 
 Bare `fa` (no arguments) launches the interactive wizard.
 
@@ -84,11 +69,11 @@ truth.
 The CLI and dashboard share a single SQLite database at the platform's
 user-data directory:
 
-| OS | Default location |
-|----|------------------|
-| macOS | `~/Library/Application Support/financialagents/signals.db` |
-| Linux | `~/.local/share/financialagents/signals.db` |
-| Windows | `%LOCALAPPDATA%\financialagents\signals.db` |
+| OS      | Default location                                          |
+|---------|-----------------------------------------------------------|
+| macOS   | `~/Library/Application Support/financialagents/signals.db` |
+| Linux   | `~/.local/share/financialagents/signals.db`                |
+| Windows | `%LOCALAPPDATA%\financialagents\signals.db`                |
 
 Override the location with the `FA_DATA_DIR` environment variable:
 
@@ -127,6 +112,6 @@ uv run ty check financialagents # typecheck
 
 the rationale behind every choice.
 
-## License
+## **License**
 
-TBD.
+This repository is licensed under the `GNU Affero General Public License v3.0 (AGPL-3.0)`. You’re free to use, modify, and share the code for your projects — but if you run it as part of a network service, you must also make the source code available to users of that service. Full details can be found in the [LICENSE](LICENSE) file.

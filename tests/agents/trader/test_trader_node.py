@@ -235,6 +235,8 @@ class TestTraderNode:
         assert signal.action == "HOLD"
         assert signal.conviction == 0.0
         assert "LLM invocation failed" in signal.rationale
+        assert "first error" in signal.rationale
+        assert "second error" in signal.rationale
 
     def test_current_price_none_forces_hold(
         self,

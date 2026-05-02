@@ -64,7 +64,7 @@ async def investment_plan_node(
 
     prompt = build_investment_plan_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=1024)
+    llm = create_llm_client("deep_think", settings, max_output_tokens=2048)
     structured_llm = llm.with_structured_output(InvestmentPlan)
 
     result: InvestmentPlan
@@ -74,6 +74,11 @@ async def investment_plan_node(
         try:
             result = await structured_llm.ainvoke(prompt)
         except Exception as retry_err:
-            raise retry_err from first_err
+            return {
+                "investment_plan": (
+                    f"[investment plan unavailable: LLM error after retry "
+                    f"— {retry_err!r} (initial: {first_err!r})]"
+                )
+            }
 
     return {"investment_plan": result.synthesis}

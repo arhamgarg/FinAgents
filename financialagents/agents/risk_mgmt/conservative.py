@@ -99,7 +99,17 @@ async def conservative_risk_node(
         try:
             result = await structured_llm.ainvoke(prompt)  # ty: ignore[invalid-assignment]
         except Exception as retry_err:
-            raise retry_err from first_err
+            return {
+                "conservative_assessment": PersonaAssessment(
+                    main_argument=(
+                        f"[conservative persona unavailable: LLM error after "
+                        f"retry — {retry_err!r} (initial: {first_err!r})]"
+                    ),
+                    counter_to_prior_persona="",
+                    recommended_position_size_pct=0.0,
+                    confidence=0.0,
+                ).model_dump_json()
+            }
 
     result = _enforce_guard_04(result, state.trader_signal_snapshot)
     return {"conservative_assessment": result.model_dump_json()}

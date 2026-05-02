@@ -198,7 +198,7 @@ class TestConsolidationRetryOnce:
         assert mock_structured.ainvoke.await_count == 2
         assert result["risk_debate_history"][0] == "ok"
 
-    def test_double_failure_reraises(self, default_settings: Settings) -> None:
+    def test_double_failure_returns_sentinel(self, default_settings: Settings) -> None:
         state = _state_with_persona_sizes()
         mock_structured = MagicMock()
         mock_structured.ainvoke = AsyncMock(
@@ -211,8 +211,18 @@ class TestConsolidationRetryOnce:
             return_value=mock_llm,
         ):
             config = {"configurable": {"settings": default_settings}}
-            with pytest.raises(RuntimeError, match="second"):
-                asyncio.run(risk_debate_consolidation_node(state, config))
+            result = asyncio.run(risk_debate_consolidation_node(state, config))
+
+        assert mock_structured.ainvoke.await_count == 2
+        assert "risk_debate_history" in result
+        round_key = state.current_round
+        sentinel = result["risk_debate_history"][round_key]
+        assert "consolidation unavailable" in sentinel.lower()
+        assert "second" in sentinel
+        assert "first" in sentinel
+        assert result["current_round"] == state.current_round + 1
+        assert "synthesized_position_size_pct" in result
+        assert isinstance(result["synthesized_position_size_pct"], float)
 
 
 class TestConsolidationPrompt:

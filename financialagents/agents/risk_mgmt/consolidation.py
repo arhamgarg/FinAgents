@@ -68,15 +68,6 @@ async def risk_debate_consolidation_node(
     llm = create_llm_client("deep_think", settings, max_output_tokens=1024)
     structured_llm = llm.with_structured_output(RiskConsolidation)
 
-    result: RiskConsolidation
-    try:
-        result = await structured_llm.ainvoke(prompt)  # ty: ignore[invalid-assignment]
-    except Exception as first_err:
-        try:
-            result = await structured_llm.ainvoke(prompt)  # ty: ignore[invalid-assignment]
-        except Exception as retry_err:
-            raise retry_err from first_err
-
     weights = settings.risk_persona_weights
     agg_size = _parse_size(state.aggressive_assessment)
     neu_size = _parse_size(state.neutral_assessment)
@@ -86,8 +77,26 @@ async def risk_debate_consolidation_node(
         + weights.get("neutral", 0.0) * neu_size
         + weights.get("conservative", 0.0) * con_size
     )
-
     round_key = state.current_round
+
+    result: RiskConsolidation
+    try:
+        result = await structured_llm.ainvoke(prompt)  # ty: ignore[invalid-assignment]
+    except Exception as first_err:
+        try:
+            result = await structured_llm.ainvoke(prompt)  # ty: ignore[invalid-assignment]
+        except Exception as retry_err:
+            return {
+                "risk_debate_history": {
+                    round_key: (
+                        f"[consolidation unavailable: LLM error after retry "
+                        f"— {retry_err!r} (initial: {first_err!r})]"
+                    )
+                },
+                "current_round": state.current_round + 1,
+                "synthesized_position_size_pct": synthesized_size,
+            }
+
     return {
         "risk_debate_history": {round_key: result.synthesis},
         "current_round": state.current_round + 1,

@@ -185,9 +185,11 @@ class TestConservativeNodeBehavior:
         assert ainvoke_mock.await_count == 2
         assert "conservative_assessment" in result
 
-    def test_double_failure_reraises(
+    def test_double_failure_returns_sentinel(
         self, fresh_risk_state: RiskDebateState, default_settings: Settings
     ) -> None:
+        import json
+
         ainvoke_mock = AsyncMock(
             side_effect=[RuntimeError("first"), RuntimeError("second")]
         )
@@ -201,8 +203,16 @@ class TestConservativeNodeBehavior:
             return_value=mock_llm,
         ):
             config = {"configurable": {"settings": default_settings}}
-            with pytest.raises(RuntimeError, match="second"):
-                asyncio.run(conservative_risk_node(fresh_risk_state, config))
+            result = asyncio.run(conservative_risk_node(fresh_risk_state, config))
+
+        assert ainvoke_mock.await_count == 2
+        assert "conservative_assessment" in result
+        sentinel = json.loads(result["conservative_assessment"])
+        assert sentinel["confidence"] == 0.0
+        assert sentinel["recommended_position_size_pct"] == 0.0
+        assert "conservative persona unavailable" in sentinel["main_argument"].lower()
+        assert "second" in sentinel["main_argument"]
+        assert "first" in sentinel["main_argument"]
 
     def test_none_config_uses_default_settings(
         self, fresh_risk_state: RiskDebateState

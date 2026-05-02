@@ -109,7 +109,7 @@ class TestInvestmentPlanNode:
             return_value=mock_llm,
         ) as mock_create:
             asyncio.run(investment_plan_node(populated_state_with_full_history, config))
-        mock_create.assert_called_once_with("deep_think", default_settings, max_output_tokens=1024)
+        mock_create.assert_called_once_with("deep_think", default_settings, max_output_tokens=2048)
 
     def test_retries_once_on_llm_failure(
         self,
@@ -134,7 +134,7 @@ class TestInvestmentPlanNode:
         assert ainvoke_mock.call_count == 2
         assert "investment_plan" in result
 
-    def test_raises_when_both_attempts_fail(
+    def test_returns_sentinel_when_both_attempts_fail(
         self,
         populated_state_with_full_history: InvestDebateState,
         default_settings: Settings,
@@ -150,10 +150,15 @@ class TestInvestmentPlanNode:
             "financialagents.agents.researchers.investment_plan.create_llm_client",
             return_value=mock_llm,
         ):
-            with pytest.raises(RuntimeError, match="second"):
-                asyncio.run(
-                    investment_plan_node(populated_state_with_full_history, config)
-                )
+            result = asyncio.run(
+                investment_plan_node(populated_state_with_full_history, config)
+            )
+        assert ainvoke_mock.call_count == 2
+        assert "investment_plan" in result
+        sentinel = result["investment_plan"]
+        assert "investment plan unavailable" in sentinel.lower()
+        assert "second" in sentinel
+        assert "first" in sentinel
 
     def test_prompt_contains_under_800_words_directive(
         self,

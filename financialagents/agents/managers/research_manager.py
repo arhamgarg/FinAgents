@@ -167,7 +167,39 @@ async def research_manager_node(
         try:
             brief = await structured_llm.ainvoke(prompt)
         except Exception as retry_err:
-            raise retry_err from first_err
+            return {
+                "research_summary": ResearchBrief(
+                    key_findings=[],
+                    consensus_view="",
+                    conflicts=[],
+                    data_quality_summary=(
+                        "Research synthesis unavailable — downstream "
+                        "consumers should treat overall_confidence as 0.0."
+                    ),
+                    analyst_confidences={
+                        "technical": (
+                            state.technical_report.confidence
+                            if state.technical_report
+                            else 0.0
+                        ),
+                        "fundamentals": (
+                            state.fundamentals_report.confidence
+                            if state.fundamentals_report
+                            else 0.0
+                        ),
+                        "news": (
+                            state.news_report.confidence
+                            if state.news_report
+                            else 0.0
+                        ),
+                    },
+                    overall_confidence=0.0,
+                    notes=(
+                        f"LLM error after retry: {retry_err!r} "
+                        f"(initial: {first_err!r})"
+                    ),
+                )
+            }
 
     brief.analyst_confidences = {
         "technical": state.technical_report.confidence if state.technical_report else 0.0,

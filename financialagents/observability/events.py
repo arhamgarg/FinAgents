@@ -83,92 +83,127 @@ def _extract_position_size_pct(node_name: str, delta: Any) -> Optional[float]:
         return None
 
 
+def _events_for_step(
+    ns: Any,
+    mode: Any,
+    payload: Any,
+    state: dict[str, Any],
+) -> list[PipelineEvent]:
+    out: list[PipelineEvent] = []
+
+    if mode == "updates" and isinstance(payload, dict):
+        for node_name, delta in payload.items():
+            if node_name not in STAGE_FOR_NODE:
+                continue
+
+            started_nodes: set[str] = state["started_nodes"]
+            if node_name not in started_nodes:
+                started_nodes.add(node_name)
+                out.append(
+                    PipelineEvent(
+                        kind="node_status",
+                        node_name=node_name,
+                        status="started",
+                    )
+                )
+
+            size_pct = _extract_position_size_pct(node_name, delta)
+            out.append(
+                PipelineEvent(
+                    kind="node_status",
+                    node_name=node_name,
+                    status="completed",
+                    update_payload=delta if isinstance(delta, dict) else None,
+                    position_size_pct=size_pct,
+                )
+            )
+
+            if node_name in (
+                "bull_researcher_node",
+                "bear_researcher_node",
+            ) and isinstance(delta, dict):
+                new_round = max(
+                    len(delta.get("bull_history") or []),
+                    len(delta.get("bear_history") or []),
+                )
+                if new_round > state["last_round"]:
+                    state["last_round"] = new_round
+                    out.append(
+                        PipelineEvent(
+                            kind="round_advanced",
+                            node_name=node_name,
+                            round=new_round,
+                        )
+                    )
+
+    elif mode == "values" and ns == ():
+        state["last_state"] = payload
+        try:
+            snapshot = (
+                AgentState.model_validate(payload) if payload is not None else None
+            )
+        except Exception:
+            snapshot = None
+        if snapshot is not None:
+            out.append(PipelineEvent(kind="values", final_state=snapshot))
+
+    return out
+
+
 async def stream_pipeline_events(
     graph: Any,
     initial_state: Any,
     config: dict[str, Any],
 ) -> AsyncIterator[PipelineEvent]:
-    last_state: Any = initial_state
-    last_round: int = 0
-    started_nodes: set[str] = set()
+    state: dict[str, Any] = {
+        "last_state": initial_state,
+        "last_round": 0,
+        "started_nodes": set(),
+    }
 
-    try:
-        async for ns, mode, payload in graph.astream(
-            initial_state,
-            config=config,
-            stream_mode=["updates", "values"],
-            subgraphs=True,
-        ):
-            if mode == "updates" and isinstance(payload, dict):
-                for node_name, delta in payload.items():
-                    if node_name not in STAGE_FOR_NODE:
-                        continue
+    agen = graph.astream(
+        initial_state,
+        config=config,
+        stream_mode=["updates", "values"],
+        subgraphs=True,
+    ).__aiter__()
 
-                    if node_name not in started_nodes:
-                        started_nodes.add(node_name)
-                        yield PipelineEvent(
-                            kind="node_status",
-                            node_name=node_name,
-                            status="started",
-                        )
-
-                    size_pct = _extract_position_size_pct(node_name, delta)
-
-                    yield PipelineEvent(
-                        kind="node_status",
-                        node_name=node_name,
-                        status="completed",
-                        update_payload=delta if isinstance(delta, dict) else None,
-                        position_size_pct=size_pct,
-                    )
-
-                    if node_name in (
-                        "bull_researcher_node",
-                        "bear_researcher_node",
-                    ):
-                        if isinstance(delta, dict):
-                            new_round = max(
-                                len(delta.get("bull_history") or []),
-                                len(delta.get("bear_history") or []),
-                            )
-                            if new_round > last_round:
-                                last_round = new_round
-                                yield PipelineEvent(
-                                    kind="round_advanced",
-                                    node_name=node_name,
-                                    round=new_round,
-                                )
-            elif mode == "values" and ns == ():
-                last_state = payload
-                try:
-                    snapshot = (
-                        AgentState.model_validate(payload)
-                        if payload is not None
-                        else None
-                    )
-                except Exception:
-                    snapshot = None
-                if snapshot is not None:
-                    yield PipelineEvent(
-                        kind="values", final_state=snapshot,
-                    )
-
+    final_events: list[PipelineEvent] = []
+    while True:
         try:
-            final = (
-                AgentState.model_validate(last_state)
-                if last_state is not None
-                else None
+            step = await agen.__anext__()
+        except StopAsyncIteration:
+            try:
+                final = (
+                    AgentState.model_validate(state["last_state"])
+                    if state["last_state"] is not None
+                    else None
+                )
+            except Exception:
+                final = None
+            final_events.append(PipelineEvent(kind="completed", final_state=final))
+            break
+        except asyncio.CancelledError:
+            final_events.append(
+                PipelineEvent(kind="errored", status="cancelled")
             )
-        except Exception:
-            final = None
-        yield PipelineEvent(kind="completed", final_state=final)
+            for ev in final_events:
+                yield ev
+            raise
+        except BaseException as exc:
+            final_events.append(
+                PipelineEvent(kind="errored", status="errored", error=exc)
+            )
+            for ev in final_events:
+                yield ev
+            raise
 
-    except asyncio.CancelledError:
-        yield PipelineEvent(kind="errored", status="cancelled")
-        raise
-    except BaseException as exc:
-        yield PipelineEvent(kind="errored", status="errored", error=exc)
-        raise
+        ns, mode, payload = step
+        for ev in _events_for_step(ns, mode, payload, state):
+            yield ev
+
+    for ev in final_events:
+        yield ev
 
 
 __all__ = [

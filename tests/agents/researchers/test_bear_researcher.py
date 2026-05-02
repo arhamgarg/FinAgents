@@ -93,7 +93,7 @@ class TestBearResearcherNode:
             return_value=mock_llm,
         ) as mock_create:
             asyncio.run(bear_researcher_node(populated_state, config))
-        mock_create.assert_called_once_with("deep_think", default_settings, max_output_tokens=1024)
+        mock_create.assert_called_once_with("deep_think", default_settings, max_output_tokens=2048)
 
     def test_retries_once_on_llm_failure(
         self,
@@ -117,7 +117,7 @@ class TestBearResearcherNode:
         assert "bear_history" in result
         assert "current_round" in result
 
-    def test_raises_when_both_attempts_fail(
+    def test_returns_sentinel_when_both_attempts_fail(
         self,
         populated_state: InvestDebateState,
         default_settings: Settings,
@@ -133,8 +133,15 @@ class TestBearResearcherNode:
             "financialagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
-            with pytest.raises(RuntimeError, match="second"):
-                asyncio.run(bear_researcher_node(populated_state, config))
+            result = asyncio.run(bear_researcher_node(populated_state, config))
+        assert ainvoke_mock.call_count == 2
+        assert "bear_history" in result
+        round_key = populated_state.current_round
+        sentinel = result["bear_history"][round_key]
+        assert "bear argument unavailable" in sentinel.lower()
+        assert "second" in sentinel
+        assert "first" in sentinel
+        assert result["current_round"] == populated_state.current_round + 1
 
     def test_prompt_contains_under_800_words_directive(
         self,

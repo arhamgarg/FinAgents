@@ -196,11 +196,14 @@ async def trader_node(
     except Exception as first_err:
         try:
             signal = cast(TradingSignal, await structured_llm.ainvoke(prompt))
-        except Exception:
+        except Exception as retry_err:
             signal = TradingSignal(
                 action="HOLD",
                 conviction=0.0,
-                rationale=f"LLM invocation failed after retry: {first_err}",
+                rationale=(
+                    f"LLM invocation failed after retry: {retry_err!r} "
+                    f"(initial: {first_err!r})"
+                ),
             )
 
     signal.analyst_weight_applied = dict(settings.analyst_weights)
