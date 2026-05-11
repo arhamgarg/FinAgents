@@ -62,6 +62,7 @@ async def neutral_risk_node(
         settings,
         max_output_tokens=1024,
         temperature=NEUTRAL_TEMPERATURE,
+        call_site="neutral_risk",
     )
     structured_llm = llm.with_structured_output(PersonaAssessment)
 

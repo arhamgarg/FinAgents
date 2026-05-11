@@ -116,7 +116,7 @@ class TestFinancialAgentsGraphModelValidate:
                     "current_round": 1,
                     "max_rounds": 3,
                     "research_brief_snapshot": "brief",
-                    "investment_plan": "plan text",
+                    "investment_thesis": "plan text",
                 },
             }
 
@@ -135,7 +135,7 @@ class TestFinancialAgentsGraphModelValidate:
         ids = result_state.investment_debate_state
         assert isinstance(ids, InvestDebateState)
         assert ids.bull_history == {1: "bull-1"}
-        assert ids.investment_plan == "plan text"
+        assert ids.investment_thesis == "plan text"
         assert ids.bull_turns() == ["bull-1"]
 
     def test_returns_agent_state_when_already_typed(

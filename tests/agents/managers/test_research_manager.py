@@ -291,7 +291,9 @@ class TestResearchManagerNode:
         ) as mock_create:
             asyncio.run(research_manager_node(populated_state, config))
 
-        mock_create.assert_called_once_with("deep_think", default_settings)
+        mock_create.assert_called_once_with(
+            "deep_think", default_settings, call_site="research_manager"
+        )
 
     def test_uses_analyst_weights_from_settings(
         self,

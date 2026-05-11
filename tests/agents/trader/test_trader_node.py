@@ -71,7 +71,7 @@ def populated_state(
     debate = InvestDebateState(
         max_rounds=3,
         research_brief_snapshot="bullish",
-        investment_plan="BUY directional (bull thesis outweighed bear)",
+        investment_thesis="BUY directional (bull thesis outweighed bear)",
     )
     return AgentState(
         ticker="TRENT",
@@ -130,7 +130,9 @@ class TestTraderNode:
         ) as mock_create:
             asyncio.run(trader_node(populated_state, config))
 
-        mock_create.assert_called_once_with("deep_think", default_settings)
+        mock_create.assert_called_once_with(
+            "deep_think", default_settings, call_site="trader"
+        )
 
     def test_price_grounding_overrides_llm_entry_price(
         self,

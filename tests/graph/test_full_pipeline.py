@@ -48,9 +48,9 @@ class TestFullPipelineFlag:
                 "current_round": state.current_round + 1,
             }
 
-        async def fake_plan(state, config):
+        async def fake_thesis(state, config):
             bulls = state.bull_turns()
-            return {"investment_plan": f"plan after {len(bulls)} rounds"}
+            return {"investment_thesis": f"thesis after {len(bulls)} rounds"}
 
         async def fake_trader(state, config=None):
             return {
@@ -147,8 +147,8 @@ class TestFullPipelineFlag:
                     fake_bear,
                 ),
                 patch(
-                    "financialagents.agents.researchers.investment_plan.investment_plan_node",
-                    fake_plan,
+                    "financialagents.agents.researchers.investment_thesis.investment_thesis_node",
+                    fake_thesis,
                 ),
                 patch(
                     "financialagents.agents.trader.trader.trader_node",
@@ -202,8 +202,8 @@ class TestFullPipelineFlag:
         )
         assert final.investment_debate_state is not None
         ids = final.investment_debate_state
-        assert ids.investment_plan is not None
-        assert len(ids.investment_plan) > 0
+        assert ids.investment_thesis is not None
+        assert len(ids.investment_thesis) > 0
         assert len(ids.bull_turns()) == 3, (
             f" off-by-one: bull_turns={ids.bull_turns()}"
         )

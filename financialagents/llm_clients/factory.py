@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from langchain_core.language_models import BaseChatModel
 
 from financialagents.config import Settings
+
+if TYPE_CHECKING:
+    from financialagents.testing.llm_mock._call_sites import CallSite
+    from financialagents.testing.llm_mock._harness import LLMMockHarness
+
+_ACTIVE_HARNESS: "LLMMockHarness | None" = None
+
+
+def _set_active_harness(harness: "LLMMockHarness | None") -> None:
+    global _ACTIVE_HARNESS
+    _ACTIVE_HARNESS = harness
 
 
 def create_llm_client(
@@ -10,7 +23,11 @@ def create_llm_client(
     config: Settings,
     max_output_tokens: int | None = None,
     temperature: float | None = None,
+    call_site: "CallSite | None" = None,
 ) -> BaseChatModel:
+    if _ACTIVE_HARNESS is not None:
+        return _ACTIVE_HARNESS._fake_chat_model_for(call_site)
+
     if tier not in ("deep_think", "quick_think"):
         raise ValueError(
             f"Invalid tier '{tier}'. Must be 'deep_think' or 'quick_think'."

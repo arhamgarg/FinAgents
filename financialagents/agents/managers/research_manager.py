@@ -157,7 +157,7 @@ async def research_manager_node(
         weights=weights,
     )
 
-    llm = create_llm_client("deep_think", settings)
+    llm = create_llm_client("deep_think", settings, call_site="research_manager")
     structured_llm = llm.with_structured_output(ResearchBrief)
 
     brief: ResearchBrief

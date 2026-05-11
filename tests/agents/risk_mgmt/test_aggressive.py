@@ -116,6 +116,7 @@ class TestAggressiveNodeBehavior:
             default_settings,
             max_output_tokens=1024,
             temperature=AGGRESSIVE_TEMPERATURE,
+            call_site="aggressive_risk",
         )
         mock_llm.with_structured_output.assert_called_once_with(PersonaAssessment)
 

@@ -45,7 +45,7 @@ class TestAgentStateValidation:
             news_report=NewsReport(article_count=3, sentiment_direction="positive", confidence=0.7),
             fundamentals_report=FundamentalsAnalystReport(pe_ratio=28.0, roce=45.0, confidence=0.9),
             research_summary=ResearchBrief(consensus_view="Overall bullish outlook"),
-            trader_investment_plan="Buy at 3800, SL 3700",
+            trader_investment_thesis="Buy at 3800, SL 3700",
             final_trade_decision=PortfolioDecision(
                 signal=TradingSignal(action="BUY", conviction=0.85),
                 approved=True,
@@ -80,7 +80,7 @@ class TestInvestDebateStateValidation:
         assert state.bear_history == {}
         assert state.current_round == 0
         assert state.max_rounds == 3
-        assert state.investment_plan is None
+        assert state.investment_thesis is None
 
     def test_populated_state_valid(self) -> None:
         state = InvestDebateState(
@@ -88,7 +88,7 @@ class TestInvestDebateStateValidation:
             bear_history={1: "High valuation", 2: "Sector headwinds"},
             current_round=2,
             max_rounds=3,
-            investment_plan="Cautious buy with tight stop-loss",
+            investment_thesis="Cautious buy with tight stop-loss",
         )
         assert len(state.bull_history) == 2
         assert len(state.bear_history) == 2
@@ -267,10 +267,10 @@ class TestPhase4AgentStateFields:
         assert state.trader_signal.action == "SELL"
         assert state.trader_signal.conviction == 0.3
 
-    def test_existing_trader_investment_plan_preserved(self) -> None:
+    def test_existing_trader_investment_thesis_preserved(self) -> None:
         from financialagents.agents.utils.agent_states import AgentState
-        state = AgentState(trader_investment_plan="draft plan text")
-        assert state.trader_investment_plan == "draft plan text"
+        state = AgentState(trader_investment_thesis="draft plan text")
+        assert state.trader_investment_thesis == "draft plan text"
 
 
 class TestPhase42RiskDebateStateFields:

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from financialagents.agents.researchers.bear_researcher import BearArgument
 from financialagents.agents.researchers.bull_researcher import BullArgument
-from financialagents.agents.researchers.investment_plan import InvestmentPlan
+from financialagents.agents.researchers.investment_thesis import InvestmentThesis
 from financialagents.agents.utils.agent_states import InvestDebateState
 
 
@@ -30,7 +30,7 @@ class TestInvestDebateSubgraphCompiles:
         node_names = set(subgraph.nodes.keys())
         assert "bull_researcher_node" in node_names
         assert "bear_researcher_node" in node_names
-        assert "investment_plan_node" in node_names
+        assert "investment_thesis_node" in node_names
 
 
 class TestInvestDebateSubgraphRoundCount:
@@ -44,7 +44,7 @@ class TestInvestDebateSubgraphRoundCount:
             return BearArgument(argument="bear-arg-stub")
 
         async def fake_plan_ainvoke(prompt):
-            return InvestmentPlan(synthesis="synthesized plan")
+            return InvestmentThesis(synthesis="synthesized plan")
 
         with (
             patch(
@@ -56,7 +56,7 @@ class TestInvestDebateSubgraphRoundCount:
                 return_value=_make_mock_llm(fake_bear_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.investment_plan.create_llm_client",
+                "financialagents.agents.researchers.investment_thesis.create_llm_client",
                 return_value=_make_mock_llm(fake_plan_ainvoke),
             ),
         ):
@@ -74,7 +74,7 @@ class TestInvestDebateSubgraphRoundCount:
             f"{len(rehydrated.bull_turns())}"
         )
         assert len(rehydrated.bear_turns()) == 3
-        assert rehydrated.investment_plan == "synthesized plan"
+        assert rehydrated.investment_thesis == "synthesized plan"
         assert rehydrated.current_round == 3
 
     def test_single_round_debate(self) -> None:
@@ -86,7 +86,7 @@ class TestInvestDebateSubgraphRoundCount:
             return BearArgument(argument="single-bear")
 
         async def fake_plan_ainvoke(prompt):
-            return InvestmentPlan(synthesis="single-round synthesis")
+            return InvestmentThesis(synthesis="single-round synthesis")
 
         with (
             patch(
@@ -98,7 +98,7 @@ class TestInvestDebateSubgraphRoundCount:
                 return_value=_make_mock_llm(fake_bear_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.investment_plan.create_llm_client",
+                "financialagents.agents.researchers.investment_thesis.create_llm_client",
                 return_value=_make_mock_llm(fake_plan_ainvoke),
             ),
         ):
@@ -113,5 +113,5 @@ class TestInvestDebateSubgraphRoundCount:
         rehydrated = InvestDebateState.model_validate(result)
         assert len(rehydrated.bull_turns()) == 1
         assert len(rehydrated.bear_turns()) == 1
-        assert rehydrated.investment_plan == "single-round synthesis"
+        assert rehydrated.investment_thesis == "single-round synthesis"
         assert rehydrated.current_round == 1

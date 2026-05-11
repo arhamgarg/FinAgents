@@ -27,7 +27,7 @@ class InvestDebateState(BaseModel):
     current_round: int = 0
     max_rounds: int = 3
     research_brief_snapshot: str = ""
-    investment_plan: Optional[str] = None
+    investment_thesis: Optional[str] = None
 
     def bull_turns(self) -> list[str]:
         return [v for _, v in sorted(self.bull_history.items())]
@@ -72,7 +72,7 @@ class AgentState(BaseModel):
     trader_signal: Optional[TradingSignal] = None
     portfolio_context: Optional[PortfolioContext] = None
 
-    trader_investment_plan: Optional[str] = None
+    trader_investment_thesis: Optional[str] = None
 
     final_trade_decision: Optional[PortfolioDecision] = None
 

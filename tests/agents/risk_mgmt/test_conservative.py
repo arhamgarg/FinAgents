@@ -137,6 +137,7 @@ class TestConservativeNodeBehavior:
             default_settings,
             max_output_tokens=1024,
             temperature=CONSERVATIVE_TEMPERATURE,
+            call_site="conservative_risk",
         )
         mock_llm.with_structured_output.assert_called_once_with(PersonaAssessment)
 
@@ -163,6 +164,7 @@ class TestConservativeNodeBehavior:
             default_settings,
             max_output_tokens=1024,
             temperature=0.3,
+            call_site="conservative_risk",
         )
 
     def test_retries_once_on_llm_failure(

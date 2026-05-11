@@ -11,8 +11,8 @@ well-reasoned trading signals via LangGraph.
 git clone https://github.com/arhamgarg/financial-agents.git
 cd financial-agents
 uv sync --all-extras
-uv run fa run RELIANCE     # run the full pipeline; default provider = openrouter
-uv run fa dashboard        # browser-based dashboard at http://localhost:8501
+uv run fa run RELIANCE
+uv run fa dashboard
 ```
 
 `uv run fa --help` lists every subcommand. `uv run fa` (no arguments)
@@ -53,7 +53,7 @@ from financialagents import FinancialAgentsGraph
 async def main():
     graph = FinancialAgentsGraph(full_pipeline=True)
     state = await graph.apropagate("RELIANCE", "2026-04-26")
-    decision = state.final_trade_decision  # PortfolioDecision
+    decision = state.final_trade_decision
     print(decision.signal.action, decision.approved, decision.pm_notes)
 
 asyncio.run(main())
@@ -105,9 +105,9 @@ subprocess.
 ## Development
 
 ```bash
-uv run pytest -q                # full test suite
-uv run ruff check .             # lint
-uv run ty check financialagents # typecheck
+uv run pytest
+uv run ruff check .
+uv run ty check .
 ```
 
 the rationale behind every choice.

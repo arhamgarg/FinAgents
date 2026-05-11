@@ -125,9 +125,9 @@ _RE_BUY = re.compile(r"\b(?:BUY|ACCUMULATE|LONG)\b", re.IGNORECASE)
 _RE_SELL = re.compile(r"\b(?:SELL|REDUCE|TRIM|EXIT|SHORT)\b", re.IGNORECASE)
 
 
-def scan_debate_direction(investment_plan: str) -> str:
-    has_buy = bool(_RE_BUY.search(investment_plan or ""))
-    has_sell = bool(_RE_SELL.search(investment_plan or ""))
+def scan_debate_direction(investment_thesis: str) -> str:
+    has_buy = bool(_RE_BUY.search(investment_thesis or ""))
+    has_sell = bool(_RE_SELL.search(investment_thesis or ""))
     if has_buy and not has_sell:
         return "BUY"
     if has_sell and not has_buy:
@@ -212,22 +212,22 @@ async def run_pipeline(ticker: str, date: str) -> UatResult:
         else {}
     )
     nonzero_count = sum(1 for v in per_analyst.values() if v > 0)
-    plan = (
-        state.investment_debate_state.investment_plan
+    thesis = (
+        state.investment_debate_state.investment_thesis
         if state.investment_debate_state is not None
         else ""
     )
     signal = state.trader_signal
     if signal is None:
         return UatResult(
-            ticker, overall, scan_debate_direction(plan),
+            ticker, overall, scan_debate_direction(thesis),
             "HOLD", "trader_signal missing", nonzero_count, per_analyst,
         )
     reason = signal.circuit_band_note or ""
     if not reason and signal.action == "HOLD":
         reason = (signal.rationale or "")[:80]
     return UatResult(
-        ticker, overall, scan_debate_direction(plan),
+        ticker, overall, scan_debate_direction(thesis),
         signal.action, reason, nonzero_count, per_analyst,
     )
 

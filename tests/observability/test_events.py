@@ -44,7 +44,7 @@ class TestPipelineEventDataclass:
             "invest_debate_node": "Investment Debate",
             "bull_researcher_node": "Investment Debate",
             "bear_researcher_node": "Investment Debate",
-            "investment_plan_node": "Investment Debate",
+            "investment_thesis_node": "Investment Debate",
             "trader_node": "Trader",
             "risk_init_node": "Risk Debate + PM",
             "risk_debate_node": "Risk Debate + PM",

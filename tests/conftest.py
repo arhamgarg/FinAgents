@@ -105,3 +105,11 @@ def mock_toolkit(
     toolkit.cache_path = test_cache
     toolkit.fixture_dir = Path(__file__).parent / "fixtures"
     return toolkit
+
+
+@pytest.fixture
+def llm_harness():
+    from financialagents.testing.llm_mock import LLMMockHarness
+
+    with LLMMockHarness.happy_path() as h:
+        yield h

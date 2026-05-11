@@ -65,7 +65,12 @@ async def risk_debate_consolidation_node(
 
     prompt = build_consolidation_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=1024)
+    llm = create_llm_client(
+        "deep_think",
+        settings,
+        max_output_tokens=1024,
+        call_site="risk_debate_consolidation",
+    )
     structured_llm = llm.with_structured_output(RiskConsolidation)
 
     weights = settings.risk_persona_weights

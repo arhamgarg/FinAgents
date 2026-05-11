@@ -235,7 +235,7 @@ class TestCLILiveRender:
         partial = AgentState(
             ticker="RELIANCE",
             date="2026-04-26",
-            trader_investment_plan="partial technical analysis",
+            trader_investment_thesis="partial technical analysis",
         )
         cancel_flag = asyncio.Event()
 
@@ -259,6 +259,6 @@ class TestCLILiveRender:
         )
         assert result is not None, "expected rolling values snapshot, got None"
         assert (
-            getattr(result, "trader_investment_plan", None)
+            getattr(result, "trader_investment_thesis", None)
             == "partial technical analysis"
         )

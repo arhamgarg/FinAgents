@@ -22,7 +22,7 @@ from financialagents.llm_clients.factory import create_llm_client
 
 def build_trader_prompt(
     research_summary: Any,
-    investment_plan: str | None,
+    investment_thesis: str | None,
     current_price: float | None,
     atr_14: float | None,
     circuit_band_pct: float | None,
@@ -38,7 +38,7 @@ def build_trader_prompt(
             "conviction, entry_price, stop_loss, target_1, rationale, and sizing "
             "fields.\n\n"
             "DIRECTIVE / P10): If overall_confidence >= 0.6 AND the "
-            "debate (Investment Plan) clearly favors a direction (BUY or SELL), "
+            "debate (Investment Thesis) clearly favors a direction (BUY or SELL), "
             "you MUST emit that direction. Only emit HOLD when genuinely "
             "uncertain or when confidence is below 0.6. Do not default to HOLD "
             "under mild uncertainty.\n\n"
@@ -61,8 +61,8 @@ def build_trader_prompt(
 
     human = HumanMessage(
         content=(
-            "Investment Plan (from bull/bear debate synthesis):\n"
-            f"{investment_plan or '(unavailable)'}\n\n"
+            "Investment Thesis (from bull/bear debate synthesis):\n"
+            f"{investment_thesis or '(unavailable)'}\n\n"
             "Research Brief (weighted ResearchBrief — includes overall_confidence):\n"
             f"{research_text}\n\n"
             "Market Data (typed fields only — boundary):\n"
@@ -171,15 +171,15 @@ async def trader_node(
         technical_report.t2t_flag if technical_report is not None else False
     )
     research_summary = state.research_summary
-    investment_plan = None
+    investment_thesis = None
     if state.investment_debate_state is not None:
-        investment_plan = getattr(
-            state.investment_debate_state, "investment_plan", None
+        investment_thesis = getattr(
+            state.investment_debate_state, "investment_thesis", None
         )
 
     prompt = build_trader_prompt(
         research_summary=research_summary,
-        investment_plan=investment_plan,
+        investment_thesis=investment_thesis,
         current_price=current_price,
         atr_14=atr_14,
         circuit_band_pct=circuit_band_pct,
@@ -187,7 +187,7 @@ async def trader_node(
         settings=settings,
     )
 
-    llm = create_llm_client("deep_think", settings)
+    llm = create_llm_client("deep_think", settings, call_site="trader")
     structured_llm = llm.with_structured_output(TradingSignal)
 
     signal: TradingSignal
@@ -234,5 +234,5 @@ async def trader_node(
 
     return {
         "trader_signal": signal,
-        "trader_investment_plan": signal.rationale or None,
+        "trader_investment_thesis": signal.rationale or None,
     }

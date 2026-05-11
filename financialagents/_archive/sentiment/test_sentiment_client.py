@@ -84,7 +84,7 @@ async def test_stocktwits_empty_is_ok():
         data_vendors={},
     )
 
-    messages_raw = payload.get("messages", []) or []
+    payload.get("messages", []) or []
     expected_result = StockTwitsSentiment(
         messages=[],
         bullish_count=0,

@@ -51,7 +51,7 @@ async def bear_researcher_node(
 
     prompt = build_bear_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=2048)
+    llm = create_llm_client("deep_think", settings, max_output_tokens=2048, call_site="bear_researcher")
     structured_llm = llm.with_structured_output(BearArgument)
 
     result: BearArgument

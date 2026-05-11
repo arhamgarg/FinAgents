@@ -138,7 +138,12 @@ async def portfolio_manager_node(
         settings=settings,
     )
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=1024)
+    llm = create_llm_client(
+        "deep_think",
+        settings,
+        max_output_tokens=1024,
+        call_site="portfolio_manager",
+    )
     structured_llm = llm.with_structured_output(PortfolioDecision)
 
     decision: PortfolioDecision

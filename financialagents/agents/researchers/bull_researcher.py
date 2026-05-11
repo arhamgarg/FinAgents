@@ -50,7 +50,7 @@ async def bull_researcher_node(
 
     prompt = build_bull_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=2048)
+    llm = create_llm_client("deep_think", settings, max_output_tokens=2048, call_site="bull_researcher")
     structured_llm = llm.with_structured_output(BullArgument)
 
     result: BullArgument

@@ -125,7 +125,7 @@ async def fundamentals_analyst_node(
 
     prompt = build_fundamentals_prompt(state.ticker, result.data)
 
-    llm = create_llm_client("quick_think", settings)
+    llm = create_llm_client("quick_think", settings, call_site="fundamentals_analyst")
     structured_llm = llm.with_structured_output(FundamentalsAnalystReport)
 
     report: FundamentalsAnalystReport

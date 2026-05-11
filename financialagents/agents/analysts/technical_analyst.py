@@ -264,7 +264,7 @@ async def technical_analyst_node(
 
     prompt = build_technical_analyst_prompt(state.ticker, indicators, result)
 
-    llm = create_llm_client("quick_think", settings)
+    llm = create_llm_client("quick_think", settings, call_site="technical_analyst")
     structured_llm = llm.with_structured_output(TechnicalReport)
 
     report: TechnicalReport

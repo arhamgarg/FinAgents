@@ -11,14 +11,14 @@ from financialagents.config import Settings
 from financialagents.llm_clients.factory import create_llm_client
 
 
-class InvestmentPlan(BaseModel):
+class InvestmentThesis(BaseModel):
 
     synthesis: str
     bull_strength: Optional[str] = None
     bear_strength: Optional[str] = None
 
 
-def build_investment_plan_prompt(state: InvestDebateState) -> list[BaseMessage]:
+def build_investment_thesis_prompt(state: InvestDebateState) -> list[BaseMessage]:
     bull_turns = state.bull_turns()
     bear_turns = state.bear_turns()
 
@@ -33,7 +33,7 @@ def build_investment_plan_prompt(state: InvestDebateState) -> list[BaseMessage]:
         "You are the chief investment strategist for an Indian equity analysis "
         "pipeline. Two adversarial researchers (bull and bear) have just debated "
         "this ticker across multiple rounds. Your job is to synthesize their "
-        "arguments into a single actionable investment plan that the trader node "
+        "arguments into a single actionable investment thesis that the trader node "
         "will convert into a sized trade signal. "
         "Keep your synthesis under 800 words; lead with a clear directional "
         "recommendation (accumulate / hold / reduce), summarise the strongest "
@@ -48,7 +48,7 @@ def build_investment_plan_prompt(state: InvestDebateState) -> list[BaseMessage]:
         "## Bear Arguments (in order)\n\n"
         f"{bear_transcript or '(no bear arguments recorded)'}\n\n"
         "## Your Task\n\n"
-        "Synthesize the debate into an InvestmentPlan. Populate `synthesis` "
+        "Synthesize the debate into an InvestmentThesis. Populate `synthesis` "
         "with the full recommendation paragraph; optionally populate "
         "`bull_strength` and `bear_strength` with one-sentence assessments "
         "of how each side held up."
@@ -56,18 +56,18 @@ def build_investment_plan_prompt(state: InvestDebateState) -> list[BaseMessage]:
     return [SystemMessage(content=system_content), HumanMessage(content=human_content)]
 
 
-async def investment_plan_node(
+async def investment_thesis_node(
     state: InvestDebateState, config: Optional[RunnableConfig] = None
 ) -> dict[str, Any]:
     configurable = config.get("configurable", {}) if config else {}
     settings: Settings = configurable.get("settings") or Settings()
 
-    prompt = build_investment_plan_prompt(state)
+    prompt = build_investment_thesis_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=2048)
-    structured_llm = llm.with_structured_output(InvestmentPlan)
+    llm = create_llm_client("deep_think", settings, max_output_tokens=2048, call_site="investment_thesis")
+    structured_llm = llm.with_structured_output(InvestmentThesis)
 
-    result: InvestmentPlan
+    result: InvestmentThesis
     try:
         result = await structured_llm.ainvoke(prompt)
     except Exception as first_err:
@@ -75,10 +75,10 @@ async def investment_plan_node(
             result = await structured_llm.ainvoke(prompt)
         except Exception as retry_err:
             return {
-                "investment_plan": (
-                    f"[investment plan unavailable: LLM error after retry "
+                "investment_thesis": (
+                    f"[investment thesis unavailable: LLM error after retry "
                     f"— {retry_err!r} (initial: {first_err!r})]"
                 )
             }
 
-    return {"investment_plan": result.synthesis}
+    return {"investment_thesis": result.synthesis}

@@ -93,7 +93,12 @@ class TestBearResearcherNode:
             return_value=mock_llm,
         ) as mock_create:
             asyncio.run(bear_researcher_node(populated_state, config))
-        mock_create.assert_called_once_with("deep_think", default_settings, max_output_tokens=2048)
+        mock_create.assert_called_once_with(
+            "deep_think",
+            default_settings,
+            max_output_tokens=2048,
+            call_site="bear_researcher",
+        )
 
     def test_retries_once_on_llm_failure(
         self,

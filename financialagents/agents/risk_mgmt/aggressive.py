@@ -62,6 +62,7 @@ async def aggressive_risk_node(
         settings,
         max_output_tokens=1024,
         temperature=AGGRESSIVE_TEMPERATURE,
+        call_site="aggressive_risk",
     )
     structured_llm = llm.with_structured_output(PersonaAssessment)
 

@@ -89,6 +89,7 @@ async def conservative_risk_node(
         settings,
         max_output_tokens=1024,
         temperature=CONSERVATIVE_TEMPERATURE,
+        call_site="conservative_risk",
     )
     structured_llm = llm.with_structured_output(PersonaAssessment)
 

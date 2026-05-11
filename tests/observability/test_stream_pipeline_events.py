@@ -5,11 +5,11 @@ from typing import Any, AsyncIterator
 
 async def _fake_astream_three_tuples() -> AsyncIterator[tuple[Any, str, Any]]:
     yield ((), "values", {"ticker": "TEST", "date": "2026-04-28"})
-    yield ((), "updates", {"trader_node": {"trader_investment_plan": "BUY"}})
+    yield ((), "updates", {"trader_node": {"trader_investment_thesis": "BUY"}})
     yield (
         (),
         "values",
-        {"ticker": "TEST", "date": "2026-04-28", "trader_investment_plan": "BUY"},
+        {"ticker": "TEST", "date": "2026-04-28", "trader_investment_thesis": "BUY"},
     )
 
 

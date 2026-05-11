@@ -19,7 +19,7 @@ class _SlowFakeGraph:
         stream_mode: Any = None,
         subgraphs: bool = False,
     ) -> AsyncIterator[tuple[Any, str, Any]]:
-        yield ((), "updates", {"trader_node": {"trader_investment_plan": "BUY"}})
+        yield ((), "updates", {"trader_node": {"trader_investment_thesis": "BUY"}})
         await asyncio.Event().wait()
 
 
@@ -33,7 +33,7 @@ class _RaisingFakeGraph:
         stream_mode: Any = None,
         subgraphs: bool = False,
     ) -> AsyncIterator[tuple[Any, str, Any]]:
-        yield ((), "updates", {"trader_node": {"trader_investment_plan": "BUY"}})
+        yield ((), "updates", {"trader_node": {"trader_investment_thesis": "BUY"}})
         raise RuntimeError("simulated node failure")
 
 

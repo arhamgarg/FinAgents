@@ -479,7 +479,7 @@ class TestLiveRenderIntegration:
         partial = AgentState(
             ticker="RELIANCE",
             date="2026-04-26",
-            trader_investment_plan="partial-tech-analysis",
+            trader_investment_thesis="partial-tech-analysis",
         )
 
         async def fake_stream(*args, **kwargs):
@@ -527,7 +527,7 @@ class TestLiveRenderIntegration:
             "P5- cancelled rows MUST persist the partial AgentState"
         )
         payload = json.loads(row["payload_json"])
-        assert payload.get("trader_investment_plan") == "partial-tech-analysis"
+        assert payload.get("trader_investment_thesis") == "partial-tech-analysis"
 
     def test_install_sigint_handler_first_ctrl_c_sets_flag(self) -> None:
         import os as _os
