@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TradingSignal(BaseModel):
@@ -26,4 +26,10 @@ class TradingSignal(BaseModel):
     t2t_flag: bool = False
 
     sizing_method: Literal["atr_based", "kelly", "fixed_fractional"] = "atr_based"
+
     time_horizon: Literal["positional"] = "positional"
+
+    @field_validator("time_horizon", mode="before")
+    @classmethod
+    def coerce_time_horizon(cls, v: object) -> str:
+        return "positional"

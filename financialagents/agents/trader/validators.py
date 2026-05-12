@@ -13,6 +13,7 @@ CIRCUIT_BAND_UNAVAILABLE_NOTE = (
 STT_COST_FLOOR = 0.003
 CIRCUIT_BAND_BREACH_RATIO = 0.8
 POSITION_SIZE_HARD_CAP = 0.05
+NSE_DEFAULT_CIRCUIT_BAND_PCT = 0.20
 
 
 class ValidatorContext(BaseModel):
@@ -56,17 +57,11 @@ def price_grounding_validator(
 def circuit_band_validator(
     signal: TradingSignal, ctx: ValidatorContext
 ) -> ValidatorResult:
-    if ctx.circuit_band_pct is None:
-        if signal.action != "HOLD":
-            signal.action = "HOLD"
-            signal.position_size_pct = None
-            signal.position_size_shares = None
+    effective_band = ctx.circuit_band_pct
+    if effective_band is None:
+        effective_band = NSE_DEFAULT_CIRCUIT_BAND_PCT
         signal.circuit_band_note = CIRCUIT_BAND_UNAVAILABLE_NOTE
-        return ValidatorResult(
-            signal=signal,
-            note=CIRCUIT_BAND_UNAVAILABLE_NOTE,
-            halted=True,
-        )
+
     if signal.action == "HOLD":
         return ValidatorResult(signal=signal)
     if signal.entry_price is None or signal.stop_loss is None:
@@ -74,11 +69,11 @@ def circuit_band_validator(
     if signal.entry_price <= 0:
         return ValidatorResult(signal=signal)
     band_used = abs(signal.entry_price - signal.stop_loss) / signal.entry_price
-    if band_used > ctx.circuit_band_pct * CIRCUIT_BAND_BREACH_RATIO:
+    if band_used > effective_band * CIRCUIT_BAND_BREACH_RATIO:
         note = (
             f"stop-loss uses {band_used:.1%} of entry; exceeds "
             f"{int(CIRCUIT_BAND_BREACH_RATIO * 100)}% of "
-            f"{ctx.circuit_band_pct:.0%} circuit band"
+            f"{effective_band:.0%} circuit band"
         )
         signal.action = "HOLD"
         signal.position_size_pct = None

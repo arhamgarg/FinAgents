@@ -278,7 +278,7 @@ class TestTraderNode:
         signal = result["trader_signal"]
         assert signal.action == "HOLD"
 
-    def test_circuit_band_none_forces_hold_with_canonical_note(
+    def test_circuit_band_none_annotates_but_preserves_buy(
         self,
         mock_research_brief: ResearchBrief,
         mock_trading_signal: TradingSignal,
@@ -317,7 +317,7 @@ class TestTraderNode:
             result = asyncio.run(trader_node(state, config))
 
         signal = result["trader_signal"]
-        assert signal.action == "HOLD"
+        assert signal.action == "BUY"
         assert signal.circuit_band_note == CIRCUIT_BAND_UNAVAILABLE_NOTE
 
     def test_t2t_flag_copied_from_technical_report(

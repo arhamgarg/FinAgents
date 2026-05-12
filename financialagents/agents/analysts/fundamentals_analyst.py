@@ -5,16 +5,13 @@ from typing import Any
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
+from financialagents.agents.analysts._confidence import count_non_none
 from financialagents.agents.analysts.schemas import FundamentalsAnalystReport
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
 from financialagents.dataflows.fundamentals_schema import FundamentalsReport
 from financialagents.dataflows.interface import get_fundamentals
 from financialagents.llm_clients.factory import create_llm_client
-
-
-def _count_non_none(values: list[object]) -> int:
-    return sum(1 for v in values if v is not None)
 
 
 def build_fundamentals_prompt(
@@ -149,7 +146,7 @@ async def fundamentals_analyst_node(
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]
 
-    report.confidence = _count_non_none([
+    report.confidence = count_non_none([
         report.pe_ratio,
         report.pb_ratio,
         report.roce,

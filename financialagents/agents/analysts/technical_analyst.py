@@ -9,6 +9,7 @@ import pandas_ta  # noqa: F401 — registers df.ta accessor extension
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
+from financialagents.agents.analysts._confidence import count_non_none
 from financialagents.agents.analysts.schemas import TechnicalReport
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
@@ -30,10 +31,6 @@ def _safe_float(series: pd.Series | None) -> float | None:
     if math.isnan(f):
         return None
     return f
-
-
-def _count_non_none(values: list[object]) -> int:
-    return sum(1 for v in values if v is not None)
 
 
 def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
@@ -290,7 +287,7 @@ async def technical_analyst_node(
     except Exception:
         pass
 
-    report.confidence = _count_non_none([
+    report.confidence = count_non_none([
         report.current_price,
         report.rsi,
         report.macd_line,

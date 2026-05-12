@@ -118,15 +118,13 @@ def _events_for_step(
                 )
             )
 
-            if node_name in (
-                "bull_researcher_node",
-                "bear_researcher_node",
-            ) and isinstance(delta, dict):
-                new_round = max(
-                    len(delta.get("bull_history") or []),
-                    len(delta.get("bear_history") or []),
-                )
-                if new_round > state["last_round"]:
+            if node_name == "bear_researcher_node" and isinstance(delta, dict):
+                new_round = delta.get("current_round")
+                if (
+                    new_round is not None
+                    and isinstance(new_round, int)
+                    and new_round > state["last_round"]
+                ):
                     state["last_round"] = new_round
                     out.append(
                         PipelineEvent(

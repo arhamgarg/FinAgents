@@ -110,7 +110,7 @@ class TestCircuitBand:
         assert result.signal.circuit_band_note is not None
         assert "circuit band" in result.signal.circuit_band_note.lower()
 
-    def test_circuit_band_unavailable_forces_hold(
+    def test_circuit_band_unavailable_annotates_but_allows_signal(
         self, default_settings: Settings
     ) -> None:
         from financialagents.agents.trader.validators import (
@@ -126,9 +126,29 @@ class TestCircuitBand:
             settings=default_settings,
         )
         result = circuit_band_validator(signal, ctx)
-        assert result.signal.action == "HOLD"
+        assert result.signal.action == "BUY"
+        assert result.halted is False
         assert result.signal.circuit_band_note == CIRCUIT_BAND_UNAVAILABLE_NOTE
+
+    def test_circuit_band_unavailable_still_blocks_extreme_stop(
+        self, default_settings: Settings
+    ) -> None:
+        from financialagents.agents.trader.validators import (
+            ValidatorContext,
+            circuit_band_validator,
+        )
+
+        signal = _make_signal(entry_price=100.0, stop_loss=83.0)
+        ctx = ValidatorContext(
+            current_price=100.0,
+            circuit_band_pct=None,
+            settings=default_settings,
+        )
+        result = circuit_band_validator(signal, ctx)
+        assert result.signal.action == "HOLD"
         assert result.halted is True
+        assert result.signal.circuit_band_note is not None
+        assert "circuit band" in result.signal.circuit_band_note.lower()
 
     def test_circuit_band_within_threshold_allows_signal(
         self, default_settings: Settings
@@ -282,8 +302,9 @@ class TestRunValidatorsChain:
             settings=default_settings,
         )
         result = run_validators(signal, ctx)
-        assert result.action == "HOLD"
+        assert result.action == "BUY"
         assert result.circuit_band_note == CIRCUIT_BAND_UNAVAILABLE_NOTE
+        assert result.position_size_pct == pytest.approx(0.05)
 
     def test_chain_runs_all_validators_in_order(
         self, default_settings: Settings

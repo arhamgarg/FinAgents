@@ -16,6 +16,7 @@ from financialagents.agents.risk_mgmt.schemas import (
     RiskConsolidation,
 )
 from financialagents.agents.trader.schemas import TradingSignal
+from financialagents.testing.llm_mock._call_sites import CallSite
 
 
 
@@ -32,7 +33,7 @@ FUND_REPORT_DEFAULT = FundamentalsAnalystReport(confidence=0.8)
 NEWS_REPORT_DEFAULT = NewsReport(confidence=0.7)
 
 BRIEF_DEFAULT = ResearchBrief(
-    consensus_view="bullish on RELIANCE",
+    consensus_view="bullish on the subject equity",
     overall_confidence=0.75,
 )
 
@@ -82,8 +83,17 @@ PM_DECISION_DEFAULT = PortfolioDecision(
 
 
 
+_LLM_MOCK_PERSONA_ORIGIN_ATTR = "_LLM_MOCK_PERSONA_ORIGIN"
+object.__setattr__(AGGRESSIVE_DEFAULT, _LLM_MOCK_PERSONA_ORIGIN_ATTR, "aggressive_risk")
+object.__setattr__(NEUTRAL_DEFAULT, _LLM_MOCK_PERSONA_ORIGIN_ATTR, "neutral_risk")
+object.__setattr__(CONSERVATIVE_DEFAULT, _LLM_MOCK_PERSONA_ORIGIN_ATTR, "conservative_risk")
+
+
+
 BULL_ARGUMENT_DEFAULT = BullArgument(
-    argument="canonical bull argument — fundamentals + technicals align on RELIANCE",
+    argument=(
+        "canonical bull argument — fundamentals + technicals align on the subject equity"
+    ),
     key_points=[
         "earnings beat + margin expansion",
         "technical: breakout above 200DMA with healthy volume",
@@ -118,7 +128,7 @@ RISK_CONSOLIDATION_DEFAULT = RiskConsolidation(
 
 
 
-HAPPY_PATH_DEFAULTS: dict[str, BaseModel] = {
+HAPPY_PATH_DEFAULTS: dict[CallSite, BaseModel] = {
     "technical_analyst": TECH_REPORT_DEFAULT,
     "fundamentals_analyst": FUND_REPORT_DEFAULT,
     "news_analyst": NEWS_REPORT_DEFAULT,

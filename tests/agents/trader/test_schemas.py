@@ -66,12 +66,16 @@ class TestTradingSignalOptionalFields:
         sig = TradingSignal(action="BUY", conviction=0.5, time_horizon="positional")
         assert sig.time_horizon == "positional"
 
-    @pytest.mark.parametrize("retired_horizon", ["intraday", "swing"])
-    def test_time_horizon_rejects_retired_values(self, retired_horizon: str) -> None:
+    @pytest.mark.parametrize(
+        "llm_value",
+        ["intraday", "swing", "multi-day-to-multi-week", "long-term", "short-term"],
+    )
+    def test_time_horizon_coerces_any_value_to_positional(self, llm_value: str) -> None:
         from financialagents.agents.trader.schemas import TradingSignal
-        import pydantic
-        with pytest.raises(pydantic.ValidationError):
-            TradingSignal(action="BUY", conviction=0.5, time_horizon=retired_horizon)  # type: ignore[arg-type]
+        sig = TradingSignal(action="BUY", conviction=0.5, time_horizon=llm_value)  # type: ignore[arg-type]
+        assert sig.time_horizon == "positional", (
+            f"Expected 'positional' after coercion of {llm_value!r}, got {sig.time_horizon!r}"
+        )
 
     def test_circuit_band_note_populated(self) -> None:
         from financialagents.agents.trader.schemas import TradingSignal

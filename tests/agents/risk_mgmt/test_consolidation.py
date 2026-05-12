@@ -70,6 +70,23 @@ class TestParseSize:
             '{"recommended_position_size_pct":0.042,"confidence":0.7}'
         ) == pytest.approx(0.042)
 
+    def test_returns_zero_for_bare_string_json(self) -> None:
+        assert _parse_size('"a-bare-string"') == 0.0
+
+    def test_returns_zero_for_list_json(self) -> None:
+        assert _parse_size("[1, 2, 3]") == 0.0
+
+    def test_returns_zero_for_null_json(self) -> None:
+        assert _parse_size("null") == 0.0
+
+    def test_returns_zero_for_number_json(self) -> None:
+        assert _parse_size("3.14") == 0.0
+
+    def test_returns_zero_for_field_value_null(self) -> None:
+        assert _parse_size(
+            '{"recommended_position_size_pct":null,"confidence":0.7}'
+        ) == 0.0
+
 
 class TestWeightedSizeSynthesis:
     def test_d02_formula_default_weights(self, default_settings: Settings) -> None:

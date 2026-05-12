@@ -17,8 +17,10 @@ def _parse_size(assessment_json: Optional[str]) -> float:
         return 0.0
     try:
         data = json.loads(assessment_json)
+        if not isinstance(data, dict):
+            return 0.0
         value = data.get("recommended_position_size_pct", 0.0)
-        return float(value)
+        return float(value) if value is not None else 0.0
     except (json.JSONDecodeError, TypeError, ValueError):
         return 0.0
 

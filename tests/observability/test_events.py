@@ -115,15 +115,32 @@ class TestPipelineEventStream:
         g = _MockGraph(
             [
                 ((), {"bull_researcher_node": {"bull_history": {0: "a"}}}),
-                ((), {"bear_researcher_node": {"bear_history": {0: "b"}}}),
-                ((), {"bull_researcher_node": {"bull_history": {0: "a", 1: "a2"}}}),
+                ((), {"bear_researcher_node": {"bear_history": {0: "b"}, "current_round": 1}}),
+                ((), {"bull_researcher_node": {"bull_history": {1: "a2"}}}),
+                ((), {"bear_researcher_node": {"bear_history": {1: "b2"}, "current_round": 2}}),
             ]
         )
         evs = []
         async for ev in stream_pipeline_events(g, {}, {}):
             evs.append(ev)
         advances = [e for e in evs if e.kind == "round_advanced"]
-        assert any(e.round == 2 for e in advances)
+        assert any(e.round == 1 for e in advances), f"round 1 badge missing: {advances}"
+        assert any(e.round == 2 for e in advances), f"round 2 badge missing: {advances}"
+
+    @pytest.mark.asyncio
+    async def test_round_counter_no_advance_without_current_round(self) -> None:
+        from financialagents.observability.events import stream_pipeline_events
+
+        g = _MockGraph(
+            [
+                ((), {"bear_researcher_node": {"bear_history": {0: "b"}}}),
+            ]
+        )
+        evs = []
+        async for ev in stream_pipeline_events(g, {}, {}):
+            evs.append(ev)
+        advances = [e for e in evs if e.kind == "round_advanced"]
+        assert advances == [], f"unexpected round_advanced events: {advances}"
 
     @pytest.mark.asyncio
     async def test_persona_size_pct(self) -> None:

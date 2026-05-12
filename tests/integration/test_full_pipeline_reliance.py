@@ -173,7 +173,9 @@ def test_full_pipeline_failure_scenarios(scenario: str) -> None:
                 [failures.length_error(), failures.length_error()],
             )
         elif scenario == "multi_node_fail":
-            for site in ("bull_researcher", "bear_researcher", "news_analyst"):
+            active_failure_sites = ("bull_researcher", "bear_researcher")
+            dormant_failure_sites = ("news_analyst",)
+            for site in active_failure_sites + dormant_failure_sites:
                 h.set_sequence(
                     site,
                     [failures.length_error(), failures.length_error()],
