@@ -135,7 +135,6 @@ class TestConservativeNodeBehavior:
         mock_create.assert_called_once_with(
             "quick_think",
             default_settings,
-            max_output_tokens=1024,
             temperature=CONSERVATIVE_TEMPERATURE,
             call_site="conservative_risk",
         )
@@ -162,7 +161,6 @@ class TestConservativeNodeBehavior:
         mock_create.assert_called_once_with(
             "quick_think",
             default_settings,
-            max_output_tokens=1024,
             temperature=0.3,
             call_site="conservative_risk",
         )

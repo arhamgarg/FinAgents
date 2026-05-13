@@ -60,7 +60,6 @@ async def neutral_risk_node(
     llm = create_llm_client(
         "quick_think",
         settings,
-        max_output_tokens=1024,
         temperature=NEUTRAL_TEMPERATURE,
         call_site="neutral_risk",
     )

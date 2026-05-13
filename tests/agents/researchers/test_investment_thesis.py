@@ -92,30 +92,6 @@ class TestInvestmentThesisNode:
         assert "br1-bear-counter" in full_text
         assert "br2-bear-counter" in full_text
 
-    def test_max_output_tokens_backstop(
-        self,
-        populated_state_with_full_history: InvestDebateState,
-        mock_thesis,
-        default_settings: Settings,
-    ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
-        mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=mock_thesis)
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
-        with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
-            return_value=mock_llm,
-        ) as mock_create:
-            asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
-        mock_create.assert_called_once_with(
-            "deep_think",
-            default_settings,
-            max_output_tokens=2048,
-            call_site="investment_thesis",
-        )
-
     def test_retries_once_on_llm_failure(
         self,
         populated_state_with_full_history: InvestDebateState,

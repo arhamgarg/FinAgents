@@ -72,30 +72,6 @@ class TestBullResearcherNode:
             result = asyncio.run(bull_researcher_node(populated_state, config))
         assert "current_round" not in result
 
-    def test_max_output_tokens_backstop(
-        self,
-        populated_state: InvestDebateState,
-        mock_bull_argument,
-        default_settings: Settings,
-    ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
-        mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(return_value=mock_bull_argument)
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
-        with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
-            return_value=mock_llm,
-        ) as mock_create:
-            asyncio.run(bull_researcher_node(populated_state, config))
-        mock_create.assert_called_once_with(
-            "deep_think",
-            default_settings,
-            max_output_tokens=2048,
-            call_site="bull_researcher",
-        )
-
     def test_retries_once_on_llm_failure(
         self,
         populated_state: InvestDebateState,

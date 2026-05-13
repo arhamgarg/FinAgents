@@ -114,7 +114,6 @@ class TestAggressiveNodeBehavior:
         mock_create.assert_called_once_with(
             "quick_think",
             default_settings,
-            max_output_tokens=1024,
             temperature=AGGRESSIVE_TEMPERATURE,
             call_site="aggressive_risk",
         )

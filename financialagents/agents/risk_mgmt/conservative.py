@@ -87,7 +87,6 @@ async def conservative_risk_node(
     llm = create_llm_client(
         "quick_think",
         settings,
-        max_output_tokens=1024,
         temperature=CONSERVATIVE_TEMPERATURE,
         call_site="conservative_risk",
     )

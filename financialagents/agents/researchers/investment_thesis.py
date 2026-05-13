@@ -64,7 +64,7 @@ async def investment_thesis_node(
 
     prompt = build_investment_thesis_prompt(state)
 
-    llm = create_llm_client("deep_think", settings, max_output_tokens=2048, call_site="investment_thesis")
+    llm = create_llm_client("deep_think", settings, call_site="investment_thesis")
     structured_llm = llm.with_structured_output(InvestmentThesis)
 
     result: InvestmentThesis

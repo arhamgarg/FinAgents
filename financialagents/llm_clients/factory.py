@@ -21,7 +21,6 @@ def _set_active_harness(harness: "LLMMockHarness | None") -> None:
 def create_llm_client(
     tier: str,
     config: Settings,
-    max_output_tokens: int | None = None,
     temperature: float | None = None,
     call_site: "CallSite | None" = None,
 ) -> BaseChatModel:
@@ -42,7 +41,6 @@ def create_llm_client(
         return create_openrouter_client(
             model=model_name,
             api_key=config.openrouter_api_key,
-            max_tokens=max_output_tokens,
             temperature=temperature,
         )
 
@@ -52,7 +50,6 @@ def create_llm_client(
         return create_cerebras_client(
             model=model_name,
             api_key=config.cerebras_api_key,
-            max_tokens=max_output_tokens,
             temperature=temperature,
         )
 
@@ -62,7 +59,6 @@ def create_llm_client(
         return create_groq_client(
             model=model_name,
             api_key=config.groq_api_key,
-            max_tokens=max_output_tokens,
             temperature=temperature,
         )
 
@@ -71,7 +67,6 @@ def create_llm_client(
 
         return create_ollama_client(
             model=model_name,
-            num_predict=max_output_tokens,
             temperature=temperature,
         )
 

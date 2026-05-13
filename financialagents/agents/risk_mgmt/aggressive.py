@@ -60,7 +60,6 @@ async def aggressive_risk_node(
     llm = create_llm_client(
         "quick_think",
         settings,
-        max_output_tokens=1024,
         temperature=AGGRESSIVE_TEMPERATURE,
         call_site="aggressive_risk",
     )
