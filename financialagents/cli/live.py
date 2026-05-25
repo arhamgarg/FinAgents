@@ -225,6 +225,7 @@ async def run_with_log_lines(
     )
     final_state: Optional[Any] = None
     last_values_snapshot: Optional[Any] = None
+    errored_exc: Optional[BaseException] = None
 
     async for ev in events:
         ts = datetime.now().strftime("%H:%M:%S")
@@ -256,6 +257,8 @@ async def run_with_log_lines(
             final_state = ev.final_state
             break
         elif ev.kind == "errored":
+            if ev.error is not None:
+                errored_exc = ev.error
             break
 
         if (
@@ -265,6 +268,9 @@ async def run_with_log_lines(
             and ev.status in ("completed", "errored", "cancelled")
         ):
             break
+
+    if errored_exc is not None:
+        raise errored_exc
 
     return final_state if final_state is not None else last_values_snapshot
 
@@ -300,6 +306,7 @@ async def run_with_live_render(
 
     final_state: Optional[Any] = None
     last_values_snapshot: Optional[Any] = None
+    errored_exc: Optional[BaseException] = None
 
     with Live(
         make_stage_table(stage_state, header, start),
@@ -332,7 +339,12 @@ async def run_with_live_render(
                 final_state = ev.final_state
                 break
             if ev.kind == "errored":
+                if ev.error is not None:
+                    errored_exc = ev.error
                 break
+
+    if errored_exc is not None:
+        raise errored_exc
 
     return final_state if final_state is not None else last_values_snapshot
 

@@ -184,6 +184,136 @@ class TestFaRun:
         rows = _read_signals(tmp_signals_db)
         assert rows[0]["status"] == "errored"
 
+    def test_node_error_after_events_no_debug_persists_real_message(
+        self, tmp_signals_db, capsys, monkeypatch
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from financialagents.cli.run_command import run_pipeline
+
+        fake_graph = MagicMock()
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.FinancialAgentsGraph",
+            lambda **kw: fake_graph,
+        )
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.signals_db_path",
+            lambda settings=None: tmp_signals_db,
+        )
+
+        async def _stream_then_raise(*args, **kwargs):
+            from financialagents.observability.events import PipelineEvent
+
+            yield PipelineEvent(
+                kind="node_status",
+                node_name="market_analyst",
+                status="started",
+            )
+            exc = RuntimeError("boom: GROQ_API_KEY=topsecret")
+            yield PipelineEvent(
+                kind="errored",
+                status="errored",
+                error=exc,
+            )
+            raise exc
+
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.stream_pipeline_events",
+            _stream_then_raise,
+        )
+
+        rc = asyncio.run(
+            run_pipeline(
+                ticker="RELIANCE",
+                date="2026-04-26",
+                json_output=False,
+                provider_override="ollama",
+                debug=False,
+            )
+        )
+        assert rc == 1
+
+        rows = _read_signals(tmp_signals_db)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["status"] == "errored", (
+            f"expected status='errored', got {row['status']!r}"
+        )
+        error_msg = row["error_msg"] or ""
+        assert "boom" in error_msg, (
+            f"expected real exception text in error_msg; got {error_msg!r}"
+        )
+        assert "topsecret" not in error_msg, (
+            f"secret leaked to DB; error_msg={error_msg!r}"
+        )
+        assert "GROQ_API_KEY=***" in error_msg, (
+            f"expected redaction marker in error_msg; got {error_msg!r}"
+        )
+        assert "event stream ended without completion" not in error_msg, (
+            "bug regression: consumer swallowed ev.error and run_pipeline "
+            "fell through to the state-is-None fallback. "
+            f"error_msg={error_msg!r}"
+        )
+
+    def test_node_error_after_events_debug_reraises_real_exception(
+        self, tmp_signals_db, monkeypatch
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from financialagents.cli.run_command import run_pipeline
+
+        fake_graph = MagicMock()
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.FinancialAgentsGraph",
+            lambda **kw: fake_graph,
+        )
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.signals_db_path",
+            lambda settings=None: tmp_signals_db,
+        )
+
+        async def _stream_then_raise(*args, **kwargs):
+            from financialagents.observability.events import PipelineEvent
+
+            yield PipelineEvent(
+                kind="node_status",
+                node_name="market_analyst",
+                status="started",
+            )
+            exc = RuntimeError("boom: GROQ_API_KEY=topsecret")
+            yield PipelineEvent(
+                kind="errored",
+                status="errored",
+                error=exc,
+            )
+            raise exc
+
+        monkeypatch.setattr(
+            "financialagents.cli.run_command.stream_pipeline_events",
+            _stream_then_raise,
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            asyncio.run(
+                run_pipeline(
+                    ticker="RELIANCE",
+                    date="2026-04-26",
+                    json_output=False,
+                    provider_override="ollama",
+                    debug=True,
+                )
+            )
+        assert "boom" in str(exc_info.value)
+        assert "topsecret" in str(exc_info.value)
+
+        rows = _read_signals(tmp_signals_db)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["status"] == "errored"
+        error_msg = row["error_msg"] or ""
+        assert "topsecret" not in error_msg
+        assert "GROQ_API_KEY=***" in error_msg
+
     def test_default_date_is_ist_today(
         self, fake_pipeline, tmp_signals_db, freeze_ist_today, monkeypatch
     ) -> None:

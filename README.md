@@ -8,8 +8,8 @@ well-reasoned trading signals via LangGraph.
 ## Quickstart
 
 ```bash
-git clone https://github.com/arhamgarg/financial-agents.git
-cd financial-agents
+git clone https://github.com/arhamgarg/financialagents.git
+cd financialagents
 uv sync --all-extras
 uv run fa run RELIANCE
 uv run fa dashboard
