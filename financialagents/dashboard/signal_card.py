@@ -43,7 +43,7 @@ def _format_size_str(position_size_pct: Any) -> str:
     if position_size_pct is None:
         return "—"
     pct = float(position_size_pct)
-    if pct < 1:
+    if pct <= 1:
         return f"{pct * 100:.1f}%"
     return f"{pct:.1f}%"
 
@@ -60,8 +60,8 @@ def render_signal_card(state: Any, *, expanded: bool = False) -> None:
     sig = pd_.signal
     action = sig.action
     approval = _approval_label(pd_.decision, pd_.approved)
-    verdict_alias = _streamlit_alias(VERDICT_COLOR_HEX[action])
-    approval_alias = _streamlit_alias(APPROVAL_COLOR_HEX[approval])
+    verdict_alias = _streamlit_alias(VERDICT_COLOR_HEX.get(action, "#888"))
+    approval_alias = _streamlit_alias(APPROVAL_COLOR_HEX.get(approval, "#888"))
 
     with st.container(border=True):
         st.markdown(f"**{state.ticker} · {state.date}**")
@@ -160,7 +160,7 @@ def _render_risk_personas(state: Any) -> None:
     synth_pct = (
         getattr(risk_state, "synthesized_position_size_pct", None) or 0.0
     )
-    synth_pp = synth_pct * 100 if synth_pct < 1 else synth_pct
+    synth_pp = synth_pct * 100 if synth_pct <= 1 else synth_pct
 
     render_divergence_chart(personas, synth_pp)
 

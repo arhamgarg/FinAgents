@@ -135,11 +135,14 @@ def _run_in_background(
     initial_state: Any,
     config: dict[str, Any],
     q: "queue.Queue[Any]",
+    cancel_event: threading.Event,
 ) -> None:
     from financialagents.observability.events import stream_pipeline_events
 
     async def _drain() -> None:
-        async for ev in stream_pipeline_events(graph, initial_state, config):
+        async for ev in stream_pipeline_events(
+            graph, initial_state, config, cancel_event=cancel_event
+        ):
             q.put(ev)
 
     try:
@@ -154,16 +157,40 @@ def start_pipeline(
     config: dict[str, Any],
 ) -> None:
     q: queue.Queue[Any] = queue.Queue()
+    cancel_event = threading.Event()
     st.session_state.pipeline_queue = q
     st.session_state.pipeline_running = True
+    st.session_state.pipeline_cancel = cancel_event
     st.session_state.stage_state = _initial_stage_state()
     st.session_state.pipeline_started_at = time.monotonic()
     st.session_state.last_completed_event = None
-    threading.Thread(
+    t = threading.Thread(
         target=_run_in_background,
-        args=(graph, initial_state, config, q),
+        args=(graph, initial_state, config, q, cancel_event),
         daemon=True,
-    ).start()
+    )
+    st.session_state.pipeline_thread = t
+    t.start()
+
+
+def cancel_pipeline() -> None:
+    cancel_event = st.session_state.get("pipeline_cancel")
+    thread = st.session_state.get("pipeline_thread")
+    if cancel_event is not None:
+        try:
+            cancel_event.set()
+        except Exception:
+            pass
+    st.session_state.pipeline_running = False
+    if thread is not None:
+        try:
+            thread.join(timeout=0.5)
+        except Exception:
+            pass
+    if "pipeline_thread" in st.session_state:
+        st.session_state.pipeline_thread = None
+    if "pipeline_cancel" in st.session_state:
+        st.session_state.pipeline_cancel = None
 
 
 def _streamlit_state_for_stage(
@@ -220,6 +247,7 @@ __all__ = [
     "STAGE_ORDER",
     "STATUS_ICON",
     "apply_event_to_stage_state",
+    "cancel_pipeline",
     "drain_queue_and_apply",
     "drain_to_status",
     "live_fragment",

@@ -15,16 +15,12 @@ def _hermetic_provider_guard(request):
 
     import langchain_cerebras
     import langchain_groq
-    import langchain_ollama
     import langchain_openai
 
     msg = "provider client instantiated under hermetic test"
     with (
         patch.object(
             langchain_groq.ChatGroq, "__init__", side_effect=RuntimeError(msg)
-        ),
-        patch.object(
-            langchain_ollama.ChatOllama, "__init__", side_effect=RuntimeError(msg)
         ),
         patch.object(
             langchain_openai.ChatOpenAI, "__init__", side_effect=RuntimeError(msg)

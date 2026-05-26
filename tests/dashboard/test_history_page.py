@@ -30,7 +30,7 @@ async def _seed_three_rows(db_path: Path) -> list[str]:
 
     await insert_running(
         "aaaaaaaa", "RELIANCE", "2026-04-26",
-        provider="ollama", model="llama3.1:70b", db_path=db_path,
+        provider="openrouter", model="openrouter/auto", db_path=db_path,
     )
     await update_success(
         "aaaaaaaa", action="BUY", confidence=0.78,
@@ -41,7 +41,7 @@ async def _seed_three_rows(db_path: Path) -> list[str]:
 
     await insert_running(
         "bbbbbbbb", "TCS", "2026-04-26",
-        provider="ollama", model="llama3.1:70b", db_path=db_path,
+        provider="openrouter", model="openrouter/auto", db_path=db_path,
     )
     await update_cancelled(
         "bbbbbbbb", error_msg="User aborted (Ctrl+C)",
@@ -50,7 +50,7 @@ async def _seed_three_rows(db_path: Path) -> list[str]:
 
     await insert_running(
         "cccccccc", "INFY", "2026-04-26",
-        provider="ollama", model="llama3.1:70b", db_path=db_path,
+        provider="openrouter", model="openrouter/auto", db_path=db_path,
     )
     await update_errored(
         "cccccccc", error_msg="LLM connection refused",

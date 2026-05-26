@@ -15,7 +15,24 @@ from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
 from financialagents.dataflows.data_result import DataResult
 from financialagents.dataflows.interface import get_ohlcv
+from financialagents.dataflows.surveillance_client import get_surveillance_data
 from financialagents.llm_clients.factory import create_llm_client
+
+
+INDICATOR_KEYS: tuple[str, ...] = (
+    "rsi",
+    "macd_line",
+    "macd_signal_val",
+    "macd_hist",
+    "bb_upper",
+    "bb_lower",
+    "bb_mid",
+    "sma_50",
+    "sma_200",
+    "ema_20",
+    "current_price",
+    "atr_14",
+)
 
 
 def _safe_float(series: pd.Series | None) -> float | None:
@@ -35,12 +52,7 @@ def _safe_float(series: pd.Series | None) -> float | None:
 
 def compute_technical_indicators(df: pd.DataFrame) -> dict[str, float | None]:
     if df.empty:
-        return {k: None for k in [
-            "rsi", "macd_line", "macd_signal_val", "macd_hist",
-            "bb_upper", "bb_lower", "bb_mid",
-            "sma_50", "sma_200", "ema_20", "current_price",
-            "atr_14",
-        ]}
+        return {k: None for k in INDICATOR_KEYS}
 
     rsi = df.ta.rsi(length=14)
 
@@ -271,7 +283,16 @@ async def technical_analyst_node(
         try:
             report = await structured_llm.ainvoke(prompt)
         except Exception as retry_err:
-            raise retry_err from first_err
+            return {
+                "technical_report": TechnicalReport(
+                    confidence=0.0,
+                    data_sources=[result.source] if result.source else [],
+                    notes=(
+                        f"LLM error after retry: {retry_err!r} "
+                        f"(initial: {first_err!r})"
+                    ),
+                )
+            }
 
     if result.source and result.source not in report.data_sources:
         report.data_sources = list(report.data_sources) + [result.source]
@@ -279,8 +300,6 @@ async def technical_analyst_node(
     report.atr_14 = indicators.get("atr_14")
 
     try:
-        from financialagents.dataflows.surveillance_client import get_surveillance_data
-
         circuit_band_pct, t2t_flag = await get_surveillance_data(state.ticker)
         report.circuit_band_pct = circuit_band_pct
         report.t2t_flag = t2t_flag

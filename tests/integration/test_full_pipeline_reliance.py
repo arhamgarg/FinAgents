@@ -69,7 +69,7 @@ def _run_pipeline_with_harness(
         if harness_setup_fn is not None:
             harness_setup_fn(h)
         graph = build_full_pipeline()
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         settings.max_debate_rounds = max_debate_rounds
         settings.max_risk_discuss_rounds = max_risk_discuss_rounds
         config = {

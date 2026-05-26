@@ -17,12 +17,12 @@ def _normalize_size_pct(value: Any) -> float:
     if value is None:
         return 0.0
     pct = float(value)
-    return pct * 100 if pct < 1 else pct
+    return pct * 100 if pct <= 1 else pct
 
 
 def _compute_divergence_pp(
     personas: Sequence[Any],
-    synth_pct: float,  # noqa: ARG001 — kept on the public surface for callers
+    _synth_pct: float,
 ) -> float:
     if not personas:
         return 0.0
@@ -61,7 +61,7 @@ def render_divergence_chart(
 
         df = pd.DataFrame({"persona": persona_labels, "size_pct": sizes})
         st.bar_chart(df, x="size_pct", y="persona", horizontal=True)
-    except Exception as exc:  # pragma: no cover - chart fallback
+    except (ValueError, TypeError, ImportError) as exc:
         st.warning(f"Chart render fallback: {exc}")
         for label, size in zip(persona_labels, sizes):
             st.write(f"- {label}: {size:.1f}%")

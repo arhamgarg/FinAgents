@@ -57,8 +57,8 @@ class TestCLILiveRender:
             _stream(events),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             console=console,
         )
 
@@ -95,8 +95,8 @@ class TestCLILiveRender:
             _stream(events),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             console=console,
         )
 
@@ -119,8 +119,8 @@ class TestCLILiveRender:
             _stream(events),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             console=console,
         )
         rendered = console.export_text()
@@ -130,7 +130,7 @@ class TestCLILiveRender:
         )
         assert "RELIANCE" in first_line
         assert "2026-04-26" in first_line
-        assert "ollama:llama3.1:70b" in first_line
+        assert "openrouter:openrouter/auto" in first_line
         assert "·" in first_line
 
     @pytest.mark.asyncio
@@ -151,7 +151,7 @@ class TestCLILiveRender:
             "size_pct": None,
         }
         header = _build_header(
-            "RELIANCE", "2026-04-26", "ollama", "llama3.1:70b", 0.5
+            "RELIANCE", "2026-04-26", "openrouter", "openrouter/auto", 0.5
         )
 
         console.print(make_stage_table(stage_state, header, 0.5))
@@ -187,8 +187,8 @@ class TestCLILiveRender:
             _stream(events),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             max_debate_rounds=3,
             console=console,
         )
@@ -220,8 +220,8 @@ class TestCLILiveRender:
             _stream(events),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             console=console,
         )
         rendered = console.export_text()
@@ -252,8 +252,8 @@ class TestCLILiveRender:
             mock_events(),
             ticker="RELIANCE",
             date="2026-04-26",
-            provider="ollama",
-            model="llama3.1:70b",
+            provider="openrouter",
+            model="openrouter/auto",
             console=Console(file=io.StringIO()),
             cancel_flag=cancel_flag,
         )
@@ -262,3 +262,160 @@ class TestCLILiveRender:
             getattr(result, "trader_investment_thesis", None)
             == "partial technical analysis"
         )
+
+
+class TestErroredEventReRaises:
+
+    @pytest.mark.asyncio
+    async def test_run_with_log_lines_reraises_errored_exc(self) -> None:
+        from financialagents.cli.live import run_with_log_lines
+
+        exc = RuntimeError("boom: 260526-no0-marker")
+
+        async def errored_stream():
+            yield _ev(
+                kind="node_status",
+                node_name="technical_analyst_node",
+                status="started",
+            )
+            yield _ev(kind="errored", status="errored", error=exc)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await run_with_log_lines(
+                errored_stream(),
+                ticker="RELIANCE",
+                date="2026-04-26",
+                provider="openrouter",
+                model="openrouter/auto",
+                log_console=Console(file=io.StringIO()),
+            )
+
+        assert exc_info.type is RuntimeError
+        assert "boom" in str(exc_info.value)
+        assert "260526-no0-marker" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_run_with_live_render_reraises_errored_exc(self) -> None:
+        from financialagents.cli.live import run_with_live_render
+
+        exc = RuntimeError("boom: 260526-no0-marker")
+        console = Console(record=True, width=120, force_terminal=True)
+
+        async def errored_stream():
+            yield _ev(
+                kind="node_status",
+                node_name="technical_analyst_node",
+                status="started",
+            )
+            yield _ev(kind="errored", status="errored", error=exc)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await run_with_live_render(
+                errored_stream(),
+                ticker="RELIANCE",
+                date="2026-04-26",
+                provider="openrouter",
+                model="openrouter/auto",
+                console=console,
+            )
+
+        assert exc_info.type is RuntimeError
+        assert "boom" in str(exc_info.value)
+        assert "260526-no0-marker" in str(exc_info.value)
+        assert "event stream ended without completion" not in console.export_text()
+
+    @pytest.mark.asyncio
+    async def test_run_with_log_lines_cancelled_path_does_not_raise(self) -> None:
+        from financialagents.cli.live import run_with_log_lines
+
+        async def cancelled_stream():
+            yield _ev(
+                kind="node_status",
+                node_name="technical_analyst_node",
+                status="started",
+            )
+            yield _ev(kind="errored", status="cancelled", error=None)
+
+        result = await run_with_log_lines(
+            cancelled_stream(),
+            ticker="RELIANCE",
+            date="2026-04-26",
+            provider="openrouter",
+            model="openrouter/auto",
+            log_console=Console(file=io.StringIO()),
+        )
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_run_with_live_render_cancelled_path_does_not_raise(self) -> None:
+        from financialagents.cli.live import run_with_live_render
+
+        async def cancelled_stream():
+            yield _ev(
+                kind="node_status",
+                node_name="technical_analyst_node",
+                status="started",
+            )
+            yield _ev(kind="errored", status="cancelled", error=None)
+
+        result = await run_with_live_render(
+            cancelled_stream(),
+            ticker="RELIANCE",
+            date="2026-04-26",
+            provider="openrouter",
+            model="openrouter/auto",
+            console=Console(file=io.StringIO()),
+        )
+        assert result is None
+
+
+
+
+class TestStreamPipelineEventsBackwardCompat:
+
+    @pytest.mark.asyncio
+    async def test_stream_pipeline_events_no_cancel_param_backward_compat(
+        self,
+    ) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.observability.events import (
+            PipelineEvent,
+            stream_pipeline_events,
+        )
+
+        snapshot_state = AgentState(ticker="RELIANCE", date="2026-04-26")
+
+        class FakeGraph:
+            def astream(self, *_args, **_kwargs):
+                async def gen():
+                    yield (
+                        (),
+                        "updates",
+                        {"technical_analyst_node": {}},
+                    )
+                    yield (
+                        (),
+                        "values",
+                        snapshot_state.model_dump(),
+                    )
+
+                return gen()
+
+        events: list[PipelineEvent] = []
+        async for ev in stream_pipeline_events(
+            FakeGraph(), snapshot_state.model_dump(), {"configurable": {}}
+        ):
+            events.append(ev)
+
+        assert events, "no events drained from stream_pipeline_events"
+        terminal = events[-1]
+        assert terminal.kind == "completed", (
+            f"expected terminal kind='completed', got {terminal.kind!r}"
+        )
+        assert terminal.final_state is not None, (
+            "final_state missing from terminal completion event"
+        )
+        assert terminal.final_state.ticker == "RELIANCE"
+        assert all(
+            ev.kind != "errored" for ev in events
+        ), "unexpected errored event in backward-compat stream"

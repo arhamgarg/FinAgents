@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import queue
+import threading
+import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -131,6 +134,40 @@ class TestDrainQueueAndApply:
         assert last_event is not None
         assert last_event.kind == "completed"
 
+    def test_errored_event_preserves_error_field(self) -> None:
+        from financialagents.dashboard.live_fragment import (
+            _initial_stage_state,
+            drain_queue_and_apply,
+        )
+
+        original_exc = RuntimeError("boom: 260526-no0-marker")
+        q: queue.Queue[Any] = queue.Queue()
+        q.put(
+            PipelineEvent(
+                kind="node_status",
+                node_name="technical_analyst_node",
+                status="started",
+            )
+        )
+        q.put(
+            PipelineEvent(
+                kind="errored",
+                status="errored",
+                error=original_exc,
+            )
+        )
+
+        stage_state = _initial_stage_state()
+        still_running, last_event = drain_queue_and_apply(stage_state, q)
+
+        assert still_running is False
+        assert last_event is not None
+        assert last_event.kind == "errored"
+        assert last_event.error is original_exc
+        assert type(last_event.error) is RuntimeError
+        assert "boom" in str(last_event.error)
+        assert "260526-no0-marker" in str(last_event.error)
+
 
 class TestPersonaSizePctRender:
     def test_persona_size_pct_shown_in_status_label(self, tmp_path: Path) -> None:
@@ -182,3 +219,174 @@ class TestPersonaSizePctRender:
             f"Persona size_pct preview '4.5%' missing from rendered output: "
             f"{markdown_text!r}"
         )
+
+
+
+
+class _RecordingAsyncGen:
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self.aclose_awaited = False
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        return await self._inner.__anext__()
+
+    async def aclose(self) -> None:  # noqa: D401 — mirror agen.aclose signature
+        self.aclose_awaited = True
+        try:
+            await self._inner.aclose()
+        except Exception:  # pragma: no cover - aclose is best-effort
+            pass
+
+
+class _FakeGraph:
+
+    def __init__(self, recording_agen: _RecordingAsyncGen) -> None:
+        self._recording_agen = recording_agen
+
+    def astream(self, *_args, **_kwargs):
+        return self._recording_agen
+
+
+class TestCancelPipeline:
+
+    @pytest.mark.asyncio
+    async def test_cancel_event_set_mid_stream_terminates_producer(self) -> None:
+        from financialagents.observability.events import stream_pipeline_events
+
+        async def upstream():
+            yield (
+                (),
+                "updates",
+                {"technical_analyst_node": {}},
+            )
+            yield (
+                (),
+                "updates",
+                {"fundamentals_analyst_node": {}},
+            )
+
+        recording = _RecordingAsyncGen(upstream())
+        fake_graph = _FakeGraph(recording)
+        evt = threading.Event()
+
+        events: list[PipelineEvent] = []
+        async for ev in stream_pipeline_events(
+            fake_graph, {}, {"configurable": {}}, cancel_event=evt
+        ):
+            events.append(ev)
+            if len(events) == 1:
+                evt.set()
+
+        assert events, "no events drained — generator yielded nothing"
+        terminal = events[-1]
+        assert terminal.kind == "errored", (
+            f"expected terminal kind='errored', got {terminal.kind!r}"
+        )
+        assert terminal.status == "cancelled", (
+            f"expected terminal status='cancelled', got {terminal.status!r}"
+        )
+        assert recording.aclose_awaited, (
+            "stream_pipeline_events did not call agen.aclose() on cancel"
+        )
+        assert all(
+            ev.node_name != "fundamentals_analyst_node" for ev in events
+        ), (
+            "stream_pipeline_events drained step 2 after cancel — "
+            "expected early return before __anext__"
+        )
+
+    def test_cancel_pipeline_helper_flips_flag_and_joins_thread(self) -> None:
+        from financialagents.dashboard.live_fragment import cancel_pipeline
+
+        class _SessionStateShim(dict):
+            def __getattr__(self, key):
+                try:
+                    return self[key]
+                except KeyError as exc:
+                    raise AttributeError(key) from exc
+
+            def __setattr__(self, key, value) -> None:
+                self[key] = value
+
+            def __delattr__(self, key) -> None:
+                try:
+                    del self[key]
+                except KeyError as exc:
+                    raise AttributeError(key) from exc
+
+        evt = threading.Event()
+        thread = threading.Thread(
+            target=lambda: time.sleep(2),
+            daemon=True,
+        )
+        thread.start()
+
+        try:
+            shim = _SessionStateShim()
+            shim["pipeline_cancel"] = evt
+            shim["pipeline_thread"] = thread
+            shim["pipeline_running"] = True
+
+            import streamlit as st
+            from unittest.mock import patch
+
+            with patch.object(st, "session_state", shim):
+                cancel_pipeline()
+
+            assert evt.is_set(), "cancel_pipeline did not set cancel event"
+            assert shim.get("pipeline_running") is False, (
+                "cancel_pipeline did not flip pipeline_running to False; "
+                f"got {shim.get('pipeline_running')!r}"
+            )
+            assert shim.get("pipeline_thread") is None, (
+                "cancel_pipeline did not clear pipeline_thread"
+            )
+            assert shim.get("pipeline_cancel") is None, (
+                "cancel_pipeline did not clear pipeline_cancel"
+            )
+        finally:
+            evt.set()
+
+    def test_start_pipeline_stores_cancel_and_thread_in_session_state(
+        self, monkeypatch
+    ) -> None:
+        from financialagents.dashboard import live_fragment
+
+        monkeypatch.setattr(
+            live_fragment,
+            "_run_in_background",
+            lambda *args, **kwargs: None,
+        )
+
+        class _SessionStateShim(dict):
+            def __getattr__(self, key):
+                try:
+                    return self[key]
+                except KeyError as exc:
+                    raise AttributeError(key) from exc
+
+            def __setattr__(self, key, value) -> None:
+                self[key] = value
+
+        shim = _SessionStateShim()
+        import streamlit as st
+        from unittest.mock import patch
+
+        with patch.object(st, "session_state", shim):
+            live_fragment.start_pipeline(MagicMock(), {}, {"configurable": {}})
+
+        assert isinstance(shim.get("pipeline_cancel"), threading.Event), (
+            "start_pipeline did not seed pipeline_cancel as threading.Event; "
+            f"got {type(shim.get('pipeline_cancel'))!r}"
+        )
+        assert isinstance(shim.get("pipeline_thread"), threading.Thread), (
+            "start_pipeline did not seed pipeline_thread as threading.Thread; "
+            f"got {type(shim.get('pipeline_thread'))!r}"
+        )
+        assert shim.get("pipeline_running") is True
+        assert shim.get("pipeline_queue") is not None

@@ -78,7 +78,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=True,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -102,7 +102,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -134,7 +134,7 @@ class TestFaRun:
                     ticker="RELIANCE",
                     date="2026-04-26",
                     json_output=False,
-                    provider_override="ollama",
+                    provider_override="openrouter",
                     debug=True,
                 )
             )
@@ -174,7 +174,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -227,7 +227,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -299,7 +299,7 @@ class TestFaRun:
                     ticker="RELIANCE",
                     date="2026-04-26",
                     json_output=False,
-                    provider_override="ollama",
+                    provider_override="openrouter",
                     debug=True,
                 )
             )
@@ -329,7 +329,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date=None,
                 json_output=True,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -382,7 +382,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -436,7 +436,7 @@ class TestFaRun:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -464,6 +464,20 @@ def _make_event(**kwargs):
 
 
 class TestLiveRenderIntegration:
+
+    @pytest.fixture(autouse=True)
+    def _reset_sigint_handler(self):
+        import signal as _signal
+
+        previous = _signal.getsignal(_signal.SIGINT)
+        _signal.signal(_signal.SIGINT, _signal.default_int_handler)
+        try:
+            yield
+        finally:
+            _signal.signal(
+                _signal.SIGINT,
+                previous if previous is not None else _signal.default_int_handler,
+            )
 
     def test_run_command_uses_live_render_in_tty(
         self, tmp_signals_db, fake_pipeline, capsys, monkeypatch
@@ -517,7 +531,7 @@ class TestLiveRenderIntegration:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -577,7 +591,7 @@ class TestLiveRenderIntegration:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=True,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )
@@ -641,7 +655,7 @@ class TestLiveRenderIntegration:
                 ticker="RELIANCE",
                 date="2026-04-26",
                 json_output=False,
-                provider_override="ollama",
+                provider_override="openrouter",
                 debug=False,
             )
         )

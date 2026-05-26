@@ -5,27 +5,19 @@ from typing import Any
 
 import streamlit as st
 
+from financialagents._redaction import _SECRET_PATTERN, redact_secrets  # noqa: F401  (re-exported)
 from financialagents.cli.ist_dates import ist_today_str
-from financialagents.config import Settings
+from financialagents.config import Settings, resolve_model
 
-import re as _re
-
-_SECRET_PATTERN = _re.compile(
-    r"((?:OPENROUTER_API_KEY|CEREBRAS_API_KEY|GROQ_API_KEY|ANGELONE_[A-Z_]+|REDDIT_[A-Z_]+|(?<![A-Z_])api_key))"
-    r"\s*[=:]\s*\S+",
-    _re.IGNORECASE,
-)
-
-
-def _redact_secrets(text: str) -> str:
-    return _SECRET_PATTERN.sub(r"\1=***", text)
+_redact_secrets = redact_secrets
+__all_redaction__ = ("_SECRET_PATTERN", "_redact_secrets")
 
 
 EMPTY_HEADING: str = "Ready when you are"
 EMPTY_BODY: str = (
     "Pick a ticker and run the pipeline to see analyst reports, the "
     "investment debate, risk personas, and the portfolio manager's "
-    "verdict — typically 1–3 minutes on Ollama, 30–60s on Groq."
+    "verdict — typically 30–60s on Groq, 1–3 minutes on OpenRouter."
 )
 QUICK_PICKS: tuple[str, ...] = ("RELIANCE", "TCS", "INFY")
 
@@ -43,6 +35,7 @@ def _settings_to_provider_default(settings: Settings) -> str:
 
 
 def render_sidebar_form(settings: Settings) -> dict[str, Any] | None:
+    result: dict[str, Any] | None = None
     with st.sidebar:
         st.markdown("**Run config**")
         with st.form("run_config", clear_on_submit=False):
@@ -51,7 +44,7 @@ def render_sidebar_form(settings: Settings) -> dict[str, Any] | None:
             today = _date.fromisoformat(today_str)
             date_in = st.date_input("Date", value=today)
             provider_default = _settings_to_provider_default(settings)
-            provider_options = ["openrouter", "cerebras", "groq", "ollama"]
+            provider_options = ["openrouter", "cerebras", "groq"]
             provider = st.selectbox(
                 "Provider",
                 options=provider_options,
@@ -61,7 +54,10 @@ def render_sidebar_form(settings: Settings) -> dict[str, Any] | None:
                     else 0
                 ),
             )
-            model = st.text_input("Model", value=settings.deep_think_llm)
+            model = st.text_input(
+                "Model",
+                value=resolve_model(settings, settings.llm_provider, "deep"),
+            )
             rounds = st.number_input(
                 "Debate rounds",
                 min_value=1,
@@ -73,14 +69,14 @@ def render_sidebar_form(settings: Settings) -> dict[str, Any] | None:
                 type="primary",
             )
             if submitted:
-                return {
+                result = {
                     "ticker": ticker,
                     "date": date_in.strftime("%Y-%m-%d"),
                     "provider": provider,
                     "model": model,
                     "rounds": int(rounds),
                 }
-    return None
+    return result
 
 
 def render_empty_state() -> str | None:
@@ -98,11 +94,12 @@ def _build_pending_run_from_quick_pick(
     ticker: str,
     settings: Settings,
 ) -> dict[str, Any]:
+    provider = _settings_to_provider_default(settings)
     return {
         "ticker": ticker,
         "date": ist_today_str(),
-        "provider": _settings_to_provider_default(settings),
-        "model": settings.deep_think_llm,
+        "provider": provider,
+        "model": resolve_model(settings, provider, "deep"),
         "rounds": int(settings.max_debate_rounds),
     }
 
@@ -124,6 +121,16 @@ if config is not None or quick_ticker is not None:
     st.session_state["pending_run"] = {"config": pending_config}
 
     if not st.session_state.get("pipeline_running"):
+        if (
+            st.session_state.get("pipeline_thread") is not None
+            or st.session_state.get("pipeline_cancel") is not None
+        ):
+            from financialagents.dashboard.live_fragment import (
+                cancel_pipeline,
+            )
+
+            cancel_pipeline()
+
         st.session_state.last_completed_event = None
         st.session_state.persisted = False
         st.session_state.stage_state = None
@@ -174,7 +181,7 @@ if config is not None or quick_ticker is not None:
         st.session_state.run_id = run_id
         st.session_state.run_db_path = str(db_path)
         st.session_state.persisted = False
-        start_pipeline(graph._graph, initial, config_obj)
+        start_pipeline(graph.compiled(), initial, config_obj)
 
 
 if (
@@ -200,43 +207,56 @@ if (
     from pathlib import Path as _Path
 
     from financialagents.dashboard.signal_card import render_signal_card
-    from financialagents.storage.signals import update_success
+    from financialagents.storage.signals import (
+        update_errored as _update_errored_post,
+        update_success,
+    )
 
-    render_signal_card(_last_ev.final_state)
+    _state = _last_ev.final_state
+    render_signal_card(_state)
 
     if not st.session_state.get("persisted"):
-        _state = _last_ev.final_state
         _payload = _state.model_dump_json(exclude={"messages"})
         _pd = _state.final_trade_decision
-        _sig = _pd.signal if _pd is not None else None
-        _db_path = _Path(
-            st.session_state.get("run_db_path", "")
-        )
-        if _db_path and st.session_state.get("run_id"):
-            _asyncio_post.run(
-                update_success(
-                    st.session_state.run_id,
-                    action=_sig.action if _sig is not None else "HOLD",
-                    confidence=(
-                        float(getattr(_sig, "conviction", 0.0))
-                        if _sig is not None
-                        else 0.0
-                    ),
-                    position_size_pct=(
-                        float(getattr(_sig, "position_size_pct", 0.0) or 0.0)
-                        if _sig is not None
-                        else 0.0
-                    ),
-                    approved=bool(_pd.approved) if _pd is not None else False,
-                    pm_decision=(
-                        getattr(_pd, "decision", "veto")
-                        if _pd is not None
-                        else "veto"
-                    ),
-                    payload_json=_payload,
-                    db_path=_db_path,
+        _db_raw = st.session_state.get("run_db_path", "")
+        if _db_raw and st.session_state.get("run_id"):
+            _db_path = _Path(_db_raw)
+            if _pd is None:
+                _asyncio_post.run(
+                    _update_errored_post(
+                        st.session_state.run_id,
+                        error_msg=(
+                            "pipeline completed without producing a "
+                            "final trade decision"
+                        ),
+                        payload_json=_payload,
+                        db_path=_db_path,
+                    )
                 )
-            )
+            else:
+                _sig = _pd.signal
+                _asyncio_post.run(
+                    update_success(
+                        st.session_state.run_id,
+                        action=_sig.action if _sig is not None else "HOLD",
+                        confidence=(
+                            float(getattr(_sig, "conviction", 0.0))
+                            if _sig is not None
+                            else 0.0
+                        ),
+                        position_size_pct=(
+                            float(
+                                getattr(_sig, "position_size_pct", 0.0) or 0.0
+                            )
+                            if _sig is not None
+                            else 0.0
+                        ),
+                        approved=bool(_pd.approved),
+                        pm_decision=getattr(_pd, "decision", "veto"),
+                        payload_json=_payload,
+                        db_path=_db_path,
+                    )
+                )
             st.session_state.persisted = True
 
 
@@ -256,10 +276,9 @@ if (
     err_msg = _redact_secrets(err_msg_raw)
 
     if not st.session_state.get("persisted"):
-        _db_path_err = _Path_err(
-            st.session_state.get("run_db_path", "")
-        )
-        if _db_path_err and st.session_state.get("run_id"):
+        _db_raw_err = st.session_state.get("run_db_path", "")
+        if _db_raw_err and st.session_state.get("run_id"):
+            _db_path_err = _Path_err(_db_raw_err)
             _asyncio_err.run(
                 update_errored(
                     st.session_state.run_id,

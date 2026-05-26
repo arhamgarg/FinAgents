@@ -63,7 +63,7 @@ class TestCLIMain:
         logging.getLogger().setLevel(logging.WARNING)
 
         result = cli_runner.invoke(
-            main_module.app, ["--debug", "run", "RELIANCE", "--provider", "ollama"]
+            main_module.app, ["--debug", "run", "RELIANCE", "--provider", "openrouter"]
         )
         assert result.exit_code == 0, (
             f"exited {result.exit_code}; stderr={result.stderr!r}"

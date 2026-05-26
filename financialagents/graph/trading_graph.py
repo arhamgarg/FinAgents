@@ -18,6 +18,9 @@ class FinancialAgentsGraph:
         else:
             self._graph = build_analysis_graph()
 
+    def compiled(self):
+        return self._graph
+
     async def apropagate(
         self,
         ticker: str,

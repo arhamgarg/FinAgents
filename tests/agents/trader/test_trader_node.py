@@ -16,7 +16,7 @@ from financialagents.config import Settings
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None)
+    return Settings(_env_file=None, openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -319,6 +319,60 @@ class TestTraderNode:
         signal = result["trader_signal"]
         assert signal.action == "BUY"
         assert signal.circuit_band_note == CIRCUIT_BAND_UNAVAILABLE_NOTE
+
+    def test_sizing_consistent_with_grounded_entry(
+        self,
+        mock_research_brief: ResearchBrief,
+        default_settings: Settings,
+    ) -> None:
+        from financialagents.agents.trader.trader import trader_node
+
+        tech = TechnicalReport(
+            current_price=2450.75,
+            atr_14=None,
+            circuit_band_pct=0.20,
+            t2t_flag=False,
+            confidence=0.8,
+        )
+        state = AgentState(
+            ticker="X",
+            date="2026-04-17",
+            technical_report=tech,
+            research_summary=mock_research_brief,
+        )
+        bad_entry_signal = TradingSignal(
+            action="BUY",
+            conviction=0.8,
+            entry_price=1500.0,
+            stop_loss=2400.0,
+            target_1=2500.0,
+            rationale="seed",
+        )
+
+        mock_structured_llm = MagicMock()
+        mock_structured_llm.ainvoke = AsyncMock(return_value=bad_entry_signal)
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured_llm
+
+        config = {"configurable": {"settings": default_settings}}
+
+        with patch(
+            "financialagents.agents.trader.trader.create_llm_client",
+            return_value=mock_llm,
+        ):
+            result = asyncio.run(trader_node(state, config))
+
+        signal = result["trader_signal"]
+        assert signal.entry_price == pytest.approx(2450.75)
+        assert signal.position_size_shares is not None
+        assert signal.position_size_pct is not None
+        capital = default_settings.portfolio_value_inr
+        deployed = signal.position_size_shares * signal.entry_price
+        expected = signal.position_size_pct * capital
+        assert abs(deployed - expected) <= signal.entry_price, (
+            f"sizing fields disagree: shares*entry={deployed:.2f}, "
+            f"pct*capital={expected:.2f}, entry={signal.entry_price}"
+        )
 
     def test_t2t_flag_copied_from_technical_report(
         self,

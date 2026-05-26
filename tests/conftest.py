@@ -31,7 +31,8 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def default_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
-    monkeypatch.setenv("LLM_PROVIDER", "ollama")
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-api-key-fake")
     return Settings(_env_file=None)
 
 

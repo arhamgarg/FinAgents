@@ -26,7 +26,7 @@ def _seed_three_rows(db_path: Path) -> None:
         asyncio.run(
             insert_running(
                 run_id, ticker, date,
-                provider="ollama", model="llama3.1:8b",
+                provider="openrouter", model="openrouter/auto",
                 db_path=db_path,
             )
         )

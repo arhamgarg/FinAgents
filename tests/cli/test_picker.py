@@ -13,15 +13,19 @@ def settings_groq_only(monkeypatch):
 
 
 @pytest.fixture
-def settings_no_groq(monkeypatch):
+def settings_openrouter_only(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     from financialagents.config import Settings
 
-    return Settings(groq_api_key=None, _env_file=None)  # type: ignore[call-arg]
+    return Settings(
+        openrouter_api_key="fake-or",
+        groq_api_key=None,
+        _env_file=None,
+    )  # type: ignore[call-arg]
 
 
 @pytest.fixture
-def settings_all_four(monkeypatch):
+def settings_all_three(monkeypatch):
     monkeypatch.delenv("LLM_PROVIDER", raising=False)
     from financialagents.config import Settings
 
@@ -36,30 +40,31 @@ def settings_all_four(monkeypatch):
 class TestProviderPicker:
     def test_lists_providers_with_groq(self, settings_groq_only) -> None:
         from financialagents.cli.picker import list_configured_providers
+        from financialagents.config import resolve_model
 
         rows = list_configured_providers(settings_groq_only)
         names = [r[0] for r in rows]
         assert "groq" in names
-        assert "ollama" in names
-        for _name, model in rows:
-            assert model == settings_groq_only.deep_think_llm
+        for name, model in rows:
+            assert model == resolve_model(settings_groq_only, name, "deep")
 
-    def test_lists_providers_ollama_only(self, settings_no_groq) -> None:
+    def test_lists_providers_openrouter_only(self, settings_openrouter_only) -> None:
         from financialagents.cli.picker import list_configured_providers
+        from financialagents.config import resolve_model
 
-        rows = list_configured_providers(settings_no_groq)
-        assert rows == [("ollama", settings_no_groq.deep_think_llm)]
+        rows = list_configured_providers(settings_openrouter_only)
+        assert rows == [("openrouter", resolve_model(settings_openrouter_only, "openrouter", "deep"))]
 
-    def test_skip_when_single_provider(self, settings_no_groq) -> None:
+    def test_skip_when_single_provider(self, settings_openrouter_only) -> None:
         from financialagents.cli.picker import should_skip_picker
 
-        assert should_skip_picker(settings_no_groq, provider_flag=None) is True
+        assert should_skip_picker(settings_openrouter_only, provider_flag=None) is True
 
     def test_skip_when_provider_flag(self, settings_groq_only, monkeypatch) -> None:
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
         from financialagents.cli.picker import should_skip_picker
 
-        assert should_skip_picker(settings_groq_only, provider_flag="ollama") is True
+        assert should_skip_picker(settings_groq_only, provider_flag="openrouter") is True
 
     def test_skip_when_env_set(self, settings_groq_only, monkeypatch) -> None:
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
@@ -74,18 +79,35 @@ class TestProviderPicker:
 
         assert should_skip_picker(settings_groq_only, provider_flag=None) is True
 
-    def test_no_skip_when_ambiguous_tty(self, settings_groq_only, monkeypatch) -> None:
+    def test_no_skip_when_ambiguous_tty(self, settings_all_three, monkeypatch) -> None:
         monkeypatch.setattr("sys.stdin.isatty", lambda: True)
         from financialagents.cli.picker import should_skip_picker
 
-        assert should_skip_picker(settings_groq_only, provider_flag=None) is False
+        assert should_skip_picker(settings_all_three, provider_flag=None) is False
 
-    def test_lists_providers_full_order(self, settings_all_four) -> None:
+    def test_lists_providers_full_order(self, settings_all_three) -> None:
         from financialagents.cli.picker import list_configured_providers
 
-        rows = list_configured_providers(settings_all_four)
+        rows = list_configured_providers(settings_all_three)
         names = [r[0] for r in rows]
-        assert names == ["openrouter", "cerebras", "groq", "ollama"]
+        assert names == ["openrouter", "cerebras", "groq"]
+
+    def test_lists_providers_shows_distinct_models_per_provider(
+        self, settings_all_three
+    ) -> None:
+        from financialagents.cli.picker import list_configured_providers
+        from financialagents.config import PROVIDER_DEFAULTS
+
+        rows = list_configured_providers(settings_all_three)
+        row_map = dict(rows)
+        assert row_map["openrouter"] == PROVIDER_DEFAULTS["openrouter"]["deep"]
+        assert row_map["cerebras"] == PROVIDER_DEFAULTS["cerebras"]["deep"]
+        assert row_map["groq"] == PROVIDER_DEFAULTS["groq"]["deep"]
+        models = {row_map[p] for p in ("openrouter", "cerebras", "groq")}
+        assert len(models) == 3, (
+            f"Expected provider-specific models, got {row_map!r} — picker "
+            "regressed to the pre-Spec-1 'same model per row' bug."
+        )
 
     def test_openrouter_excluded_without_key(self, monkeypatch) -> None:
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
@@ -99,4 +121,4 @@ class TestProviderPicker:
             _env_file=None,
         )
         names = [r[0] for r in list_configured_providers(s)]
-        assert names == ["cerebras", "groq", "ollama"]
+        assert names == ["cerebras", "groq"]

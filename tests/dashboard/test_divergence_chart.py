@@ -151,3 +151,65 @@ class TestDivergenceChartRender:
         assert not at.exception, (
             f"AppTest raised: {[str(e.value) for e in at.exception]}"
         )
+
+    def test_bar_chart_fallback_renders_plain_text_list(
+        self, tmp_path,
+    ) -> None:
+        AppTest = pytest.importorskip(
+            "streamlit.testing.v1",
+            reason="Streamlit AppTest required",
+        ).AppTest
+        app_src = (
+            "import streamlit as st\n"
+            "from financialagents.agents.risk_mgmt.schemas import "
+            "PersonaAssessment\n"
+            "from financialagents.dashboard.divergence_chart import "
+            "render_divergence_chart\n"
+            "\n"
+            "def _raise_value_error(*args, **kwargs):\n"
+            " raise ValueError('simulated altair/pandas drift')\n"
+            "\n"
+            "st.bar_chart = _raise_value_error\n"
+            "personas = [\n"
+            " PersonaAssessment(main_argument='m0', "
+            "recommended_position_size_pct=0.10, "
+            "confidence=0.7, counter_to_prior_persona=''),\n"
+            " PersonaAssessment(main_argument='m1', "
+            "recommended_position_size_pct=0.05, "
+            "confidence=0.7, counter_to_prior_persona=''),\n"
+            " PersonaAssessment(main_argument='m2', "
+            "recommended_position_size_pct=0.02, "
+            "confidence=0.7, counter_to_prior_persona=''),\n"
+            "]\n"
+            "render_divergence_chart(personas, 5.0)\n"
+        )
+        path = tmp_path / "divergence_fallback.py"
+        path.write_text(app_src)
+        at = AppTest.from_file(str(path)).run(timeout=10)
+        assert not at.exception, (
+            f"AppTest raised: {[str(e.value) for e in at.exception]}"
+        )
+
+        warning_blobs = [w.value for w in at.warning]
+        assert any(
+            "Chart render fallback" in blob
+            and "simulated altair/pandas drift" in blob
+            for blob in warning_blobs
+        ), (
+            "Fallback warning missing; got warnings: "
+            f"{warning_blobs!r}"
+        )
+
+        text_blobs = " ".join(
+            m.value for m in (list(at.markdown) + list(at.text))
+        )
+        for expected_label in ("persona_1", "persona_2", "persona_3"):
+            assert expected_label in text_blobs, (
+                f"plain-text fallback missing {expected_label!r}; "
+                f"got rendered text: {text_blobs!r}"
+            )
+        for expected_pct in ("10.0%", "5.0%", "2.0%"):
+            assert expected_pct in text_blobs, (
+                f"plain-text fallback missing percentage {expected_pct!r}; "
+                f"got rendered text: {text_blobs!r}"
+            )

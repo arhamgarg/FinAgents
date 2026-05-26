@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Optional
+
+_log = logging.getLogger(__name__)
 
 from rich.console import Console
 from rich.prompt import Confirm
@@ -12,6 +15,7 @@ from financialagents.config import Settings
 from financialagents.storage.paths import signals_db_path
 from financialagents.storage.signals import (
     load_history,
+    open_signals_db,
     prune_before,
 )
 
@@ -107,8 +111,16 @@ async def _run_prune(
         console.print("[red]--prune requires --before <date>.[/red]")
         return 1
 
-    rows = await load_history(db_path, limit=10_000)
-    n_match = sum(1 for r in rows if (r.get("created_at") or "") < before)
+    if not db_path.exists():
+        n_match = 0
+    else:
+        async with open_signals_db(db_path) as db:
+            async with db.execute(
+                "SELECT COUNT(*) FROM signals WHERE created_at < ?",
+                (before,),
+            ) as cur:
+                row = await cur.fetchone()
+                n_match = int(row[0]) if row else 0
 
     is_tty = sys.stdin.isatty()
     if not is_tty and not yes:
@@ -144,6 +156,10 @@ def _fmt_float(value: Any, fmt: str) -> str:
     try:
         return fmt.format(float(value))
     except (TypeError, ValueError):
+        _log.debug(
+            "_fmt_float: non-None value %r failed to coerce to float",
+            value,
+        )
         return "—"
 
 
@@ -153,8 +169,12 @@ def _fmt_pct(value: Any) -> str:
     try:
         v = float(value)
     except (TypeError, ValueError):
+        _log.debug(
+            "_fmt_pct: non-None value %r failed to coerce to float",
+            value,
+        )
         return "—"
-    if v < 1:
+    if v <= 1:
         return f"{v * 100:.1f}%"
     return f"{v:.1f}%"
 

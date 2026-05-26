@@ -4,7 +4,7 @@ from operator import add
 from typing import Annotated, Optional
 
 from langchain_core.messages import BaseMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from financialagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
@@ -53,6 +53,8 @@ class RiskDebateState(BaseModel):
 
 
 class AgentState(BaseModel):
+
+    model_config = ConfigDict(extra="forbid")
 
     ticker: str = ""
     date: str = ""

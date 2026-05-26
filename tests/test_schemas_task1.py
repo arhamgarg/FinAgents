@@ -125,7 +125,7 @@ class TestSettingsAnalystWeights:
             warnings.simplefilter("ignore")
             from financialagents.config import Settings
 
-            s = Settings(_env_file=None)
+            s = Settings(_env_file=None, openrouter_api_key="fake")
         assert s.analyst_weights == {
             "technical": 0.303,
             "fundamentals": 0.455,

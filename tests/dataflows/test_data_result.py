@@ -32,7 +32,7 @@ class TestDataResult:
 
     def test_missing_optional_keys_warns(self, clean_env: None) -> None:
         with pytest.warns(UserWarning, match="ANGELONE_API_KEY"):
-            Settings(_env_file=None)
+            Settings(_env_file=None, openrouter_api_key="fake")
 
     def test_all_optional_keys_set_no_warnings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
@@ -48,7 +48,7 @@ class TestDataResult:
     def test_data_vendors_default_has_all_categories(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
-            settings = Settings(_env_file=None)
+            settings = Settings(_env_file=None, openrouter_api_key="fake")
         assert "ohlcv" in settings.data_vendors
         assert "fundamentals" in settings.data_vendors
         assert "news" in settings.data_vendors

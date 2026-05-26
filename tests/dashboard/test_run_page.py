@@ -82,7 +82,7 @@ class TestRunPageSidebarForm:
             None,
         )
         assert provider is not None, "Provider selectbox not found"
-        assert list(provider.options) == ["openrouter", "cerebras", "groq", "ollama"], (
+        assert list(provider.options) == ["openrouter", "cerebras", "groq"], (
             f"Provider options mismatch: {provider.options!r}"
         )
 
@@ -138,6 +138,9 @@ class TestModelFieldPropagation:
         class FakeGraph:
             def __init__(self, full_pipeline: bool = False) -> None:
                 self._graph = MagicMock()
+
+            def compiled(self):
+                return self._graph
 
         with patch(
             "financialagents.dashboard.live_fragment.start_pipeline",
@@ -207,6 +210,9 @@ class TestResubmissionStateReset:
         class FakeGraph:
             def __init__(self, full_pipeline: bool = False) -> None:
                 self._graph = MagicMock()
+
+            def compiled(self):
+                return self._graph
 
         with patch(
             "financialagents.dashboard.live_fragment.start_pipeline",
@@ -331,4 +337,474 @@ class TestErroredEventPersists:
         error_blobs = [e.value for e in at.error]
         assert any("Pipeline errored" in blob for blob in error_blobs), (
             f"st.error panel missing; got: {error_blobs!r}"
+        )
+
+    def test_errored_event_carries_real_exception_to_dashboard(self) -> None:
+        from financialagents.observability.events import PipelineEvent
+
+        errored_event = PipelineEvent(
+            kind="errored",
+            status="errored",
+            error=RuntimeError("boom: 260526-no0-marker"),
+        )
+        captured_calls: list[dict] = []
+
+        async def fake_update_errored(
+            run_id: str, *, error_msg: str,
+            payload_json=None, db_path,
+        ) -> None:
+            captured_calls.append({"error_msg": error_msg})
+
+        with patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = errored_event
+            at.session_state["run_id"] = "aabbccdd"
+            at.session_state["run_db_path"] = "/tmp/test_signals.db"
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert len(captured_calls) == 1, (
+            f"update_errored call count: {len(captured_calls)}"
+        )
+        error_msg = captured_calls[0]["error_msg"]
+        assert "boom" in error_msg, f"'boom' missing from error_msg: {error_msg!r}"
+        assert "260526-no0-marker" in error_msg, (
+            f"marker missing from error_msg: {error_msg!r}"
+        )
+        assert "event stream ended without completion" not in error_msg, (
+            f"generic fallback string leaked into error_msg: {error_msg!r}"
+        )
+        error_blobs = [e.value for e in at.error]
+        assert any(
+            "boom" in blob and "260526-no0-marker" in blob
+            for blob in error_blobs
+        ), f"st.error panel missing marker; got: {error_blobs!r}"
+
+
+
+
+class TestCompletedWithNoDecisionPersistsErrored:
+
+    def test_completed_event_with_none_decision_calls_update_errored(
+        self,
+    ) -> None:
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.observability.events import PipelineEvent
+
+        partial_state = AgentState(ticker="RELIANCE", date="2026-04-26")
+        assert partial_state.final_trade_decision is None
+
+        completed_event = PipelineEvent(
+            kind="completed", status="completed", final_state=partial_state,
+        )
+
+        errored_calls: list[dict] = []
+        success_calls: list[dict] = []
+
+        async def fake_update_errored(
+            run_id: str, *, error_msg: str,
+            payload_json=None, db_path,
+        ) -> None:
+            errored_calls.append({
+                "run_id": run_id,
+                "error_msg": error_msg,
+                "payload_json": payload_json,
+                "db_path": str(db_path),
+            })
+
+        async def fake_update_success(
+            run_id: str, *, action, confidence, position_size_pct,
+            approved, pm_decision, payload_json, db_path,
+        ) -> None:
+            success_calls.append({
+                "run_id": run_id,
+                "action": action,
+                "approved": approved,
+                "pm_decision": pm_decision,
+            })
+
+        with patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ), patch(
+            "financialagents.storage.signals.update_success",
+            new=fake_update_success,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = completed_event
+            at.session_state["run_id"] = "deadbeef"
+            at.session_state["run_db_path"] = "/tmp/test_signals.db"
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert success_calls == [], (
+            "update_success was called on a degenerate completion; "
+            f"calls: {success_calls!r}"
+        )
+        assert len(errored_calls) == 1, (
+            f"update_errored call count: {len(errored_calls)}; "
+            f"calls: {errored_calls!r}"
+        )
+        call = errored_calls[0]
+        assert call["run_id"] == "deadbeef", (
+            f"run_id mismatch: {call['run_id']!r}"
+        )
+        assert (
+            "pipeline completed without producing"
+            in call["error_msg"].lower()
+            or "no final trade decision" in call["error_msg"].lower()
+        ), f"unexpected error_msg: {call['error_msg']!r}"
+        assert call["payload_json"] is not None, (
+            "payload_json must be passed through so partial state is "
+            "preserved (update_errored's COALESCE pattern)"
+        )
+        assert at.session_state["persisted"] is True, (
+            "persisted must flip to True after update_errored; "
+            f"got {at.session_state['persisted']!r}"
+        )
+
+    def test_completed_event_with_decision_still_calls_update_success(
+        self,
+    ) -> None:
+        from financialagents.agents.managers.schemas import PortfolioDecision
+        from financialagents.agents.trader.schemas import TradingSignal
+        from financialagents.agents.utils.agent_states import AgentState
+        from financialagents.observability.events import PipelineEvent
+
+        ts = TradingSignal(
+            action="BUY",
+            conviction=0.7,
+            entry_price=1234.0,
+            stop_loss=1180.0,
+            target_1=1310.0,
+            target_2=1380.0,
+            position_size_pct=0.03,
+            position_size_shares=10,
+            risk_reward_ratio=1.45,
+            rationale="t",
+            analyst_weight_applied={
+                "technical": 0.303,
+                "fundamentals": 0.455,
+                "news": 0.242,
+            },
+            sizing_method="atr_based",
+            time_horizon="positional",
+            t2t_flag=False,
+        )
+        pd_ = PortfolioDecision(
+            decision="approve",
+            approved=True,
+            pm_notes="ok",
+            signal=ts,
+        )
+        success_state = AgentState(
+            ticker="RELIANCE",
+            date="2026-04-26",
+            final_trade_decision=pd_,
+        )
+        completed_event = PipelineEvent(
+            kind="completed", status="completed", final_state=success_state,
+        )
+
+        errored_calls: list[dict] = []
+        success_calls: list[dict] = []
+
+        async def fake_update_errored(
+            run_id: str, *, error_msg: str,
+            payload_json=None, db_path,
+        ) -> None:
+            errored_calls.append({"error_msg": error_msg})
+
+        async def fake_update_success(
+            run_id: str, *, action, confidence, position_size_pct,
+            approved, pm_decision, payload_json, db_path,
+        ) -> None:
+            success_calls.append({
+                "run_id": run_id,
+                "action": action,
+                "approved": approved,
+                "pm_decision": pm_decision,
+            })
+
+        with patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ), patch(
+            "financialagents.storage.signals.update_success",
+            new=fake_update_success,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = completed_event
+            at.session_state["run_id"] = "cafebabe"
+            at.session_state["run_db_path"] = "/tmp/test_signals.db"
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert errored_calls == [], (
+            "update_errored was called on a valid success completion; "
+            f"calls: {errored_calls!r}"
+        )
+        assert len(success_calls) == 1, (
+            f"update_success call count: {len(success_calls)}; "
+            f"calls: {success_calls!r}"
+        )
+        call = success_calls[0]
+        assert call["run_id"] == "cafebabe"
+        assert call["action"] == "BUY"
+        assert call["approved"] is True
+        assert call["pm_decision"] == "approve"
+
+
+
+
+class TestEmptyRunDbPathFailsClosed:
+
+    def test_completed_event_with_empty_db_path_skips_write(self) -> None:
+        from financialagents.observability.events import PipelineEvent
+        from financialagents.agents.utils.agent_states import AgentState
+
+        partial_state = AgentState(ticker="RELIANCE", date="2026-04-26")
+        completed_event = PipelineEvent(
+            kind="completed", status="completed", final_state=partial_state,
+        )
+
+        success_calls: list[dict] = []
+        errored_calls: list[dict] = []
+
+        async def fake_update_success(**kwargs) -> None:
+            success_calls.append(kwargs)
+
+        async def fake_update_errored(**kwargs) -> None:
+            errored_calls.append(kwargs)
+
+        with patch(
+            "financialagents.storage.signals.update_success",
+            new=fake_update_success,
+        ), patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = completed_event
+            at.session_state["run_id"] = "deadbeef"
+            at.session_state["run_db_path"] = ""
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert success_calls == [], (
+            f"update_success called with empty run_db_path: {success_calls!r}"
+        )
+        assert errored_calls == [], (
+            f"update_errored called with empty run_db_path: {errored_calls!r}"
+        )
+        assert at.session_state["persisted"] is False, (
+            "persisted must remain False when no write happened"
+        )
+
+    def test_errored_event_with_empty_db_path_skips_write(self) -> None:
+        from financialagents.observability.events import PipelineEvent
+
+        errored_event = PipelineEvent(
+            kind="errored",
+            status="errored",
+            error=RuntimeError("boom"),
+        )
+
+        errored_calls: list[dict] = []
+
+        async def fake_update_errored(**kwargs) -> None:
+            errored_calls.append(kwargs)
+
+        with patch(
+            "financialagents.storage.signals.update_errored",
+            new=fake_update_errored,
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["last_completed_event"] = errored_event
+            at.session_state["run_id"] = "deadbeef"
+            at.session_state["run_db_path"] = ""
+            at.session_state["persisted"] = False
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"AppTest raised: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert errored_calls == [], (
+            f"update_errored called with empty run_db_path: {errored_calls!r}"
+        )
+        assert at.session_state["persisted"] is False, (
+            "persisted must remain False when no write happened"
+        )
+
+
+
+
+class TestSessionResetCancelsStaleProducer:
+
+    def test_session_reset_cancels_prior_producer_before_new_kickoff(
+        self,
+    ) -> None:
+        import threading
+
+        call_order: list[str] = []
+        cancel_event_observed: dict[str, object] = {}
+
+        def fake_cancel_pipeline() -> None:
+            call_order.append("cancel_pipeline")
+
+        def fake_start_pipeline(graph, initial_state, config):
+            call_order.append("start_pipeline")
+            cancel_event_observed["thread_id"] = (
+                config["configurable"]["thread_id"]
+            )
+
+        class FakeGraph:
+            def __init__(self, full_pipeline: bool = False) -> None:
+                self._graph = MagicMock()
+
+            def compiled(self):
+                return self._graph
+
+        stale_cancel_event = threading.Event()
+        stale_thread = MagicMock(spec=threading.Thread)
+        stale_thread.is_alive.return_value = True
+
+        with patch(
+            "financialagents.dashboard.live_fragment.start_pipeline",
+            new=fake_start_pipeline,
+        ), patch(
+            "financialagents.dashboard.live_fragment.cancel_pipeline",
+            new=fake_cancel_pipeline,
+        ), patch(
+            "financialagents.graph.trading_graph.FinancialAgentsGraph",
+            new=FakeGraph,
+        ), patch(
+            "financialagents.storage.migrations.run_migrations",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "financialagents.storage.signals.insert_running",
+            new=AsyncMock(return_value=None),
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["pipeline_running"] = False
+            at.session_state["pipeline_cancel"] = stale_cancel_event
+            at.session_state["pipeline_thread"] = stale_thread
+            at.session_state["run_id"] = "stale_run"
+            at.session_state["stage_state"] = None
+            at.session_state["persisted"] = True
+            at.session_state["last_completed_event"] = None
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"Initial mount raised: "
+                f"{[str(e.value) for e in at.exception]}"
+            )
+
+            ticker_input = next(
+                (t for t in at.sidebar.text_input if t.label == "Ticker"),
+                None,
+            )
+            assert ticker_input is not None, "Ticker text_input not found"
+            ticker_input.set_value("TCS")
+            submit = next(
+                (b for b in at.sidebar.button if b.label == "Run pipeline"),
+                None,
+            )
+            assert submit is not None, "Run pipeline submit not found"
+            submit.click()
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"After submit: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert "cancel_pipeline" in call_order, (
+            "cancel_pipeline was not invoked despite a stale producer "
+            f"handle being present; call_order: {call_order!r}"
+        )
+        assert "start_pipeline" in call_order, (
+            f"start_pipeline was not invoked; call_order: {call_order!r}"
+        )
+        cancel_idx = call_order.index("cancel_pipeline")
+        start_idx = call_order.index("start_pipeline")
+        assert cancel_idx < start_idx, (
+            "cancel_pipeline must run BEFORE start_pipeline in the "
+            f"kickoff branch; got call_order: {call_order!r}"
+        )
+
+    def test_no_stale_producer_means_no_cancel_call(self) -> None:
+        call_order: list[str] = []
+
+        def fake_cancel_pipeline() -> None:
+            call_order.append("cancel_pipeline")
+
+        def fake_start_pipeline(graph, initial_state, config):
+            call_order.append("start_pipeline")
+
+        class FakeGraph:
+            def __init__(self, full_pipeline: bool = False) -> None:
+                self._graph = MagicMock()
+
+            def compiled(self):
+                return self._graph
+
+        with patch(
+            "financialagents.dashboard.live_fragment.start_pipeline",
+            new=fake_start_pipeline,
+        ), patch(
+            "financialagents.dashboard.live_fragment.cancel_pipeline",
+            new=fake_cancel_pipeline,
+        ), patch(
+            "financialagents.graph.trading_graph.FinancialAgentsGraph",
+            new=FakeGraph,
+        ), patch(
+            "financialagents.storage.migrations.run_migrations",
+            new=AsyncMock(return_value=None),
+        ), patch(
+            "financialagents.storage.signals.insert_running",
+            new=AsyncMock(return_value=None),
+        ):
+            at = AppTest.from_file(str(RUN_PAGE_PATH))
+            at.session_state["pipeline_running"] = False
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"Initial mount raised: "
+                f"{[str(e.value) for e in at.exception]}"
+            )
+
+            submit = next(
+                (b for b in at.sidebar.button if b.label == "Run pipeline"),
+                None,
+            )
+            assert submit is not None, "Run pipeline submit not found"
+            submit.click()
+            at.run(timeout=10)
+            assert not at.exception, (
+                f"After submit: {[str(e.value) for e in at.exception]}"
+            )
+
+        assert "cancel_pipeline" not in call_order, (
+            "cancel_pipeline was invoked on a clean first run; "
+            f"call_order: {call_order!r}"
+        )
+        assert "start_pipeline" in call_order, (
+            f"start_pipeline missing from call_order: {call_order!r}"
         )

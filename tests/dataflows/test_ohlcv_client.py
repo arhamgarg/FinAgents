@@ -43,7 +43,7 @@ def angel_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ANGELONE_PIN", "1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
     from financialagents.config import Settings
-    return Settings(_env_file=None)
+    return Settings(_env_file=None, openrouter_api_key="fake")
 
 
 

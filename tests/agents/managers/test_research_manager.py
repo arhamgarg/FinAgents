@@ -90,7 +90,7 @@ def mock_research_brief() -> ResearchBrief:
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None)
+    return Settings(_env_file=None, openrouter_api_key="fake")
 
 
 
@@ -302,7 +302,7 @@ class TestResearchManagerNode:
     ):
         from financialagents.agents.managers.research_manager import research_manager_node
 
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         settings.analyst_weights = {"technical": 2.0, "fundamentals": 1.0, "news": 1.0}
 
         mock_structured_llm = MagicMock()

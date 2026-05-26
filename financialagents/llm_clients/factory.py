@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 
-from financialagents.config import Settings
+from financialagents.config import Settings, resolve_model
 
 if TYPE_CHECKING:
     from financialagents.testing.llm_mock._call_sites import CallSite
@@ -32,7 +32,9 @@ def create_llm_client(
             f"Invalid tier '{tier}'. Must be 'deep_think' or 'quick_think'."
         )
 
-    model_name = config.deep_think_llm if tier == "deep_think" else config.quick_think_llm
+    model_name = resolve_model(
+        config, config.llm_provider, "deep" if tier == "deep_think" else "quick"
+    )
     provider = config.llm_provider
 
     if provider == "openrouter":
@@ -62,16 +64,8 @@ def create_llm_client(
             temperature=temperature,
         )
 
-    elif provider == "ollama":
-        from financialagents.llm_clients.ollama_client import create_ollama_client
-
-        return create_ollama_client(
-            model=model_name,
-            temperature=temperature,
-        )
-
     else:
         raise ValueError(
             f"Unsupported LLM provider '{provider}'. "
-            "Valid options: 'openrouter', 'cerebras', 'groq', 'ollama'"
+            "Valid options: 'openrouter', 'cerebras', 'groq'"
         )

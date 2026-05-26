@@ -53,7 +53,7 @@ def _seed_one_row(db_path: Path, run_id: str = "abc12345") -> AgentState:
     asyncio.run(
         insert_running(
             run_id, "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:8b",
+            provider="openrouter", model="openrouter/auto",
             db_path=db_path,
         )
     )
@@ -134,7 +134,7 @@ class TestFaShow:
         asyncio.run(
             insert_running(
                 "cccc1111", "RELIANCE", "2026-04-26",
-                provider="ollama", model="llama3.1:8b",
+                provider="openrouter", model="openrouter/auto",
                 db_path=tmp_signals_db,
             )
         )

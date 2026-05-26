@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
-import re
 import sys
 import uuid
 from typing import Optional
 
+from financialagents._redaction import _SECRET_PATTERN, redact_secrets  # noqa: F401  (re-exported)
 from financialagents.cli.ist_dates import ist_today_str
 from financialagents.cli.live import (
     install_sigint_handler,
@@ -16,15 +16,8 @@ from financialagents.graph.trading_graph import FinancialAgentsGraph
 from financialagents.observability.events import stream_pipeline_events
 from financialagents.storage.paths import signals_db_path
 
-_SECRET_PATTERN = re.compile(
-    r"((?:OPENROUTER_API_KEY|CEREBRAS_API_KEY|GROQ_API_KEY|ANGELONE_[A-Z_]+|REDDIT_[A-Z_]+|(?<![A-Z_])api_key))"
-    r"[=:]\s*['\"]?\S+['\"]?",
-    re.IGNORECASE,
-)
-
-
-def _redact_secrets(text: str) -> str:
-    return _SECRET_PATTERN.sub(lambda m: f"{m.group(1)}=***", text)
+_redact_secrets = redact_secrets
+__all_redaction__ = ("_SECRET_PATTERN", "_redact_secrets")
 
 
 def _new_run_id() -> str:
@@ -75,12 +68,19 @@ async def run_pipeline(
         providers = list_configured_providers(settings)
         provider, model = providers[0]
         if provider_override is not None:
+            matched = False
             for name, m in providers:
                 if name == provider_override:
                     provider, model = name, m
+                    matched = True
                     break
-            else:
-                provider, model = provider_override, settings.deep_think_llm
+            if not matched:
+                from financialagents.config import resolve_model
+
+                provider, model = (
+                    provider_override,
+                    resolve_model(settings, provider_override, "deep"),
+                )
     else:
         provider, model = prompt_provider(settings)
 
@@ -111,7 +111,7 @@ async def run_pipeline(
         cancel_flag = install_sigint_handler()
 
         events = stream_pipeline_events(
-            graph._graph, initial_state, config,
+            graph.compiled(), initial_state, config,
         )
 
         if json_output:
@@ -202,7 +202,11 @@ async def run_pipeline(
         out_console.print("[yellow]Cancelled[/yellow]")
         return 130
     except Exception as e:
-        redacted = _redact_secrets(str(e))
+        try:
+            err_text = str(e)
+        except Exception:
+            err_text = repr(e)
+        redacted = _redact_secrets(err_text)
         await update_errored(run_id, error_msg=redacted, db_path=db_path)
         if debug:
             raise

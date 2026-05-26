@@ -7,9 +7,10 @@ from pydantic import BaseModel, ConfigDict
 from financialagents.agents.trader.schemas import TradingSignal
 from financialagents.config import Settings
 
-CIRCUIT_BAND_UNAVAILABLE_NOTE = (
-    "circuit band unavailable; refusing to size stop without it"
+CIRCUIT_BAND_DEFAULT_NOTE = (
+    "circuit band absent from NSE surveillance; using standard 20% daily limit"
 )
+CIRCUIT_BAND_UNAVAILABLE_NOTE = CIRCUIT_BAND_DEFAULT_NOTE
 STT_COST_FLOOR = 0.003
 CIRCUIT_BAND_BREACH_RATIO = 0.8
 POSITION_SIZE_HARD_CAP = 0.05
@@ -42,6 +43,7 @@ def price_grounding_validator(
         signal.entry_price = None
         signal.position_size_pct = None
         signal.position_size_shares = None
+        signal.sizing_method = "atr_based"
         suffix = " [HOLD: current_price unavailable for price grounding]"
         if suffix not in (signal.rationale or ""):
             signal.rationale = (signal.rationale or "") + suffix
@@ -60,7 +62,7 @@ def circuit_band_validator(
     effective_band = ctx.circuit_band_pct
     if effective_band is None:
         effective_band = NSE_DEFAULT_CIRCUIT_BAND_PCT
-        signal.circuit_band_note = CIRCUIT_BAND_UNAVAILABLE_NOTE
+        signal.circuit_band_note = CIRCUIT_BAND_DEFAULT_NOTE
 
     if signal.action == "HOLD":
         return ValidatorResult(signal=signal)
@@ -78,6 +80,7 @@ def circuit_band_validator(
         signal.action = "HOLD"
         signal.position_size_pct = None
         signal.position_size_shares = None
+        signal.sizing_method = "atr_based"
         signal.circuit_band_note = note
         return ValidatorResult(signal=signal, note=note, halted=True)
     return ValidatorResult(signal=signal)
@@ -98,6 +101,7 @@ def stt_cost_floor_validator(
         signal.action = "HOLD"
         signal.position_size_pct = None
         signal.position_size_shares = None
+        signal.sizing_method = "atr_based"
         suffix = f" [HOLD: {note}]"
         if suffix not in (signal.rationale or ""):
             signal.rationale = (signal.rationale or "") + suffix
@@ -112,7 +116,15 @@ def kelly_cap_validator(
         signal.position_size_pct is not None
         and signal.position_size_pct > POSITION_SIZE_HARD_CAP
     ):
+        original_pct = signal.position_size_pct
         signal.position_size_pct = POSITION_SIZE_HARD_CAP
+        if (
+            signal.position_size_shares is not None
+            and signal.position_size_shares > 0
+            and original_pct > 0
+        ):
+            scale = POSITION_SIZE_HARD_CAP / original_pct
+            signal.position_size_shares = int(signal.position_size_shares * scale)
     return ValidatorResult(signal=signal)
 
 

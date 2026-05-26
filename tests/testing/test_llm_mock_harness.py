@@ -24,7 +24,7 @@ from financialagents.testing.llm_mock._call_sites import CallSite
 
 @pytest.mark.parametrize("call_site", list(CALL_SITE_SCHEMAS.keys()))
 def test_harness_routes_per_call_site(call_site: str) -> None:
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None, openrouter_api_key="fake")
     site = cast(CallSite, call_site)
     canonical = fixtures.HAPPY_PATH_DEFAULTS[site]
     schema: type[BaseModel] = CALL_SITE_SCHEMAS[site]
@@ -49,7 +49,7 @@ def test_unset_call_site_raises() -> None:
     with LLMMockHarness():
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessMissing):
@@ -68,7 +68,7 @@ def test_set_wrong_schema_raises() -> None:
 def test_exhausted_sequence_raises() -> None:
     with LLMMockHarness() as h:
         h.set_sequence("trader", [fixtures.TRADER_SIGNAL_DEFAULT])
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         llm = create_llm_client(
             "deep_think",
             settings,
@@ -125,7 +125,7 @@ def test_retry_then_succeed_sequence() -> None:
         h.set_sequence("trader", sequence)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         structured = llm.with_structured_output(CALL_SITE_SCHEMAS["trader"])
@@ -276,7 +276,7 @@ def test_with_structured_output_schema_mismatch_raises() -> None:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessSchemaError) as exc_info:
@@ -297,7 +297,7 @@ def test_with_structured_output_matching_schema_still_returns_runnable() -> None
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         runnable = llm.with_structured_output(trading_signal_cls)
@@ -330,7 +330,7 @@ def test_with_structured_output_survives_sys_modules_purge() -> None:
             h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
             llm = create_llm_client(
                 "deep_think",
-                Settings(_env_file=None),
+                Settings(_env_file=None, openrouter_api_key="fake"),
                 call_site="trader",
             )
             runnable = llm.with_structured_output(reimported_cls)
@@ -376,7 +376,7 @@ def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
         outer.set("trader", a_signal)
         outer_llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         outer_runnable = outer_llm.with_structured_output(trading_signal_cls)
@@ -389,7 +389,7 @@ def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
 
             inner_llm = create_llm_client(
                 "deep_think",
-                Settings(_env_file=None),
+                Settings(_env_file=None, openrouter_api_key="fake"),
                 call_site="trader",
             )
             inner_runnable = inner_llm.with_structured_output(trading_signal_cls)
@@ -437,7 +437,7 @@ def test_with_structured_output_locks_to_producer_not_active_at_call_time() -> N
         outer.set("trader", a_signal)
         outer_llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
 
@@ -481,7 +481,7 @@ def test_dispatch_sequence_lock_under_concurrent_invokes() -> None:
         h.set_sequence("trader", list(sequence))  # type: ignore[arg-type]
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         structured = llm.with_structured_output(trading_signal_cls)
@@ -509,7 +509,7 @@ def test_with_structured_output_include_raw_raises_not_implemented() -> None:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(NotImplementedError, match="include_raw=True"):
@@ -523,7 +523,7 @@ def test_harness_chat_model_generate_raises_on_bypass() -> None:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None),
+            Settings(_env_file=None, openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessError, match="_generate was invoked"):

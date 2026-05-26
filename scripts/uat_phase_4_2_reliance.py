@@ -178,12 +178,12 @@ async def _amain() -> int:
             print("[DRY RUN] WARNING: output path does not exist yet.")
         return 0
 
-    from financialagents.config import Settings
+    from financialagents.config import Settings, resolve_model
 
     settings = Settings()
     provider_label = getattr(settings, "llm_provider", "unknown")
-    deep_think_model = getattr(settings, "deep_think_llm", "unknown")
-    quick_think_model = getattr(settings, "quick_think_llm", "unknown")
+    deep_think_model = resolve_model(settings, settings.llm_provider, "deep")
+    quick_think_model = resolve_model(settings, settings.llm_provider, "quick")
 
     print(
         f"[UAT] Running {_TICKER} full pipeline with "
@@ -201,7 +201,7 @@ async def _amain() -> int:
             f"- **Outcome:** Pipeline raised: `{type(exc).__name__}: {exc}`\n"
             f"- **Audit trail:** 04 hit Groq HTTP 403 geo-block on the "
             f"same code path; if the exception above is HTTPStatusError 403, switch "
-            f"to Ollama via `LLM_PROVIDER=ollama` and re-run.\n"
+            f"to a different provider via `LLM_PROVIDER=openrouter` (or `cerebras`) and re-run.\n"
         )
         _append_to_verification_md(args.output, block)
         print(f"[UAT] BLOCKED: {exc}", file=sys.stderr)

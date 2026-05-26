@@ -38,7 +38,7 @@ class TestFADataDirIntegration:
             ticker="RELIANCE",
             date="2026-04-26",
             json_output=True,
-            provider_override="ollama",
+            provider_override="openrouter",
             debug=False,
         )
         assert rc == 0, f"run_pipeline exited {rc}, expected 0"
@@ -88,7 +88,7 @@ class TestFADataDirIntegration:
         from financialagents.config import Settings
         from financialagents.storage.paths import signals_db_path
 
-        p = signals_db_path(Settings(_env_file=None))
+        p = signals_db_path(Settings(_env_file=None, openrouter_api_key="fake"))
         expected = (
             Path(platformdirs.user_data_dir("financialagents", appauthor=False))
             / "signals.db"

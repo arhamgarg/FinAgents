@@ -182,7 +182,7 @@ class TestFullPipelineFlag:
                 setup_mod._RISK_DEBATE_SUBGRAPH = None
 
                 graph = setup_mod.build_full_pipeline()
-                settings = Settings(_env_file=None)
+                settings = Settings(_env_file=None, openrouter_api_key="fake")
                 settings.max_debate_rounds = 3
                 settings.max_risk_discuss_rounds = 1
                 config = {

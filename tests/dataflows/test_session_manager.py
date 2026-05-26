@@ -29,7 +29,7 @@ def angelone_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
     monkeypatch.setenv("ANGELONE_PIN", "1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-    return Settings(_env_file=None)
+    return Settings(_env_file=None, openrouter_api_key="fake")
 
 
 
@@ -52,7 +52,7 @@ async def test_get_session_authenticates_once(mock_smart_connect, angelone_setti
 
 @pytest.mark.asyncio
 async def test_missing_credentials_raises_auth_error(clean_env):
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None, openrouter_api_key="fake")
     manager = SessionManager(settings)
     with pytest.raises(AngelOneAuthError, match="Angel One credentials missing"):
         await manager.get_session()
@@ -184,7 +184,7 @@ async def test_credential_not_in_error_message(clean_env, monkeypatch):
     monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
     monkeypatch.setenv("ANGELONE_PIN", "super-secret-pin-1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None, openrouter_api_key="fake")
 
     with patch("financialagents.dataflows.session_manager.SmartConnect") as mock_cls:
         instance = MagicMock()

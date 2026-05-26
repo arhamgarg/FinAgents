@@ -93,7 +93,7 @@ async def _seed_success_row(db_path: Path, run_id: str, payload_json: str) -> No
     await run_migrations(db_path)
     await insert_running(
         run_id, "RELIANCE", "2026-04-26",
-        provider="ollama", model="llama3.1:70b", db_path=db_path,
+        provider="openrouter", model="openrouter/auto", db_path=db_path,
     )
     await update_success(
         run_id, action="BUY", confidence=0.78,
@@ -109,7 +109,7 @@ async def _seed_cancelled_row(db_path: Path, run_id: str) -> None:
     await run_migrations(db_path)
     await insert_running(
         run_id, "TCS", "2026-04-26",
-        provider="ollama", model="llama3.1:70b", db_path=db_path,
+        provider="openrouter", model="openrouter/auto", db_path=db_path,
     )
     await update_cancelled(
         run_id, error_msg="User aborted (Ctrl+C)",

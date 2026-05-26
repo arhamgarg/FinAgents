@@ -47,7 +47,7 @@ class TestSignalsCRUD:
         await run_migrations(tmp_signals_db)
         await insert_running(
             "abc12345", "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         conn = sqlite3.connect(tmp_signals_db)
@@ -65,8 +65,8 @@ class TestSignalsCRUD:
         assert row[1] == "RELIANCE"
         assert row[2] == "2026-04-26"
         assert row[3] is not None and len(row[3]) > 0
-        assert row[4] == "ollama"
-        assert row[5] == "llama3.1:70b"
+        assert row[4] == "openrouter"
+        assert row[5] == "openrouter/auto"
         assert row[6] == "running"
         assert row[7] is None
         assert row[8] is None
@@ -81,7 +81,7 @@ class TestSignalsCRUD:
         await run_migrations(tmp_signals_db)
         await insert_running(
             "abc12345", "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         state = AgentState(ticker="RELIANCE", date="2026-04-26")
@@ -114,7 +114,7 @@ class TestSignalsCRUD:
         await run_migrations(tmp_signals_db)
         await insert_running(
             "abc12345", "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         await update_cancelled(
@@ -151,14 +151,14 @@ class TestSignalsConcurrency:
         await run_migrations(tmp_signals_db)
         await insert_running(
             "abc12345", "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
 
         async def writer() -> None:
             await insert_running(
                 "deadbeef", "TCS", "2026-04-26",
-                provider="ollama", model="llama3.1:70b",
+                provider="openrouter", model="openrouter/auto",
                 db_path=tmp_signals_db,
             )
 
@@ -186,7 +186,7 @@ class TestSignalsPayloadRoundTrip:
 
         await insert_running(
             "0badc0de", "INFY", "2026-04-26",
-            provider="ollama", model="llama3.1:8b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         await update_success(
@@ -238,7 +238,7 @@ class TestSignalsRunIdValidation:
         with pytest.raises(ValueError, match="run_id"):
             await insert_running(
                 "notHEX!!", "RELIANCE", "2026-04-26",
-                provider="ollama", model="llama3.1:70b",
+                provider="openrouter", model="openrouter/auto",
                 db_path=tmp_signals_db,
             )
 
@@ -266,12 +266,12 @@ class TestSignalsPrune:
         await run_migrations(tmp_signals_db)
         await insert_running(
             "aaaaaaaa", "RELIANCE", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         await insert_running(
             "bbbbbbbb", "TCS", "2026-04-26",
-            provider="ollama", model="llama3.1:70b",
+            provider="openrouter", model="openrouter/auto",
             db_path=tmp_signals_db,
         )
         n = await prune_before(tmp_signals_db, "2099-01-01")

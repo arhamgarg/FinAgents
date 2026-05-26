@@ -62,7 +62,7 @@ def render_signal_card(state) -> Panel:
     verdict_line = Text()
     verdict_line.append(action, style=VERDICT_STYLE.get(action, "bold"))
     verdict_line.append(" ")
-    verdict_line.append(f"[{approval}]", style=APPROVAL_STYLE[approval])
+    verdict_line.append(f"[{approval}]", style=APPROVAL_STYLE.get(approval, "dim"))
     body.add_row(verdict_line)
     body.add_row(Text(""))
 

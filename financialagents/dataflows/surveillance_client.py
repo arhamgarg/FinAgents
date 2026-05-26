@@ -36,7 +36,9 @@ async def _load_sec_list() -> bytes:
 
 
 def _parse_sec_list(content: bytes) -> dict[str, dict[str, str]]:
-    reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
+    reader = csv.DictReader(
+        io.StringIO(content.decode("utf-8", errors="replace"))
+    )
     rows: dict[str, dict[str, str]] = {}
     for row in reader:
         symbol = (row.get("Symbol") or "").strip().upper()

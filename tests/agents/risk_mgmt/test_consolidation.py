@@ -17,7 +17,7 @@ from financialagents.config import Settings
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="ollama", groq_api_key=None)
+    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
 
 
 def _state_with_persona_sizes(
@@ -141,8 +141,8 @@ class TestWeightedSizeSynthesis:
     def test_non_default_weights_override(self) -> None:
         custom = Settings(
             _env_file=None,
-            llm_provider="ollama",
-            groq_api_key=None,
+            llm_provider="openrouter",
+            openrouter_api_key="fake",
             risk_persona_weights={"aggressive": 0.5, "neutral": 0.3, "conservative": 0.2},
         )
         state = _state_with_persona_sizes(agg=0.05, neu=0.03, con=0.01)

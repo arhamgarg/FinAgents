@@ -178,7 +178,7 @@ class TestGraphIntegration:
             graph = setup_mod.build_analysis_graph()
 
             initial_state = AgentState(ticker="TCS", date="2024-01-15")
-            settings = Settings(_env_file=None)
+            settings = Settings(_env_file=None, openrouter_api_key="fake")
             config = {"configurable": {"settings": settings}}
             result = asyncio.run(graph.ainvoke(initial_state, config=config))
 
@@ -222,7 +222,7 @@ class TestFinancialAgentsGraph:
             return_value=mock_graph,
         ):
             fa_graph = FinancialAgentsGraph()
-            settings = Settings(_env_file=None)
+            settings = Settings(_env_file=None, openrouter_api_key="fake")
             result = fa_graph.propagate("TCS", "2024-01-15", settings=settings)
 
         assert isinstance(result, AgentState)
@@ -232,7 +232,9 @@ class TestFinancialAgentsGraph:
     def test_propagate_creates_default_settings_when_none(
         self,
         mock_research_brief,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
         from financialagents.graph.trading_graph import FinancialAgentsGraph
 
         async def fake_ainvoke(state, config=None):

@@ -76,6 +76,6 @@ def test_agent_state_has_no_sentiment_report_field() -> None:
 def test_analyst_weights_default_sums_to_one_with_three_keys() -> None:
     from financialagents.config import Settings
 
-    weights = Settings().analyst_weights
+    weights = Settings(openrouter_api_key="fake").analyst_weights
     assert set(weights) == {"technical", "fundamentals", "news"}
     assert abs(sum(weights.values()) - 1.0) < 1e-9

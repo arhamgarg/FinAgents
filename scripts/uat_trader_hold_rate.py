@@ -72,14 +72,27 @@ def load_sec_list(source: Path | bytes) -> list[TickerRow]:
     else:
         content = source
     rows: list[TickerRow] = []
-    reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
+    reader = csv.DictReader(
+        io.StringIO(content.decode("utf-8", errors="replace"))
+    )
+    required_cols = {"Symbol", "Series", "Band"}
+    fieldnames = set(reader.fieldnames or ())
+    missing = required_cols - fieldnames
+    if missing:
+        raise ValueError(
+            f"sec_list.csv missing required columns: {sorted(missing)}; "
+            f"saw columns: {sorted(fieldnames)}"
+        )
     for row in reader:
+        symbol = (row.get("Symbol") or "").strip().upper()
+        if not symbol:
+            continue
         rows.append(
             TickerRow(
-                symbol=row["Symbol"].strip().upper(),
-                series=row["Series"].strip().upper(),
-                band=row["Band"].strip(),
-                remarks=row.get("Remarks", "").strip(),
+                symbol=symbol,
+                series=(row.get("Series") or "").strip().upper(),
+                band=(row.get("Band") or "").strip(),
+                remarks=(row.get("Remarks") or "").strip(),
             )
         )
     return rows
@@ -90,7 +103,8 @@ def select_adversarial_batch(rows: list[TickerRow], size: int = 10) -> list[str]
     preferred = [r for r in eligible if r.band in {"10", "20"}]
     t2t = sorted([r.symbol for r in preferred if r.series in T2T_SERIES])
     normal = sorted([r.symbol for r in preferred if r.series not in T2T_SERIES])
-    picked: list[str] = t2t[: min(2, len(t2t))] + normal[: size - min(2, len(t2t))]
+    t2t_take = min(2, len(t2t))
+    picked: list[str] = t2t[:t2t_take] + normal[: size - t2t_take]
     if len(picked) < size:
         fallback = sorted([r.symbol for r in eligible if r.symbol not in picked])
         picked += fallback[: size - len(picked)]
@@ -287,16 +301,22 @@ def main() -> int:
         return 0
 
     print(f"Running full pipeline on {len(tickers)} tickers for date={args.date}...")
-    results: list[UatResult] = []
-    for i, ticker in enumerate(tickers, 1):
-        print(f"  [{i}/{len(tickers)}] {ticker}...", flush=True)
-        try:
-            result = asyncio.run(run_pipeline(ticker, args.date))
-        except Exception as exc:
-            result = UatResult(
-                ticker, 0.0, "MIXED", "HOLD", f"pipeline error: {exc}"[:80], 0, {}
-            )
-        results.append(result)
+    async def _run_all(ticker_list: list[str], date: str) -> list[UatResult]:
+        acc: list[UatResult] = []
+        for idx, tkr in enumerate(ticker_list, 1):
+            print(f"  [{idx}/{len(ticker_list)}] {tkr}...", flush=True)
+            try:
+                acc.append(await run_pipeline(tkr, date))
+            except Exception as exc:
+                acc.append(
+                    UatResult(
+                        tkr, 0.0, "MIXED", "HOLD",
+                        f"pipeline error: {exc}"[:80], 0, {},
+                    )
+                )
+        return acc
+
+    results: list[UatResult] = asyncio.run(_run_all(tickers, args.date))
 
     table = format_results_table(results)
     print("\n" + table)

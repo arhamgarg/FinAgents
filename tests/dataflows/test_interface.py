@@ -144,7 +144,7 @@ async def test_get_fundamentals_delegates_integration(
         headers={"content-type": "text/csv; charset=utf-8"},
     )
 
-    result = await interface.get_fundamentals("RELIANCE", Settings())
+    result = await interface.get_fundamentals("RELIANCE", Settings(openrouter_api_key="fake"))
 
     assert result.status in ("ok", "partial")
     assert result.source == "screener_csv"

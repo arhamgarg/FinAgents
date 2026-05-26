@@ -8,7 +8,7 @@ from financialagents.config import Settings
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None)
+    return Settings(_env_file=None, openrouter_api_key="fake")
 
 
 def _make_signal(

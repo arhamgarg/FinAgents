@@ -19,13 +19,36 @@ uv run fa dashboard
 launches an interactive wizard that walks you through provider, model,
 and ticker selection.
 
+## Configuration
+
+At least one LLM provider API key must be set before `fa run` or the
+dashboard will start — Settings construction fails fast otherwise with
+the env-var list. Export the variable in your shell or drop it into a
+project-local `.env` file:
+
+| Provider   | Env var              |
+|------------|----------------------|
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Cerebras   | `CEREBRAS_API_KEY`   |
+| Groq       | `GROQ_API_KEY`       |
+
+Pick the active provider with `LLM_PROVIDER=openrouter` (or `cerebras`
+/ `groq`), or pass `--provider <name>` to `fa run`. When multiple keys
+are set and `LLM_PROVIDER` is unset, the interactive picker offers a
+choice.
+
+The Angel One data backbone needs four additional env vars for live
+OHLCV and fundamentals: `ANGELONE_API_KEY`, `ANGELONE_CLIENT_ID`,
+`ANGELONE_PIN`, `ANGELONE_TOTP_SECRET`. Without these the data clients
+return empty results — the pipeline still runs but signals degrade.
+
 ## CLI
 
 Five subcommands under `fa` (also installed as `financialagents`):
 
 | Command            | Purpose                                                                                                                    |
 |--------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `fa run <ticker>`  | Run the full pipeline. Flags: `--date YYYY-MM-DD`, `--provider {openrouter,cerebras,groq,ollama}`, `--json`, `--debug`.    |
+| `fa run <ticker>`  | Run the full pipeline. Flags: `--date YYYY-MM-DD`, `--provider {openrouter,cerebras,groq}`, `--json`, `--debug`.    |
 | `fa history`       | Browse the signal log. Flags: `--ticker`, `--since`, `--limit N`, `--all`, `--expand`, `--prune --before <date>`, `--yes`. |
 | `fa show <run-id>` | Render the full Signal panel for a recorded run.                                                                           |
 | `fa dashboard`     | Launch the Streamlit dashboard. Flags: `--port`, `--host`.                                                                 |

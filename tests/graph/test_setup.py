@@ -21,7 +21,7 @@ class TestDebateInitNode:
     def test_seeds_investment_debate_state_with_max_rounds(self, state_with_research_summary):
         from financialagents.config import Settings
         from financialagents.graph.setup import debate_init_node
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         settings.max_debate_rounds = 5
         config = {"configurable": {"settings": settings}}
         result = debate_init_node(state_with_research_summary, config)
@@ -35,14 +35,14 @@ class TestDebateInitNode:
     def test_research_brief_snapshot_populated_from_consensus_view(self, state_with_research_summary):
         from financialagents.config import Settings
         from financialagents.graph.setup import debate_init_node
-        config = {"configurable": {"settings": Settings(_env_file=None)}}
+        config = {"configurable": {"settings": Settings(_env_file=None, openrouter_api_key="fake")}}
         result = debate_init_node(state_with_research_summary, config)
         assert "Bullish on RELIANCE" in result["investment_debate_state"].research_brief_snapshot
 
     def test_clamps_max_rounds_at_minimum_one(self, empty_state):
         from financialagents.config import Settings
         from financialagents.graph.setup import debate_init_node
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         settings.max_debate_rounds = 0
         result = debate_init_node(empty_state, {"configurable": {"settings": settings}})
         assert result["investment_debate_state"].max_rounds == 1
@@ -50,7 +50,7 @@ class TestDebateInitNode:
     def test_clamps_negative_max_rounds(self, empty_state):
         from financialagents.config import Settings
         from financialagents.graph.setup import debate_init_node
-        settings = Settings(_env_file=None)
+        settings = Settings(_env_file=None, openrouter_api_key="fake")
         settings.max_debate_rounds = -5
         result = debate_init_node(empty_state, {"configurable": {"settings": settings}})
         assert result["investment_debate_state"].max_rounds == 1
@@ -58,7 +58,7 @@ class TestDebateInitNode:
     def test_none_research_summary_yields_empty_snapshot(self, empty_state):
         from financialagents.config import Settings
         from financialagents.graph.setup import debate_init_node
-        config = {"configurable": {"settings": Settings(_env_file=None)}}
+        config = {"configurable": {"settings": Settings(_env_file=None, openrouter_api_key="fake")}}
         result = debate_init_node(empty_state, config)
         assert result["investment_debate_state"].research_brief_snapshot == ""
 
@@ -108,7 +108,7 @@ class TestRiskInitNode:
         from financialagents.config import Settings
         from financialagents.graph.setup import risk_init_node
 
-        settings = Settings(_env_file=None, max_risk_discuss_rounds=2)
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=2, openrouter_api_key="fake")
         config = {"configurable": {"settings": settings}}
         state = AgentState(ticker="T", date="2026-04-21")
         result = risk_init_node(state, config)
@@ -126,7 +126,7 @@ class TestRiskInitNode:
 
         sig = TradingSignal(action="BUY", conviction=0.7, entry_price=100.0)
         state = AgentState(ticker="T", date="2026-04-21", trader_signal=sig)
-        config = {"configurable": {"settings": Settings(_env_file=None)}}
+        config = {"configurable": {"settings": Settings(_env_file=None, openrouter_api_key="fake")}}
         result = risk_init_node(state, config)
         assert '"action":"BUY"' in result["risk_debate_state"].trader_signal_snapshot
 
@@ -135,7 +135,7 @@ class TestRiskInitNode:
         from financialagents.config import Settings
         from financialagents.graph.setup import risk_init_node
 
-        settings = Settings(_env_file=None, max_risk_discuss_rounds=0)
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=0, openrouter_api_key="fake")
         config = {"configurable": {"settings": settings}}
         result = risk_init_node(AgentState(), config)
         assert result["risk_debate_state"].max_rounds == 1
@@ -145,7 +145,7 @@ class TestRiskInitNode:
         from financialagents.config import Settings
         from financialagents.graph.setup import risk_init_node
 
-        settings = Settings(_env_file=None, max_risk_discuss_rounds=-5)
+        settings = Settings(_env_file=None, max_risk_discuss_rounds=-5, openrouter_api_key="fake")
         result = risk_init_node(
             AgentState(), {"configurable": {"settings": settings}}
         )
@@ -158,7 +158,7 @@ class TestRiskInitNode:
 
         state = AgentState(ticker="T", date="2026-04-21", trader_signal=None)
         result = risk_init_node(
-            state, {"configurable": {"settings": Settings(_env_file=None)}}
+            state, {"configurable": {"settings": Settings(_env_file=None, openrouter_api_key="fake")}}
         )
         assert result["risk_debate_state"].trader_signal_snapshot == ""
 

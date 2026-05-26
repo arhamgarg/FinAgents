@@ -152,6 +152,8 @@ async def stream_pipeline_events(
     graph: Any,
     initial_state: Any,
     config: dict[str, Any],
+    *,
+    cancel_event: Optional[Any] = None,
 ) -> AsyncIterator[PipelineEvent]:
     state: dict[str, Any] = {
         "last_state": initial_state,
@@ -168,6 +170,20 @@ async def stream_pipeline_events(
 
     final_events: list[PipelineEvent] = []
     while True:
+        if cancel_event is not None:
+            try:
+                cancelled = bool(cancel_event.is_set())
+            except Exception:
+                cancelled = False
+            if cancelled:
+                try:
+                    await agen.aclose()
+                except BaseException:
+                    pass
+                final_events.append(
+                    PipelineEvent(kind="errored", status="cancelled")
+                )
+                break
         try:
             step = await agen.__anext__()
         except StopAsyncIteration:

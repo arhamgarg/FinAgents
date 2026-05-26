@@ -40,12 +40,14 @@ async def run_show(
         )
         return 0
 
+    from pydantic import ValidationError
+
     from financialagents.agents.utils.agent_states import AgentState
     from financialagents.cli.panels import render_signal_card
 
     try:
         state = AgentState.model_validate_json(payload)
-    except Exception as exc:
+    except (ValueError, ValidationError) as exc:
         console.print(
             f"[red]Failed to deserialize payload_json: {exc}[/red]"
         )

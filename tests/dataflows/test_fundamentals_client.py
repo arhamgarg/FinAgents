@@ -216,13 +216,13 @@ async def test_accepts_settings_parameter(httpx_mock, monkeypatch, tmp_path):
         headers={"content-type": "text/csv; charset=utf-8"},
     )
 
-    result = await fundamentals_client.get_fundamentals("RELIANCE", Settings())
+    result = await fundamentals_client.get_fundamentals("RELIANCE", Settings(openrouter_api_key="fake"))
     assert result.status in ("ok", "partial")
     assert result.source == "screener_csv"
     assert result.data is not None
 
     result_kw = await fundamentals_client.get_fundamentals(
-        "RELIANCE", settings=Settings()
+        "RELIANCE", settings=Settings(openrouter_api_key="fake")
     )
     assert result_kw.source == "cache"
     assert result_kw.data is not None

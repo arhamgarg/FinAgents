@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Optional, cast
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -13,11 +14,16 @@ from financialagents.agents.trader.position_sizing import (
 from financialagents.agents.trader.schemas import TradingSignal
 from financialagents.agents.trader.validators import (
     ValidatorContext,
-    run_validators,
+    circuit_band_validator,
+    kelly_cap_validator,
+    price_grounding_validator,
+    stt_cost_floor_validator,
 )
 from financialagents.agents.utils.agent_states import AgentState
 from financialagents.config import Settings
 from financialagents.llm_clients.factory import create_llm_client
+
+logger = logging.getLogger(__name__)
 
 
 def build_trader_prompt(
@@ -56,8 +62,15 @@ def build_trader_prompt(
     if research_summary is not None:
         try:
             research_text = research_summary.model_dump_json(indent=2)
-        except Exception:
-            research_text = str(research_summary)
+        except Exception as exc:
+            logger.warning(
+                "ResearchBrief.model_dump_json failed; degrading to repr",
+                exc_info=True,
+            )
+            research_text = (
+                f"(serialization failed: {exc!r}); falling back to repr: "
+                f"{research_summary!r}"
+            )
 
     human = HumanMessage(
         content=(
@@ -150,6 +163,24 @@ def _apply_position_sizing(
             signal.sizing_method = "fixed_fractional"
             signal.position_size_pct = pct
             signal.position_size_shares = shares
+
+    shares_unset_or_zero = (
+        signal.position_size_shares is None or signal.position_size_shares == 0
+    )
+    pct_unset = signal.position_size_pct is None
+    if shares_unset_or_zero or pct_unset:
+        if stop_loss is None:
+            reason = "sizing inputs insufficient (stop_loss missing)"
+        elif method == "kelly" and (signal.target_1 is None):
+            reason = "sizing inputs insufficient (kelly requires target_1)"
+        else:
+            reason = "sizing yielded 0 shares (capital too small or stop too wide)"
+        signal.action = "HOLD"
+        signal.position_size_pct = None
+        signal.position_size_shares = None
+        suffix = f" [HOLD: {reason}]"
+        if suffix not in (signal.rationale or ""):
+            signal.rationale = (signal.rationale or "") + suffix
     return signal
 
 
@@ -210,21 +241,28 @@ async def trader_node(
 
     signal.t2t_flag = bool(t2t_flag)
 
-    if signal.action != "HOLD":
-        signal = _apply_position_sizing(signal, technical_report, settings)
-
     ctx = ValidatorContext(
         current_price=current_price,
         circuit_band_pct=circuit_band_pct,
         settings=settings,
     )
-    signal = run_validators(signal, ctx)
+    signal = price_grounding_validator(signal, ctx).signal
+
+    if signal.action != "HOLD":
+        signal = _apply_position_sizing(signal, technical_report, settings)
+
+    for validator in (
+        circuit_band_validator,
+        stt_cost_floor_validator,
+        kelly_cap_validator,
+    ):
+        signal = validator(signal, ctx).signal
 
     if (
-        signal.entry_price is not None
+        signal.action != "HOLD"
+        and signal.entry_price is not None
         and signal.stop_loss is not None
         and signal.target_1 is not None
-        and signal.entry_price != signal.stop_loss
     ):
         denom = signal.entry_price - signal.stop_loss
         if denom != 0:

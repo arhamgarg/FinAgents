@@ -143,20 +143,17 @@ class TestComputeTechnicalIndicators:
         )
 
     def test_empty_dataframe_returns_all_none(self):
-        from financialagents.agents.analysts.technical_analyst import compute_technical_indicators
+        from financialagents.agents.analysts.technical_analyst import (
+            INDICATOR_KEYS,
+            compute_technical_indicators,
+        )
 
         empty_df = pd.DataFrame(
             columns=["open", "high", "low", "close", "volume"]
         )
         result = compute_technical_indicators(empty_df)
 
-        expected_keys = {
-            "rsi", "macd_line", "macd_signal_val", "macd_hist",
-            "bb_upper", "bb_lower", "bb_mid",
-            "sma_50", "sma_200", "ema_20", "current_price",
-            "atr_14",
-        }
-        assert set(result.keys()) == expected_keys
+        assert set(result.keys()) == set(INDICATOR_KEYS)
         for key, val in result.items():
             assert val is None, f"Expected None for '{key}' on empty DataFrame, got {val!r}"
 
@@ -259,7 +256,7 @@ class TestTechnicalAnalystNode:
         assert mock_ainvoke.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_raises_after_llm_retry_exhausted(
+    async def test_degrades_to_sentinel_after_llm_retry_exhausted(
         self, ohlcv_250: pd.DataFrame, agent_state_basic
     ):
         data_result = DataResult(
@@ -284,8 +281,16 @@ class TestTechnicalAnalystNode:
         ):
             from financialagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            with pytest.raises(RuntimeError):
-                await technical_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
+
+        assert "technical_report" in result
+        report = result["technical_report"]
+        assert isinstance(report, TechnicalReport)
+        assert report.confidence == 0.0
+        assert "LLM error after retry" in report.notes
+        assert "first failure" in report.notes
+        assert "second failure" in report.notes
+        assert mock_ainvoke.call_count == 2
 
     @pytest.mark.asyncio
     async def test_data_sources_contains_ohlcv_source(

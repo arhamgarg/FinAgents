@@ -4,18 +4,17 @@ import os
 import sys
 from typing import Optional
 
-from financialagents.config import Settings
+from financialagents.config import Settings, resolve_model
 
 
 def list_configured_providers(settings: Settings) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     if settings.openrouter_api_key:
-        out.append(("openrouter", settings.deep_think_llm))
+        out.append(("openrouter", resolve_model(settings, "openrouter", "deep")))
     if settings.cerebras_api_key:
-        out.append(("cerebras", settings.deep_think_llm))
+        out.append(("cerebras", resolve_model(settings, "cerebras", "deep")))
     if settings.groq_api_key:
-        out.append(("groq", settings.deep_think_llm))
-    out.append(("ollama", settings.deep_think_llm))
+        out.append(("groq", resolve_model(settings, "groq", "deep")))
     return out
 
 
