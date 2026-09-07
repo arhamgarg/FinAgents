@@ -1,0 +1,15 @@
+{
+  "holdings": {
+    "RELIANCE": 150,
+    "TCS": 50,
+    "HDFCBANK": 80,
+    "INFY": 60
+  },
+  "sector_exposure": {
+    "Energy": 0.22,
+    "IT": 0.35,
+    "Banking": 0.28,
+    "Other": 0.15
+  },
+  "total_value_inr": 1500000.0
+}

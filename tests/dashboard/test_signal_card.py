@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _build_signal_state(action: str = "BUY", decision: str = "approve") -> object:
-    from financialagents.agents.managers.schemas import PortfolioDecision
-    from financialagents.agents.trader.schemas import TradingSignal
-    from financialagents.agents.utils.agent_states import AgentState
+def _build_signal_state(
+    action: Literal["BUY", "SELL", "HOLD"] = "BUY",
+    decision: Literal["approve", "modify", "veto"] = "approve",
+) -> object:
+    from finagents.agents.managers.schemas import PortfolioDecision
+    from finagents.agents.trader.schemas import TradingSignal
+    from finagents.agents.utils.agent_states import AgentState
 
     sig = TradingSignal(
         action=action,
@@ -36,14 +40,15 @@ def _build_signal_state(action: str = "BUY", decision: str = "approve") -> objec
 
 @pytest.fixture
 def signal_card_app_factory(tmp_path):
+
     def _factory(action: str = "BUY", decision: str = "approve") -> Path:
         app_src = (
             "import streamlit as st\n"
-            "from financialagents.agents.managers.schemas import "
+            "from finagents.agents.managers.schemas import "
             "PortfolioDecision\n"
-            "from financialagents.agents.trader.schemas import TradingSignal\n"
-            "from financialagents.agents.utils.agent_states import AgentState\n"
-            "from financialagents.dashboard.signal_card import "
+            "from finagents.agents.trader.schemas import TradingSignal\n"
+            "from finagents.agents.utils.agent_states import AgentState\n"
+            "from finagents.dashboard.signal_card import "
             "render_signal_card\n"
             "sig = TradingSignal(\n"
             f"    action={action!r},\n"
@@ -70,12 +75,14 @@ def signal_card_app_factory(tmp_path):
         path = tmp_path / f"signal_card_{action.lower()}_{decision}.py"
         path.write_text(app_src)
         return path
+
     return _factory
 
 
 class TestVerdictColorHelper:
     def test_verdict_color_mapping_table(self) -> None:
-        from financialagents.dashboard.signal_card import verdict_color
+        from finagents.dashboard.signal_card import verdict_color
+
         assert verdict_color("BUY") == "#2EA043"
         assert verdict_color("SELL") == "#F85149"
         assert verdict_color("HOLD") == "#D29922"
@@ -88,9 +95,7 @@ class TestSignalCardVerdictColors:
             reason="Streamlit AppTest required",
         ).AppTest
         at = AppTest.from_file(str(app_path)).run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         return " ".join(m.value for m in at.markdown)
 
     def test_verdict_color_mapping_buy(self, signal_card_app_factory) -> None:
@@ -122,7 +127,7 @@ class TestSignalCardNoUnsafeHtml:
     def test_no_unsafe_html(self) -> None:
         import ast
 
-        dashboard_dir = REPO_ROOT / "financialagents" / "dashboard"
+        dashboard_dir = REPO_ROOT / "finagents" / "dashboard"
         offenders: list[tuple[Path, int]] = []
 
         class _UnsafeHtmlVisitor(ast.NodeVisitor):
@@ -132,9 +137,11 @@ class TestSignalCardNoUnsafeHtml:
 
             def visit_Call(self, node: ast.Call) -> None:
                 for kw in node.keywords:
-                    if kw.arg == "unsafe_allow_html" and isinstance(
-                        kw.value, ast.Constant
-                    ) and kw.value.value is True:
+                    if (
+                        kw.arg == "unsafe_allow_html"
+                        and isinstance(kw.value, ast.Constant)
+                        and kw.value.value is True
+                    ):
                         self.hits.append(node.lineno)
                 self.generic_visit(node)
 
@@ -145,9 +152,7 @@ class TestSignalCardNoUnsafeHtml:
             for lineno in visitor.hits:
                 offenders.append((py, lineno))
 
-        assert not offenders, (
-            f"unsafe_allow_html=True call found in dashboard/: {offenders!r}"
-        )
+        assert not offenders, f"unsafe_allow_html=True call found in dashboard/: {offenders!r}"
 
 
 class TestSignalCardLayout:
@@ -156,30 +161,26 @@ class TestSignalCardLayout:
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(
-            str(signal_card_app_factory(action="BUY", decision="approve"))
-        ).run(timeout=10)
+        at = AppTest.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
+            timeout=10
+        )
         assert not at.exception
         labels = [m.label for m in at.metric]
         for required in ("Entry", "Stop", "Target", "Size"):
-            assert required in labels, (
-                f"Missing st.metric label {required!r}; got: {labels!r}"
-            )
+            assert required in labels, f"Missing st.metric label {required!r}; got: {labels!r}"
 
     def test_3_collapsed_expanders(self, signal_card_app_factory) -> None:
         AppTest = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(
-            str(signal_card_app_factory(action="BUY", decision="approve"))
-        ).run(timeout=10)
+        at = AppTest.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
+            timeout=10
+        )
         assert not at.exception
         labels = [exp.label for exp in at.expander]
         for required in ("Bull / Bear debate", "Risk personas", "Agent reports"):
-            assert required in labels, (
-                f"Missing expander {required!r}; got: {labels!r}"
-            )
+            assert required in labels, f"Missing expander {required!r}; got: {labels!r}"
 
 
 class TestSignalCardMissingDecision:
@@ -190,8 +191,8 @@ class TestSignalCardMissingDecision:
         ).AppTest
         app_src = (
             "import streamlit as st\n"
-            "from financialagents.agents.utils.agent_states import AgentState\n"
-            "from financialagents.dashboard.signal_card import "
+            "from finagents.agents.utils.agent_states import AgentState\n"
+            "from finagents.dashboard.signal_card import "
             "render_signal_card\n"
             "state = AgentState(ticker='RELIANCE', date='2026-04-27')\n"
             "render_signal_card(state)\n"
@@ -199,9 +200,7 @@ class TestSignalCardMissingDecision:
         path = tmp_path / "signal_card_none.py"
         path.write_text(app_src)
         at = AppTest.from_file(str(path)).run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         warning_text = " ".join(w.value for w in at.warning)
         assert "PortfolioDecision" in warning_text or "no" in warning_text.lower(), (
             f"Expected no-decision warning; got: {warning_text!r}"

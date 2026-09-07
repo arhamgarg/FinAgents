@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from financialagents.agents.managers.schemas import PortfolioDecision
-from financialagents.agents.trader.schemas import TradingSignal
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.storage.migrations import run_migrations
-from financialagents.storage.signals import insert_running, update_success
+from finagents.agents.managers.schemas import PortfolioDecision
+from finagents.agents.trader.schemas import TradingSignal
+from finagents.agents.utils.agent_states import AgentState
+from finagents.storage.migrations import run_migrations
+from finagents.storage.signals import insert_running, update_success
 
 
 def _seed_one_row(db_path: Path, run_id: str = "abc12345") -> AgentState:
@@ -52,8 +52,11 @@ def _seed_one_row(db_path: Path, run_id: str = "abc12345") -> AgentState:
     payload = state.model_dump_json(exclude={"messages"})
     asyncio.run(
         insert_running(
-            run_id, "RELIANCE", "2026-04-26",
-            provider="openrouter", model="openrouter/auto",
+            run_id,
+            "RELIANCE",
+            "2026-04-26",
+            provider="openrouter",
+            model="openrouter/auto",
             db_path=db_path,
         )
     )
@@ -80,7 +83,7 @@ def _make_recording_console() -> Console:
 @pytest.fixture
 def patched_db(monkeypatch, tmp_signals_db):
     monkeypatch.setattr(
-        "financialagents.cli.show.signals_db_path",
+        "finagents.cli.show.signals_db_path",
         lambda settings=None: tmp_signals_db,
     )
     return tmp_signals_db
@@ -88,7 +91,7 @@ def patched_db(monkeypatch, tmp_signals_db):
 
 class TestFaShow:
     def test_show_renders_panel(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.show import run_show
+        from finagents.cli.show import run_show
 
         _seed_one_row(tmp_signals_db, run_id="abc12345")
         console = _make_recording_console()
@@ -100,7 +103,7 @@ class TestFaShow:
         assert "2026-04-26" in out
 
     def test_show_not_found(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.show import run_show
+        from finagents.cli.show import run_show
 
         _seed_one_row(tmp_signals_db, run_id="abc12345")
         console = _make_recording_console()
@@ -108,12 +111,11 @@ class TestFaShow:
         assert rc == 1
         out = console.export_text()
         assert (
-            "No signal found with run_id 00000000. "
-            "Try `fa history` to list available runs."
+            "No signal found with run_id 00000000. Try `fa history` to list available runs."
         ) in out
 
     def test_show_invalid_run_id(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.show import run_show
+        from finagents.cli.show import run_show
 
         console = _make_recording_console()
         rc = asyncio.run(run_show("notHEX!!", console=console))
@@ -121,11 +123,9 @@ class TestFaShow:
         out = console.export_text()
         assert "No signal found" in out
 
-    def test_show_cancelled_row_no_payload(
-        self, tmp_signals_db, patched_db
-    ) -> None:
-        from financialagents.cli.show import run_show
-        from financialagents.storage.signals import (
+    def test_show_cancelled_row_no_payload(self, tmp_signals_db, patched_db) -> None:
+        from finagents.cli.show import run_show
+        from finagents.storage.signals import (
             insert_running,
             update_cancelled,
         )
@@ -133,8 +133,11 @@ class TestFaShow:
         asyncio.run(run_migrations(tmp_signals_db))
         asyncio.run(
             insert_running(
-                "cccc1111", "RELIANCE", "2026-04-26",
-                provider="openrouter", model="openrouter/auto",
+                "cccc1111",
+                "RELIANCE",
+                "2026-04-26",
+                provider="openrouter",
+                model="openrouter/auto",
                 db_path=tmp_signals_db,
             )
         )

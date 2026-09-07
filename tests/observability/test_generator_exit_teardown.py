@@ -39,7 +39,7 @@ class _RaisingFakeGraph:
 
 class TestGeneratorExitTeardown:
     async def test_aclose_after_consumer_break_does_not_warn(self) -> None:
-        from financialagents.observability.events import (
+        from finagents.observability.events import (
             PipelineEvent,
             stream_pipeline_events,
         )
@@ -71,7 +71,7 @@ class TestGeneratorExitTeardown:
         )
 
     def test_asyncio_run_shutdown_emits_no_generator_exit_warning(self) -> None:
-        from financialagents.observability.events import (
+        from finagents.observability.events import (
             PipelineEvent,
             stream_pipeline_events,
         )
@@ -82,7 +82,11 @@ class TestGeneratorExitTeardown:
                 initial_state={"ticker": "TEST", "date": "2026-05-02"},
                 config={},
             ):
-                if isinstance(ev, PipelineEvent) and ev.kind == "node_status" and ev.status == "completed":
+                if (
+                    isinstance(ev, PipelineEvent)
+                    and ev.kind == "node_status"
+                    and ev.status == "completed"
+                ):
                     break
 
         captured = io.StringIO()
@@ -101,15 +105,13 @@ class TestGeneratorExitTeardown:
             "asyncio.run() shutdown produced 'ignored GeneratorExit' — "
             f"the bug is back. stderr was:\n{stderr_text}"
         )
-        assert not (
-            "RuntimeError" in stderr_text and "async generator" in stderr_text
-        ), (
+        assert not ("RuntimeError" in stderr_text and "async generator" in stderr_text), (
             "asyncio.run() shutdown produced an async-generator RuntimeError "
             f"— the bug is back. stderr was:\n{stderr_text}"
         )
 
     async def test_baseexception_path_still_synthesizes_errored(self) -> None:
-        from financialagents.observability.events import (
+        from finagents.observability.events import (
             PipelineEvent,
             stream_pipeline_events,
         )

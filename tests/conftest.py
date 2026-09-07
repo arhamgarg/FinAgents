@@ -2,11 +2,50 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.config import Settings
+from finagents.config import Settings
+
+
+@pytest.fixture(autouse=True)
+def isolated_environment(monkeypatch, tmp_path):
+    from finagents.dataflows import cache
+    from tests._network import block_network
+
+    for field in Settings.model_fields:
+        monkeypatch.delenv(field.upper(), raising=False)
+        monkeypatch.delenv(field.lower(), raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-api-key-fake")
+    monkeypatch.setenv("FA_DATA_DIR", str(tmp_path / "signals"))
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "market.db")
+    with block_network():
+        yield
+
+
+@pytest.fixture
+def hermetic_provider_guard():
+    import langchain_cerebras
+    import langchain_groq
+    import langchain_openai
+
+    msg = "provider client instantiated under hermetic test"
+    with (
+        patch.object(langchain_groq.ChatGroq, "__init__", side_effect=RuntimeError(msg)),
+        patch.object(langchain_openai.ChatOpenAI, "__init__", side_effect=RuntimeError(msg)),
+        patch.object(langchain_cerebras.ChatCerebras, "__init__", side_effect=RuntimeError(msg)),
+    ):
+        yield
+
+
+@pytest.fixture
+def stub_surveillance(monkeypatch):
+    monkeypatch.setattr(
+        "finagents.agents.analysts.technical_analyst.get_surveillance_data",
+        AsyncMock(return_value=(0.20, False)),
+    )
 
 
 @pytest.fixture
@@ -33,28 +72,28 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def default_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-api-key-fake")
-    return Settings(_env_file=None)
+    return Settings()
 
 
 @pytest.fixture
 def groq_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("LLM_PROVIDER", "groq")
     monkeypatch.setenv("GROQ_API_KEY", "test-groq-api-key-fake")
-    return Settings(_env_file=None)
+    return Settings()
 
 
 @pytest.fixture
 def openrouter_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-openrouter-api-key-fake")
-    return Settings(_env_file=None)
+    return Settings()
 
 
 @pytest.fixture
 def cerebras_settings(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("LLM_PROVIDER", "cerebras")
     monkeypatch.setenv("CEREBRAS_API_KEY", "test-cerebras-api-key-fake")
-    return Settings(_env_file=None)
+    return Settings()
 
 
 @pytest.fixture
@@ -64,7 +103,7 @@ def recorded_fixture_dir() -> Path:
 
 @pytest.fixture
 def mock_smart_connect() -> Generator[MagicMock, None, None]:
-    with patch("financialagents.dataflows.session_manager.SmartConnect") as mock_cls:
+    with patch("finagents.dataflows.session_manager.SmartConnect") as mock_cls:
         instance = MagicMock()
         instance.generateSession.return_value = {
             "status": True,
@@ -98,7 +137,7 @@ def mock_toolkit(
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
     test_cache = tmp_path / "test_cache.db"
     monkeypatch.setattr(
-        "financialagents.dataflows.cache.CACHE_DB_PATH",
+        "finagents.dataflows.cache.CACHE_DB_PATH",
         test_cache,
     )
     toolkit = MagicMock()
@@ -110,7 +149,7 @@ def mock_toolkit(
 
 @pytest.fixture
 def llm_harness():
-    from financialagents.testing.llm_mock import LLMMockHarness
+    from finagents.testing.llm_mock import LLMMockHarness
 
     with LLMMockHarness.happy_path() as h:
         yield h

@@ -10,9 +10,9 @@ from rich.console import Console
 
 
 def _ev(**kwargs: Any):
-    from financialagents.observability.events import PipelineEvent
+    from finagents.observability.events import PipelineEvent
 
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         kind="node_status",
         node_name=None,
         status=None,
@@ -36,7 +36,7 @@ class TestCLILiveRender:
 
     @pytest.mark.asyncio
     async def test_live_snapshot(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         console = Console(record=True, width=120, force_terminal=True)
         events = [
@@ -73,7 +73,7 @@ class TestCLILiveRender:
 
     @pytest.mark.asyncio
     async def test_non_tty_log_lines(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         buf = io.StringIO()
         console = Console(file=buf, width=120)
@@ -101,17 +101,17 @@ class TestCLILiveRender:
         )
 
         out = buf.getvalue()
-        assert re.search(
-            r"\[\d{2}:\d{2}:\d{2}\] technical_analyst_node started", out
-        ), f"missing started log line: {out!r}"
-        assert re.search(
-            r"\[\d{2}:\d{2}:\d{2}\] technical_analyst_node done", out
-        ), f"missing done log line: {out!r}"
+        assert re.search(r"\[\d{2}:\d{2}:\d{2}\] technical_analyst_node started", out), (
+            f"missing started log line: {out!r}"
+        )
+        assert re.search(r"\[\d{2}:\d{2}:\d{2}\] technical_analyst_node done", out), (
+            f"missing done log line: {out!r}"
+        )
         assert "\x1b[" not in out
 
     @pytest.mark.asyncio
     async def test_header_format(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         console = Console(record=True, width=120, force_terminal=True)
         events = [_ev(kind="completed")]
@@ -135,7 +135,7 @@ class TestCLILiveRender:
 
     @pytest.mark.asyncio
     async def test_narrow_terminal(self) -> None:
-        from financialagents.cli.live import (
+        from finagents.cli.live import (
             _build_header,
             _initial_stage_state,
             make_stage_table,
@@ -150,9 +150,7 @@ class TestCLILiveRender:
             "completed_at": 0.5,
             "size_pct": None,
         }
-        header = _build_header(
-            "RELIANCE", "2026-04-26", "openrouter", "openrouter/auto", 0.5
-        )
+        header = _build_header("RELIANCE", "2026-04-26", "openrouter", "openrouter/auto", 0.5)
 
         console.print(make_stage_table(stage_state, header, 0.5))
         rendered = console.export_text()
@@ -161,13 +159,11 @@ class TestCLILiveRender:
             (len(line) for line in rendered.splitlines() if line),
             default=0,
         )
-        assert max_line <= 60, (
-            f"line exceeded narrow-terminal width: {max_line} > 60"
-        )
+        assert max_line <= 60, f"line exceeded narrow-terminal width: {max_line} > 60"
 
     @pytest.mark.asyncio
     async def test_round_counter_in_label(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         console = Console(record=True, width=120, force_terminal=True)
         events = [
@@ -193,13 +189,11 @@ class TestCLILiveRender:
             console=console,
         )
         rendered = console.export_text()
-        assert "round 2/3" in rendered, (
-            f"missing round counter in render: {rendered!r}"
-        )
+        assert "round 2/3" in rendered, f"missing round counter in render: {rendered!r}"
 
     @pytest.mark.asyncio
     async def test_persona_size_pct_in_row(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         console = Console(record=True, width=120, force_terminal=True)
         events = [
@@ -229,8 +223,8 @@ class TestCLILiveRender:
 
     @pytest.mark.asyncio
     async def test_last_values_snapshot_tracking(self) -> None:
-        from financialagents.agents.utils.agent_states import AgentState
-        from financialagents.cli.live import run_with_live_render
+        from finagents.agents.utils.agent_states import AgentState
+        from finagents.cli.live import run_with_live_render
 
         partial = AgentState(
             ticker="RELIANCE",
@@ -258,17 +252,14 @@ class TestCLILiveRender:
             cancel_flag=cancel_flag,
         )
         assert result is not None, "expected rolling values snapshot, got None"
-        assert (
-            getattr(result, "trader_investment_thesis", None)
-            == "partial technical analysis"
-        )
+        assert getattr(result, "trader_investment_thesis", None) == "partial technical analysis"
 
 
 class TestErroredEventReRaises:
 
     @pytest.mark.asyncio
     async def test_run_with_log_lines_reraises_errored_exc(self) -> None:
-        from financialagents.cli.live import run_with_log_lines
+        from finagents.cli.live import run_with_log_lines
 
         exc = RuntimeError("boom: 260526-no0-marker")
 
@@ -296,7 +287,7 @@ class TestErroredEventReRaises:
 
     @pytest.mark.asyncio
     async def test_run_with_live_render_reraises_errored_exc(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         exc = RuntimeError("boom: 260526-no0-marker")
         console = Console(record=True, width=120, force_terminal=True)
@@ -326,7 +317,7 @@ class TestErroredEventReRaises:
 
     @pytest.mark.asyncio
     async def test_run_with_log_lines_cancelled_path_does_not_raise(self) -> None:
-        from financialagents.cli.live import run_with_log_lines
+        from finagents.cli.live import run_with_log_lines
 
         async def cancelled_stream():
             yield _ev(
@@ -348,7 +339,7 @@ class TestErroredEventReRaises:
 
     @pytest.mark.asyncio
     async def test_run_with_live_render_cancelled_path_does_not_raise(self) -> None:
-        from financialagents.cli.live import run_with_live_render
+        from finagents.cli.live import run_with_live_render
 
         async def cancelled_stream():
             yield _ev(
@@ -377,8 +368,8 @@ class TestStreamPipelineEventsBackwardCompat:
     async def test_stream_pipeline_events_no_cancel_param_backward_compat(
         self,
     ) -> None:
-        from financialagents.agents.utils.agent_states import AgentState
-        from financialagents.observability.events import (
+        from finagents.agents.utils.agent_states import AgentState
+        from finagents.observability.events import (
             PipelineEvent,
             stream_pipeline_events,
         )
@@ -416,6 +407,6 @@ class TestStreamPipelineEventsBackwardCompat:
             "final_state missing from terminal completion event"
         )
         assert terminal.final_state.ticker == "RELIANCE"
-        assert all(
-            ev.kind != "errored" for ev in events
-        ), "unexpected errored event in backward-compat stream"
+        assert all(ev.kind != "errored" for ev in events), (
+            "unexpected errored event in backward-compat stream"
+        )

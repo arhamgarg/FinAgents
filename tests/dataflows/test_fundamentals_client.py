@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from financialagents.dataflows.fundamentals_schema import FundamentalsReport
+from finagents.dataflows.fundamentals_schema import FundamentalsReport
 
 
 
@@ -17,9 +17,11 @@ def _read_fixture(rel_path: str) -> bytes:
 
 
 
+
 @pytest.mark.asyncio
 async def test_csv_path_success(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.dataflows import cache, rate_limits
+    from finagents.dataflows import cache, rate_limits
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
 
@@ -30,7 +32,8 @@ async def test_csv_path_success(httpx_mock, monkeypatch, tmp_path):
         headers={"content-type": "text/csv; charset=utf-8"},
     )
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
+
     result = await fundamentals_client.get_fundamentals("RELIANCE")
 
     assert result.status in ("ok", "partial")
@@ -42,9 +45,11 @@ async def test_csv_path_success(httpx_mock, monkeypatch, tmp_path):
 
 
 
+
 @pytest.mark.asyncio
 async def test_csv_returns_login_html_falls_through(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.dataflows import cache, rate_limits
+    from finagents.dataflows import cache, rate_limits
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
 
@@ -62,7 +67,8 @@ async def test_csv_returns_login_html_falls_through(httpx_mock, monkeypatch, tmp
         headers={"content-type": "text/html; charset=utf-8"},
     )
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
+
     result = await fundamentals_client.get_fundamentals("RELIANCE")
 
     assert result.source == "screener_html"
@@ -70,12 +76,14 @@ async def test_csv_returns_login_html_falls_through(httpx_mock, monkeypatch, tmp
 
 
 
+
 @pytest.mark.asyncio
 async def test_ticker_sanitization(monkeypatch, tmp_path):
-    from financialagents.dataflows import cache
+    from finagents.dataflows import cache
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
 
     for bad_ticker in ["REL/../etc/passwd", "RELIANCE?foo=bar", "reliance; drop", ""]:
         result = await fundamentals_client.get_fundamentals(bad_ticker)
@@ -90,9 +98,11 @@ async def test_ticker_sanitization(monkeypatch, tmp_path):
 
 
 
+
 @pytest.mark.asyncio
 async def test_rate_limit_acquired(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.dataflows import cache, rate_limits
+    from finagents.dataflows import cache, rate_limits
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
 
     mock_acquire = AsyncMock()
@@ -105,7 +115,8 @@ async def test_rate_limit_acquired(httpx_mock, monkeypatch, tmp_path):
         headers={"content-type": "text/csv"},
     )
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
+
     await fundamentals_client.get_fundamentals("RELIANCE")
 
     calls = [str(c) for c in mock_acquire.call_args_list]
@@ -115,8 +126,9 @@ async def test_rate_limit_acquired(httpx_mock, monkeypatch, tmp_path):
 
 
 
+
 def test_html_selectors(tmp_path):
-    from financialagents.dataflows.fundamentals_client import _parse_screener_html
+    from finagents.dataflows.fundamentals_client import _parse_screener_html
 
     html_bytes = _read_fixture("screener/reliance.html")
     report = _parse_screener_html(html_bytes, "RELIANCE")
@@ -133,9 +145,11 @@ def test_html_selectors(tmp_path):
 
 
 
+
 @pytest.mark.asyncio
 async def test_cache_hit_skips_network(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.dataflows import cache, rate_limits
+    from finagents.dataflows import cache, rate_limits
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
 
@@ -146,7 +160,7 @@ async def test_cache_hit_skips_network(httpx_mock, monkeypatch, tmp_path):
         headers={"content-type": "text/csv"},
     )
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
 
     result1 = await fundamentals_client.get_fundamentals("RELIANCE")
     assert result1.source == "screener_csv"
@@ -158,9 +172,11 @@ async def test_cache_hit_skips_network(httpx_mock, monkeypatch, tmp_path):
 
 
 
+
 @pytest.mark.asyncio
 async def test_partial_status_when_shareholding_missing(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.dataflows import cache, rate_limits
+    from finagents.dataflows import cache, rate_limits
+
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
 
@@ -176,7 +192,8 @@ Debt to equity,0.45
         headers={"content-type": "text/csv"},
     )
 
-    from financialagents.dataflows import fundamentals_client
+    from finagents.dataflows import fundamentals_client
+
     result = await fundamentals_client.get_fundamentals("RELIANCE")
 
     assert result.status == "partial"
@@ -185,8 +202,9 @@ Debt to equity,0.45
 
 
 
+
 def test_ticker_whitelist_pattern():
-    from financialagents.dataflows.fundamentals_client import _sanitize_ticker
+    from finagents.dataflows.fundamentals_client import _sanitize_ticker
 
     assert _sanitize_ticker("RELIANCE") == "RELIANCE"
     assert _sanitize_ticker("TATA-MOTORS") == "TATA-MOTORS"
@@ -195,16 +213,18 @@ def test_ticker_whitelist_pattern():
     assert _sanitize_ticker("reliance") == "RELIANCE"
 
     import pytest as pt
+
     for bad in ["RELIANCE;DROP", "foo/bar", "RELIANCE ", "", "A" * 21, "rel iance"]:
         with pt.raises(ValueError, match="Invalid ticker"):
             _sanitize_ticker(bad)
 
 
 
+
 @pytest.mark.asyncio
 async def test_accepts_settings_parameter(httpx_mock, monkeypatch, tmp_path):
-    from financialagents.config import Settings
-    from financialagents.dataflows import cache, fundamentals_client, rate_limits
+    from finagents.config import Settings
+    from finagents.dataflows import cache, fundamentals_client, rate_limits
 
     monkeypatch.setattr(cache, "CACHE_DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(rate_limits, "acquire", AsyncMock())
@@ -216,7 +236,9 @@ async def test_accepts_settings_parameter(httpx_mock, monkeypatch, tmp_path):
         headers={"content-type": "text/csv; charset=utf-8"},
     )
 
-    result = await fundamentals_client.get_fundamentals("RELIANCE", Settings(openrouter_api_key="fake"))
+    result = await fundamentals_client.get_fundamentals(
+        "RELIANCE", Settings(openrouter_api_key="fake")
+    )
     assert result.status in ("ok", "partial")
     assert result.source == "screener_csv"
     assert result.data is not None

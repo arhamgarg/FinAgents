@@ -30,9 +30,7 @@ class _MockGraph:
             ("risk_debate:def",),
             {
                 "aggressive_risk_node": {
-                    "aggressive_assessment": (
-                        '{"recommended_position_size_pct": 0.045}'
-                    )
+                    "aggressive_assessment": ('{"recommended_position_size_pct": 0.045}')
                 }
             },
         )

@@ -5,13 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from financialagents.config import Settings
-from financialagents.dataflows.session_manager import (
+from finagents.config import Settings
+from finagents.dataflows.session_manager import (
     AngelOneAuthError,
     SessionManager,
     get_session_manager,
     reset_session_manager,
 )
+
 
 
 
@@ -23,19 +24,21 @@ def reset_singleton():
 
 
 
+
 @pytest.fixture
 def angelone_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("ANGELONE_API_KEY", "test-api-key")
     monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
     monkeypatch.setenv("ANGELONE_PIN", "1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    return Settings(openrouter_api_key="fake")
+
 
 
 
 @pytest.mark.asyncio
 async def test_get_session_authenticates_once(mock_smart_connect, angelone_settings):
-    with patch("financialagents.dataflows.session_manager.pyotp") as mock_pyotp:
+    with patch("finagents.dataflows.session_manager.pyotp") as mock_pyotp:
         mock_totp_instance = MagicMock()
         mock_totp_instance.now.return_value = "123456"
         mock_pyotp.TOTP.return_value = mock_totp_instance
@@ -50,12 +53,14 @@ async def test_get_session_authenticates_once(mock_smart_connect, angelone_setti
 
 
 
+
 @pytest.mark.asyncio
 async def test_missing_credentials_raises_auth_error(clean_env):
-    settings = Settings(_env_file=None, openrouter_api_key="fake")
+    settings = Settings(openrouter_api_key="fake")
     manager = SessionManager(settings)
     with pytest.raises(AngelOneAuthError, match="Angel One credentials missing"):
         await manager.get_session()
+
 
 
 
@@ -72,6 +77,7 @@ async def test_reauth_on_token_exception(mock_smart_connect, angelone_settings):
 
     assert result == success_response
     assert mock_smart_connect.generateSession.call_count == 2
+
 
 
 
@@ -94,6 +100,7 @@ async def test_reauth_on_ab1010(mock_smart_connect, angelone_settings):
 
 
 
+
 @pytest.mark.asyncio
 async def test_ab1004_retries_not_reauth(mock_smart_connect, angelone_settings, monkeypatch):
     ab1004_response = {
@@ -109,7 +116,7 @@ async def test_ab1004_retries_not_reauth(mock_smart_connect, angelone_settings, 
     async def mock_sleep(seconds):
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("financialagents.dataflows.session_manager.asyncio.sleep", mock_sleep)
+    monkeypatch.setattr("finagents.dataflows.session_manager.asyncio.sleep", mock_sleep)
 
     manager = SessionManager(angelone_settings)
     with pytest.raises(AngelOneAuthError, match="AB1004"):
@@ -117,6 +124,7 @@ async def test_ab1004_retries_not_reauth(mock_smart_connect, angelone_settings, 
 
     assert mock_smart_connect.generateSession.call_count == 1
     assert sleep_calls == [1, 2, 4]
+
 
 
 
@@ -139,6 +147,7 @@ async def test_ab1050_no_retry(mock_smart_connect, angelone_settings):
 
 
 
+
 @pytest.mark.asyncio
 async def test_singleton_lock_serializes_first_auth(mock_smart_connect, angelone_settings):
     manager = SessionManager(angelone_settings)
@@ -154,9 +163,10 @@ async def test_singleton_lock_serializes_first_auth(mock_smart_connect, angelone
 
 
 
+
 @pytest.mark.asyncio
 async def test_fresh_totp_on_reauthenticate(mock_smart_connect, angelone_settings):
-    with patch("financialagents.dataflows.session_manager.pyotp") as mock_pyotp:
+    with patch("finagents.dataflows.session_manager.pyotp") as mock_pyotp:
         mock_totp_instance = MagicMock()
         mock_totp_instance.now.return_value = "123456"
         mock_pyotp.TOTP.return_value = mock_totp_instance
@@ -178,15 +188,16 @@ async def test_fresh_totp_on_reauthenticate(mock_smart_connect, angelone_setting
 
 
 
+
 @pytest.mark.asyncio
 async def test_credential_not_in_error_message(clean_env, monkeypatch):
     monkeypatch.setenv("ANGELONE_API_KEY", "test-api-key")
     monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
     monkeypatch.setenv("ANGELONE_PIN", "super-secret-pin-1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-    settings = Settings(_env_file=None, openrouter_api_key="fake")
+    settings = Settings(openrouter_api_key="fake")
 
-    with patch("financialagents.dataflows.session_manager.SmartConnect") as mock_cls:
+    with patch("finagents.dataflows.session_manager.SmartConnect") as mock_cls:
         instance = MagicMock()
         instance.generateSession.return_value = {
             "status": False,
@@ -205,10 +216,12 @@ async def test_credential_not_in_error_message(clean_env, monkeypatch):
 
 
 
+
 def test_get_session_manager_singleton(angelone_settings):
     mgr1 = get_session_manager(angelone_settings)
     mgr2 = get_session_manager(angelone_settings)
     assert mgr1 is mgr2
+
 
 
 
@@ -220,12 +233,13 @@ def test_reset_session_manager(angelone_settings):
 
 
 
+
 def test_import_emits_no_smartconnect_log() -> None:
     import subprocess
     import sys
 
     result = subprocess.run(
-        [sys.executable, "-c", "from financialagents.dataflows import session_manager"],
+        [sys.executable, "-c", "from finagents.dataflows import session_manager"],
         capture_output=True,
         text=True,
         timeout=30,

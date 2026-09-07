@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import FundamentalsAnalystReport
-from financialagents.dataflows.data_result import DataResult
-from financialagents.dataflows.fundamentals_schema import (
+from finagents.agents.analysts.schemas import FundamentalsAnalystReport
+from finagents.dataflows.data_result import DataResult
+from finagents.dataflows.fundamentals_schema import (
     DebtBalance,
     FundamentalsReport,
     Profitability,
@@ -19,7 +19,7 @@ from financialagents.dataflows.fundamentals_schema import (
 
 @pytest.fixture
 def agent_state():
-    from financialagents.agents.utils.agent_states import AgentState
+    from finagents.agents.utils.agent_states import AgentState
 
     return AgentState(ticker="TESTCO", date="2024-12-31")
 
@@ -35,12 +35,8 @@ def happy_path_data_layer() -> FundamentalsReport:
             market_cap_cr=50_000.0,
             dividend_yield=1.0,
         ),
-        profitability=Profitability(
-            roce=18.0, roe=15.0, operating_margin=20.0, net_margin=12.0
-        ),
-        debt_balance=DebtBalance(
-            debt_to_equity=0.5, interest_coverage=6.0, current_ratio=1.5
-        ),
+        profitability=Profitability(roce=18.0, roe=15.0, operating_margin=20.0, net_margin=12.0),
+        debt_balance=DebtBalance(debt_to_equity=0.5, interest_coverage=6.0, current_ratio=1.5),
         shareholding=Shareholding(
             promoter_holding_pct=55.0,
             promoter_pledge_pct=0.0,
@@ -80,15 +76,18 @@ async def _run_node_with_mocks(
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_report)
         mock_llm.with_structured_output.return_value = mock_structured_llm
-    with patch(
-        "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-        new_callable=AsyncMock,
-        return_value=data_result,
-    ), patch(
-        "financialagents.agents.analysts.fundamentals_analyst.create_llm_client",
-        return_value=mock_llm,
+    with (
+        patch(
+            "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+            new_callable=AsyncMock,
+            return_value=data_result,
+        ),
+        patch(
+            "finagents.agents.analysts.fundamentals_analyst.create_llm_client",
+            return_value=mock_llm,
+        ),
     ):
-        from financialagents.agents.analysts.fundamentals_analyst import (
+        from finagents.agents.analysts.fundamentals_analyst import (
             fundamentals_analyst_node,
         )
 
@@ -100,9 +99,7 @@ async def _run_node_with_mocks(
 class TestFundamentalsAnalystConfidence:
     @pytest.mark.asyncio
     async def test_full_five_fields_yields_1_0(self, agent_state, happy_path_data_layer):
-        data_result = DataResult(
-            status="ok", data=happy_path_data_layer, source="screener"
-        )
+        data_result = DataResult(status="ok", data=happy_path_data_layer, source="screener")
         mock_report = _build_report(
             pe_ratio=20.0,
             pb_ratio=3.0,
@@ -117,9 +114,7 @@ class TestFundamentalsAnalystConfidence:
 
     @pytest.mark.asyncio
     async def test_screener_miss_stays_zero(self, agent_state):
-        data_result = DataResult(
-            status="empty", data=None, error="Screener returned 404"
-        )
+        data_result = DataResult(status="empty", data=None, error="Screener returned 404")
         result = await _run_node_with_mocks(agent_state, data_result, None)
         report = result["fundamentals_report"]
         assert report.confidence == 0.0
@@ -128,9 +123,7 @@ class TestFundamentalsAnalystConfidence:
     async def test_partial_three_fields_yields_three_fifths(
         self, agent_state, happy_path_data_layer
     ):
-        data_result = DataResult(
-            status="ok", data=happy_path_data_layer, source="screener"
-        )
+        data_result = DataResult(status="ok", data=happy_path_data_layer, source="screener")
         mock_report = _build_report(
             pe_ratio=20.0,
             pb_ratio=None,

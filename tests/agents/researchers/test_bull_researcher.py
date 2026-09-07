@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.utils.agent_states import InvestDebateState
-from financialagents.config import Settings
+from finagents.agents.utils.agent_states import InvestDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -27,7 +29,8 @@ def populated_state() -> InvestDebateState:
 
 @pytest.fixture
 def mock_bull_argument():
-    from financialagents.agents.researchers.bull_researcher import BullArgument
+    from finagents.agents.researchers.bull_researcher import BullArgument
+
     return BullArgument(argument="Revenue CAGR 15%, FCF positive.", key_points=["CAGR", "FCF"])
 
 
@@ -38,14 +41,15 @@ class TestBullResearcherNode:
         mock_bull_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
+        from finagents.agents.researchers.bull_researcher import bull_researcher_node
+
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_bull_argument)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bull_researcher_node(populated_state, config))
@@ -59,14 +63,15 @@ class TestBullResearcherNode:
         mock_bull_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
+        from finagents.agents.researchers.bull_researcher import bull_researcher_node
+
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_bull_argument)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bull_researcher_node(populated_state, config))
@@ -78,15 +83,16 @@ class TestBullResearcherNode:
         mock_bull_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
+        from finagents.agents.researchers.bull_researcher import bull_researcher_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("LLM timeout"), mock_bull_argument])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bull_researcher_node(populated_state, config))
@@ -98,15 +104,16 @@ class TestBullResearcherNode:
         populated_state: InvestDebateState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
+        from finagents.agents.researchers.bull_researcher import bull_researcher_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("first"), RuntimeError("second")])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bull_researcher_node(populated_state, config))
@@ -124,7 +131,8 @@ class TestBullResearcherNode:
         mock_bull_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import bull_researcher_node
+        from finagents.agents.researchers.bull_researcher import bull_researcher_node
+
         captured_prompts: list = []
 
         async def capture_ainvoke(prompt):
@@ -135,9 +143,9 @@ class TestBullResearcherNode:
         mock_structured_llm.ainvoke = capture_ainvoke
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             asyncio.run(bull_researcher_node(populated_state, config))
@@ -150,11 +158,13 @@ class TestBullResearcherNode:
 class TestBullArgumentSchema:
     def test_required_field_argument(self) -> None:
         import pydantic
-        from financialagents.agents.researchers.bull_researcher import BullArgument
+        from finagents.agents.researchers.bull_researcher import BullArgument
+
         with pytest.raises(pydantic.ValidationError):
             BullArgument(key_points=[])
 
     def test_optional_key_points_defaults_to_empty_list(self) -> None:
-        from financialagents.agents.researchers.bull_researcher import BullArgument
+        from finagents.agents.researchers.bull_researcher import BullArgument
+
         arg = BullArgument(argument="thesis")
         assert arg.key_points == []

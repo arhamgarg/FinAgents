@@ -12,7 +12,7 @@ def tmp_signals_db(tmp_path: Path) -> Path:
 
 @pytest.fixture
 async def migrated_db(tmp_signals_db: Path) -> Path:
-    from financialagents.storage.migrations import run_migrations
+    from finagents.storage.migrations import run_migrations
 
     await run_migrations(tmp_signals_db)
     return tmp_signals_db

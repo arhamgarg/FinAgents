@@ -4,67 +4,61 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from financialagents.agents.utils.agent_states import AgentState, InvestDebateState
-from financialagents.config import Settings
+from finagents.agents.utils.agent_states import AgentState, InvestDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    return Settings(openrouter_api_key="fake")
 
 
-class TestFinancialAgentsGraphFullPipelineFlag:
+class TestFinAgentsGraphFullPipelineFlag:
 
     def test_default_uses_build_analysis_graph(self) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
-        with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph"
-        ) as mock_build:
+        with patch("finagents.graph.trading_graph.build_analysis_graph") as mock_build:
             mock_build.return_value = MagicMock()
-            FinancialAgentsGraph()
+            FinAgentsGraph()
             mock_build.assert_called_once()
 
     def test_full_pipeline_false_uses_build_analysis_graph(self) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
-        with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph"
-        ) as mock_build:
+        with patch("finagents.graph.trading_graph.build_analysis_graph") as mock_build:
             mock_build.return_value = MagicMock()
-            FinancialAgentsGraph(full_pipeline=False)
+            FinAgentsGraph(full_pipeline=False)
             mock_build.assert_called_once()
 
     def test_full_pipeline_true_uses_build_full_pipeline(self) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
-        with patch("financialagents.graph.setup.build_full_pipeline") as mock_full:
+        with patch("finagents.graph.setup.build_full_pipeline") as mock_full:
             mock_full.return_value = MagicMock()
-            FinancialAgentsGraph(full_pipeline=True)
+            FinAgentsGraph(full_pipeline=True)
             mock_full.assert_called_once()
 
 
-class TestFinancialAgentsGraphThreadId:
+class TestFinAgentsGraphThreadId:
 
-    def test_thread_id_is_unique_per_propagate_call(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+    def test_thread_id_is_unique_per_propagate_call(self, default_settings: Settings) -> None:
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         captured_configs: list[dict] = []
 
         async def fake_ainvoke(state, config=None):
-            captured_configs.append(config)
+            captured_configs.append(config or {})
             return {"ticker": state.ticker, "date": state.date}
 
         mock_graph = MagicMock()
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa = FinancialAgentsGraph()
+            fa = FinAgentsGraph()
             fa.propagate("RELIANCE", "2024-01-15", default_settings)
             fa.propagate("RELIANCE", "2024-01-15", default_settings)
 
@@ -75,36 +69,34 @@ class TestFinancialAgentsGraphThreadId:
         assert tid1.startswith("RELIANCE_2024-01-15_")
         assert len(tid1.split("_")[-1]) == 8
 
-    def test_settings_flow_through_configurable(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+    def test_settings_flow_through_configurable(self, default_settings: Settings) -> None:
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         captured: list[dict] = []
 
         async def fake_ainvoke(state, config=None):
-            captured.append(config)
+            captured.append(config or {})
             return {}
 
         mock_graph = MagicMock()
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa = FinancialAgentsGraph()
+            fa = FinAgentsGraph()
             fa.propagate("TCS", "2024-01-15", default_settings)
 
         assert captured[0]["configurable"]["settings"] is default_settings
 
 
-class TestFinancialAgentsGraphModelValidate:
+class TestFinAgentsGraphModelValidate:
 
     def test_returns_agent_state_from_dict_with_nested_debate(
         self, default_settings: Settings
     ) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         async def fake_ainvoke(state, config=None):
             return {
@@ -124,10 +116,10 @@ class TestFinancialAgentsGraphModelValidate:
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa = FinancialAgentsGraph()
+            fa = FinAgentsGraph()
             result_state = fa.propagate("RELIANCE", "2024-01-15", default_settings)
 
         assert isinstance(result_state, AgentState)
@@ -138,10 +130,8 @@ class TestFinancialAgentsGraphModelValidate:
         assert ids.investment_thesis == "plan text"
         assert ids.bull_turns() == ["bull-1"]
 
-    def test_returns_agent_state_when_already_typed(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+    def test_returns_agent_state_when_already_typed(self, default_settings: Settings) -> None:
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         agent_state_in = AgentState(ticker="INFY", date="2024-01-15")
 
@@ -152,10 +142,10 @@ class TestFinancialAgentsGraphModelValidate:
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa = FinancialAgentsGraph()
+            fa = FinAgentsGraph()
             result = fa.propagate("INFY", "2024-01-15", default_settings)
 
         assert result is agent_state_in

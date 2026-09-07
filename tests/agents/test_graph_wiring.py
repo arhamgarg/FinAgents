@@ -5,14 +5,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import (
+from finagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     TechnicalReport,
     NewsReport,
 )
-from financialagents.agents.managers.schemas import Finding, ResearchBrief
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.config import Settings
+from finagents.agents.managers.schemas import Finding, ResearchBrief
+from finagents.agents.utils.agent_states import AgentState
+from finagents.config import Settings
+
 
 
 
@@ -77,15 +78,16 @@ def full_state(
 
 
 
+
 class TestBuildAnalysisGraph:
     def test_graph_compiles(self):
-        from financialagents.graph.setup import build_analysis_graph
+        from finagents.graph.setup import build_analysis_graph
 
         graph = build_analysis_graph()
         assert graph is not None
 
     def test_graph_has_expected_nodes(self):
-        from financialagents.graph.setup import build_analysis_graph
+        from finagents.graph.setup import build_analysis_graph
 
         graph = build_analysis_graph()
         node_names = list(graph.nodes.keys())
@@ -102,9 +104,10 @@ class TestBuildAnalysisGraph:
 
 
 
+
 class TestValidationNode:
     def test_validation_fails_on_missing_report(self):
-        from financialagents.graph.setup import validation_node
+        from finagents.graph.setup import validation_node
 
         state = AgentState(
             ticker="TCS",
@@ -117,7 +120,7 @@ class TestValidationNode:
             validation_node(state)
 
     def test_validation_fails_listing_all_missing(self):
-        from financialagents.graph.setup import validation_node
+        from finagents.graph.setup import validation_node
 
         state = AgentState(ticker="TCS", date="2024-01-15")
         with pytest.raises(ValueError) as exc_info:
@@ -128,20 +131,22 @@ class TestValidationNode:
         assert "news_report" in error_msg
 
     def test_validation_passes_when_all_reports_present(self, full_state: AgentState):
-        from financialagents.graph.setup import validation_node
+        from finagents.graph.setup import validation_node
 
         result = validation_node(full_state)
         assert result == {}
 
 
 
+
 class TestPropagationNode:
     def test_propagation_node_returns_empty_dict(self):
-        from financialagents.graph.setup import propagation_node
+        from finagents.graph.setup import propagation_node
 
         state = AgentState(ticker="RELIANCE", date="2024-01-15")
         result = propagation_node(state)
         assert result == {}
+
 
 
 
@@ -167,18 +172,23 @@ class TestGraphIntegration:
             return {"research_summary": mock_research_brief}
 
         with (
-            patch("financialagents.agents.analysts.technical_analyst.technical_analyst_node", fake_technical),
-            patch("financialagents.agents.analysts.fundamentals_analyst.fundamentals_analyst_node", fake_fundamentals),
-            patch("financialagents.agents.analysts.news_analyst.news_analyst_node", fake_news),
-            patch("financialagents.agents.managers.research_manager.research_manager_node", fake_research_manager),
+            patch("finagents.graph.setup.technical_analyst_node", fake_technical),
+            patch(
+                "finagents.graph.setup.fundamentals_analyst_node",
+                fake_fundamentals,
+            ),
+            patch("finagents.graph.setup.news_analyst_node", fake_news),
+            patch(
+                "finagents.graph.setup.research_manager_node",
+                fake_research_manager,
+            ),
         ):
-            from importlib import reload
-            import financialagents.graph.setup as setup_mod
-            reload(setup_mod)
+            import finagents.graph.setup as setup_mod
+
             graph = setup_mod.build_analysis_graph()
 
             initial_state = AgentState(ticker="TCS", date="2024-01-15")
-            settings = Settings(_env_file=None, openrouter_api_key="fake")
+            settings = Settings(openrouter_api_key="fake")
             config = {"configurable": {"settings": settings}}
             result = asyncio.run(graph.ainvoke(initial_state, config=config))
 
@@ -192,7 +202,8 @@ class TestGraphIntegration:
 
 
 
-class TestFinancialAgentsGraph:
+
+class TestFinAgentsGraph:
     def test_propagate_returns_agent_state(
         self,
         mock_technical_report,
@@ -200,7 +211,7 @@ class TestFinancialAgentsGraph:
         mock_news_report,
         mock_research_brief,
     ):
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         async def fake_ainvoke(state, config=None):
             return {
@@ -218,11 +229,11 @@ class TestFinancialAgentsGraph:
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa_graph = FinancialAgentsGraph()
-            settings = Settings(_env_file=None, openrouter_api_key="fake")
+            fa_graph = FinAgentsGraph()
+            settings = Settings(openrouter_api_key="fake")
             result = fa_graph.propagate("TCS", "2024-01-15", settings=settings)
 
         assert isinstance(result, AgentState)
@@ -235,7 +246,7 @@ class TestFinancialAgentsGraph:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
-        from financialagents.graph.trading_graph import FinancialAgentsGraph
+        from finagents.graph.trading_graph import FinAgentsGraph
 
         async def fake_ainvoke(state, config=None):
             return {
@@ -253,10 +264,10 @@ class TestFinancialAgentsGraph:
         mock_graph.ainvoke = fake_ainvoke
 
         with patch(
-            "financialagents.graph.trading_graph.build_analysis_graph",
+            "finagents.graph.trading_graph.build_analysis_graph",
             return_value=mock_graph,
         ):
-            fa_graph = FinancialAgentsGraph()
+            fa_graph = FinAgentsGraph()
             result = fa_graph.propagate("INFY", "2024-01-15", settings=None)
 
         assert isinstance(result, AgentState)

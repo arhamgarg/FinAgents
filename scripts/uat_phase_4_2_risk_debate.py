@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -14,12 +15,8 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-_DEFAULT_OUTPUT = Path(
-    ".planning/phases/04.2-risk-debate-pm-end-to-end/04.2-VERIFICATION.md"
-)
-_DEFAULT_TICKER_FILE = Path(
-    ".planning/phases/04.2-risk-debate-pm-end-to-end/uat-ticker-batch.txt"
-)
+_DEFAULT_OUTPUT = Path("reports/uat/risk-debate.md")
+_DEFAULT_TICKER_FILE = _REPO_ROOT / "scripts" / "uat-ticker-batch.txt"
 _SECTION_MARKER = "## Persona Divergence"
 _DIVERGENCE_THRESHOLD = 0.30
 
@@ -44,13 +41,13 @@ def _parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=_DEFAULT_OUTPUT,
-        help="Path to 04.2-VERIFICATION.md (default: %(default)s)",
+        help="Path to the Markdown UAT report (default: %(default)s)",
     )
     parser.add_argument(
         "--date",
         type=str,
         default=datetime.now().strftime("%Y-%m-%d"),
-        help="Date passed to FinancialAgentsGraph.apropagate (default: today)",
+        help="Date passed to FinAgentsGraph.apropagate (default: today)",
     )
     parser.add_argument(
         "--dry-run",
@@ -66,9 +63,7 @@ def _parse_tickers_arg(args: argparse.Namespace) -> list[str]:
     if args.ticker_file.exists():
         text = args.ticker_file.read_text().strip()
         return [t.strip().upper() for t in text.split(",") if t.strip()]
-    raise SystemExit(
-        f"Provide --tickers or create {args.ticker_file} (single-line CSV)"
-    )
+    raise SystemExit(f"Provide --tickers or create {args.ticker_file} (single-line CSV)")
 
 
 class PersonaSizes(NamedTuple):
@@ -98,11 +93,11 @@ def _extract_persona_sizes(risk_debate_state) -> PersonaSizes:
 
 
 async def _run_pipeline(ticker: str, date: str):
-    from financialagents.graph.trading_graph import (
-        FinancialAgentsGraph,
+    from finagents.graph.trading_graph import (
+        FinAgentsGraph,
     )
 
-    graph = FinancialAgentsGraph(full_pipeline=True)
+    graph = FinAgentsGraph(full_pipeline=True)
     return await graph.apropagate(ticker, date)
 
 
@@ -116,10 +111,7 @@ class TickerRow(NamedTuple):
 
 def _format_row(row: TickerRow) -> str:
     if row.error:
-        return (
-            f"| {row.ticker} | n/a | n/a | n/a | n/a | "
-            f"FAIL (exception: {row.error}) |"
-        )
+        return f"| {row.ticker} | n/a | n/a | n/a | n/a | FAIL (exception: {row.error}) |"
     verdict = "PASS" if row.passed else "FAIL"
     return (
         f"| {row.ticker} | {row.sizes.aggressive:.3f} | "
@@ -147,12 +139,8 @@ def _build_evidence_block(rows: list[TickerRow], timestamp: str) -> str:
 
 
 def _append_to_verification_md(output: Path, block: str) -> None:
-    if not output.exists():
-        raise FileNotFoundError(
-            f"VERIFICATION.md not found at {output} — Task 2 should "
-            f"have scaffolded it before this UAT runs."
-        )
-    existing = output.read_text()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    existing = output.read_text() if output.exists() else ""
     if _SECTION_MARKER in existing:
         new_content = existing + block
     else:

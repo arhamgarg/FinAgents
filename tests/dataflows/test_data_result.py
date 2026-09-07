@@ -5,8 +5,8 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from financialagents.config import Settings
-from financialagents.dataflows.data_result import DataResult
+from finagents.config import Settings
+from finagents.dataflows.data_result import DataResult
 
 
 class TestDataResult:
@@ -17,7 +17,9 @@ class TestDataResult:
         assert result.source == "screener_csv"
         assert result.stale is False
         assert result.fetched_at.tzinfo is not None
-        assert result.fetched_at.utcoffset().total_seconds() == 0
+        offset = result.fetched_at.utcoffset()
+        assert offset is not None
+        assert offset.total_seconds() == 0
 
     def test_empty_result_with_list_payload(self) -> None:
         result = DataResult[list](status="empty", error="REDDIT_CLIENT_ID not set", source="reddit")
@@ -32,7 +34,7 @@ class TestDataResult:
 
     def test_missing_optional_keys_warns(self, clean_env: None) -> None:
         with pytest.warns(UserWarning, match="ANGELONE_API_KEY"):
-            Settings(_env_file=None, openrouter_api_key="fake")
+            Settings(openrouter_api_key="fake")
 
     def test_all_optional_keys_set_no_warnings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
@@ -43,13 +45,4 @@ class TestDataResult:
         monkeypatch.setenv("GROQ_API_KEY", "test-groq-api-key-fake")
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
-            Settings(_env_file=None)
-
-    def test_data_vendors_default_has_all_categories(self, clean_env: None) -> None:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
-            settings = Settings(_env_file=None, openrouter_api_key="fake")
-        assert "ohlcv" in settings.data_vendors
-        assert "fundamentals" in settings.data_vendors
-        assert "news" in settings.data_vendors
-        assert "sentiment" not in settings.data_vendors
+            Settings()

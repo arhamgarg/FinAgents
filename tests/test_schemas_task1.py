@@ -7,7 +7,7 @@ import pytest
 
 class TestTechnicalReport:
     def test_validates_with_all_fields_populated(self):
-        from financialagents.agents.analysts.schemas import TechnicalReport
+        from finagents.agents.analysts.schemas import TechnicalReport
 
         report = TechnicalReport(
             rsi=62.4,
@@ -21,7 +21,7 @@ class TestTechnicalReport:
         assert report.data_sources == ["angelone"]
 
     def test_validates_with_all_optional_fields_none(self):
-        from financialagents.agents.analysts.schemas import TechnicalReport
+        from finagents.agents.analysts.schemas import TechnicalReport
 
         report = TechnicalReport()
         assert report.rsi is None
@@ -32,7 +32,7 @@ class TestTechnicalReport:
 
 class TestFundamentalsAnalystReport:
     def test_validates_with_key_fields(self):
-        from financialagents.agents.analysts.schemas import FundamentalsAnalystReport
+        from finagents.agents.analysts.schemas import FundamentalsAnalystReport
 
         report = FundamentalsAnalystReport(
             pe_ratio=18.2,
@@ -48,7 +48,7 @@ class TestFundamentalsAnalystReport:
 
 class TestNewsReport:
     def test_validates_with_article_count_and_direction(self):
-        from financialagents.agents.analysts.schemas import NewsReport
+        from finagents.agents.analysts.schemas import NewsReport
 
         report = NewsReport(
             article_count=5,
@@ -62,7 +62,7 @@ class TestNewsReport:
 
 class TestResearchBrief:
     def test_validates_with_key_findings_and_confidences(self):
-        from financialagents.agents.managers.schemas import ResearchBrief
+        from finagents.agents.managers.schemas import ResearchBrief
 
         brief = ResearchBrief(
             key_findings=[],
@@ -76,7 +76,7 @@ class TestResearchBrief:
 
 class TestFinding:
     def test_validates_finding(self):
-        from financialagents.agents.managers.schemas import Finding
+        from finagents.agents.managers.schemas import Finding
 
         finding = Finding(
             analyst="technical",
@@ -91,21 +91,21 @@ class TestFinding:
 
 class TestAgentStateTypedFields:
     def test_accepts_technical_report_instance(self):
-        from financialagents.agents.analysts.schemas import TechnicalReport
-        from financialagents.agents.utils.agent_states import AgentState
+        from finagents.agents.analysts.schemas import TechnicalReport
+        from finagents.agents.utils.agent_states import AgentState
 
         mr = TechnicalReport(confidence=0.5, data_sources=["test"])
         state = AgentState(technical_report=mr)
         assert state.technical_report is mr
 
     def test_accepts_all_typed_report_models(self):
-        from financialagents.agents.analysts.schemas import (
+        from finagents.agents.analysts.schemas import (
             FundamentalsAnalystReport,
             TechnicalReport,
             NewsReport,
         )
-        from financialagents.agents.managers.schemas import ResearchBrief
-        from financialagents.agents.utils.agent_states import AgentState
+        from finagents.agents.managers.schemas import ResearchBrief
+        from finagents.agents.utils.agent_states import AgentState
 
         state = AgentState(
             technical_report=TechnicalReport(confidence=0.5),
@@ -123,9 +123,9 @@ class TestSettingsAnalystWeights:
     def test_analyst_weights_default_values(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            from financialagents.config import Settings
+            from finagents.config import Settings
 
-            s = Settings(_env_file=None, openrouter_api_key="fake")
+            s = Settings(openrouter_api_key="fake")
         assert s.analyst_weights == {
             "technical": 0.303,
             "fundamentals": 0.455,

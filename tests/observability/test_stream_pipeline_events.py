@@ -28,7 +28,7 @@ class _FakeGraph:
 
 class TestAstreamThreeTupleUnpack:
     async def test_drains_three_tuple_stream_without_value_error(self) -> None:
-        from financialagents.observability.events import (
+        from finagents.observability.events import (
             PipelineEvent,
             stream_pipeline_events,
         )
@@ -44,9 +44,7 @@ class TestAstreamThreeTupleUnpack:
             events.append(ev)
 
 
-        values_events = [
-            e for e in events if e.kind == "values" and e.final_state is not None
-        ]
+        values_events = [e for e in events if e.kind == "values" and e.final_state is not None]
         assert values_events, (
             "expected at least one kind='values' event with final_state populated; "
             f"got events={events}"
@@ -55,9 +53,7 @@ class TestAstreamThreeTupleUnpack:
         trader_started = [
             e
             for e in events
-            if e.kind == "node_status"
-            and e.node_name == "trader_node"
-            and e.status == "started"
+            if e.kind == "node_status" and e.node_name == "trader_node" and e.status == "started"
         ]
         assert len(trader_started) == 1, (
             f"expected exactly one trader_node started event; got {trader_started}"
@@ -66,9 +62,7 @@ class TestAstreamThreeTupleUnpack:
         trader_completed = [
             e
             for e in events
-            if e.kind == "node_status"
-            and e.node_name == "trader_node"
-            and e.status == "completed"
+            if e.kind == "node_status" and e.node_name == "trader_node" and e.status == "completed"
         ]
         assert len(trader_completed) == 1, (
             f"expected exactly one trader_node completed event; got {trader_completed}"

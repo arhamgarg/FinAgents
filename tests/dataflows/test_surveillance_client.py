@@ -5,16 +5,17 @@ from pathlib import Path
 import httpx
 import pytest
 
-from financialagents.dataflows import cache, surveillance_client
+from finagents.dataflows import cache, surveillance_client
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "nse"
 SAMPLE_FIXTURE = FIXTURE_DIR / "sec_list_sample.csv"
 
 
 
+
 @pytest.mark.asyncio
 async def test_cold_cache_fetches_and_stores(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     fixture = SAMPLE_FIXTURE.read_bytes()
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
@@ -27,9 +28,10 @@ async def test_cold_cache_fetches_and_stores(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_no_band_returns_none_for_circuit_pct(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -41,9 +43,10 @@ async def test_no_band_returns_none_for_circuit_pct(httpx_mock, tmp_path, monkey
 
 
 
+
 @pytest.mark.asyncio
 async def test_band_20_parses_to_0_20(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -55,9 +58,10 @@ async def test_band_20_parses_to_0_20(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_band_5_parses_to_0_05(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -69,9 +73,10 @@ async def test_band_5_parses_to_0_05(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_series_be_is_t2t(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -83,9 +88,10 @@ async def test_series_be_is_t2t(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_series_bz_is_t2t(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -97,9 +103,10 @@ async def test_series_bz_is_t2t(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_series_st_is_t2t(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -111,9 +118,10 @@ async def test_series_st_is_t2t(httpx_mock, tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_ticker_not_in_list_returns_safe_default(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -125,9 +133,10 @@ async def test_ticker_not_in_list_returns_safe_default(httpx_mock, tmp_path, mon
 
 
 
+
 @pytest.mark.asyncio
 async def test_fetch_failure_returns_safe_default(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         status_code=500,
@@ -140,10 +149,11 @@ async def test_fetch_failure_returns_safe_default(httpx_mock, tmp_path, monkeypa
 
 
 
+
 @pytest.mark.asyncio
 async def test_warm_cache_skips_http(tmp_path, monkeypatch):
     db_path = tmp_path / "t.db"
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", db_path)
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", db_path)
 
     fixture = SAMPLE_FIXTURE.read_bytes()
     await cache.set_cached(
@@ -163,9 +173,10 @@ async def test_warm_cache_skips_http(tmp_path, monkeypatch):
 
 
 
+
 @pytest.mark.asyncio
 async def test_ticker_lookup_is_case_insensitive(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_response(
         url=surveillance_client.NSE_SEC_LIST_URL,
         content=SAMPLE_FIXTURE.read_bytes(),
@@ -177,9 +188,10 @@ async def test_ticker_lookup_is_case_insensitive(httpx_mock, tmp_path, monkeypat
 
 
 
+
 @pytest.mark.asyncio
 async def test_network_exception_returns_safe_default(httpx_mock, tmp_path, monkeypatch):
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
     httpx_mock.add_exception(httpx.ConnectTimeout("timed out"))
 
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("TRENT")

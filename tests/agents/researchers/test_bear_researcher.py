@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.utils.agent_states import InvestDebateState
-from financialagents.config import Settings
+from finagents.agents.utils.agent_states import InvestDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -27,7 +29,8 @@ def populated_state() -> InvestDebateState:
 
 @pytest.fixture
 def mock_bear_argument():
-    from financialagents.agents.researchers.bear_researcher import BearArgument
+    from finagents.agents.researchers.bear_researcher import BearArgument
+
     return BearArgument(
         argument="Margin compression from energy capex; peer P/E discount widening.",
         key_points=["capex", "margin"],
@@ -41,19 +44,22 @@ class TestBearResearcherNode:
         mock_bear_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import bear_researcher_node
+        from finagents.agents.researchers.bear_researcher import bear_researcher_node
+
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_bear_argument)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bear_researcher_node(populated_state, config))
         assert "bear_history" in result
-        assert result["bear_history"] == {populated_state.current_round: mock_bear_argument.argument}
+        assert result["bear_history"] == {
+            populated_state.current_round: mock_bear_argument.argument
+        }
         assert "current_round" in result
         assert result["current_round"] == populated_state.current_round + 1
 
@@ -63,14 +69,15 @@ class TestBearResearcherNode:
         mock_bear_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import bear_researcher_node
+        from finagents.agents.researchers.bear_researcher import bear_researcher_node
+
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_bear_argument)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bear_researcher_node(populated_state, config))
@@ -82,15 +89,16 @@ class TestBearResearcherNode:
         mock_bear_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import bear_researcher_node
+        from finagents.agents.researchers.bear_researcher import bear_researcher_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("LLM timeout"), mock_bear_argument])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bear_researcher_node(populated_state, config))
@@ -103,15 +111,16 @@ class TestBearResearcherNode:
         populated_state: InvestDebateState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import bear_researcher_node
+        from finagents.agents.researchers.bear_researcher import bear_researcher_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("first"), RuntimeError("second")])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(bear_researcher_node(populated_state, config))
@@ -130,7 +139,8 @@ class TestBearResearcherNode:
         mock_bear_argument,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import bear_researcher_node
+        from finagents.agents.researchers.bear_researcher import bear_researcher_node
+
         captured_prompts: list = []
 
         async def capture_ainvoke(prompt):
@@ -141,9 +151,9 @@ class TestBearResearcherNode:
         mock_structured_llm.ainvoke = capture_ainvoke
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm,
         ):
             asyncio.run(bear_researcher_node(populated_state, config))
@@ -156,11 +166,13 @@ class TestBearResearcherNode:
 class TestBearArgumentSchema:
     def test_required_field_argument(self) -> None:
         import pydantic
-        from financialagents.agents.researchers.bear_researcher import BearArgument
+        from finagents.agents.researchers.bear_researcher import BearArgument
+
         with pytest.raises(pydantic.ValidationError):
             BearArgument(key_points=[])
 
     def test_optional_key_points_defaults_to_empty_list(self) -> None:
-        from financialagents.agents.researchers.bear_researcher import BearArgument
+        from finagents.agents.researchers.bear_researcher import BearArgument
+
         arg = BearArgument(argument="thesis")
         assert arg.key_points == []

@@ -6,20 +6,20 @@ from pathlib import Path
 import pytest
 
 AppTest = pytest.importorskip(
-    "streamlit.testing.v1", reason="Streamlit AppTest required",
+    "streamlit.testing.v1",
+    reason="Streamlit AppTest required",
 ).AppTest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HISTORY_PAGE_PATH = (
-    REPO_ROOT / "financialagents" / "dashboard" / "pages" / "history.py"
-)
+HISTORY_PAGE_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "history.py"
+
 
 
 
 async def _seed_three_rows(db_path: Path) -> list[str]:
-    from financialagents.storage.migrations import run_migrations
-    from financialagents.storage.signals import (
+    from finagents.storage.migrations import run_migrations
+    from finagents.storage.signals import (
         insert_running,
         update_cancelled,
         update_errored,
@@ -29,32 +29,52 @@ async def _seed_three_rows(db_path: Path) -> list[str]:
     await run_migrations(db_path)
 
     await insert_running(
-        "aaaaaaaa", "RELIANCE", "2026-04-26",
-        provider="openrouter", model="openrouter/auto", db_path=db_path,
+        "aaaaaaaa",
+        "RELIANCE",
+        "2026-04-26",
+        provider="openrouter",
+        model="openrouter/auto",
+        db_path=db_path,
     )
     await update_success(
-        "aaaaaaaa", action="BUY", confidence=0.78,
-        position_size_pct=3.0, approved=True, pm_decision="approve",
+        "aaaaaaaa",
+        action="BUY",
+        confidence=0.78,
+        position_size_pct=3.0,
+        approved=True,
+        pm_decision="approve",
         payload_json='{"ticker":"RELIANCE","date":"2026-04-26"}',
         db_path=db_path,
     )
 
     await insert_running(
-        "bbbbbbbb", "TCS", "2026-04-26",
-        provider="openrouter", model="openrouter/auto", db_path=db_path,
+        "bbbbbbbb",
+        "TCS",
+        "2026-04-26",
+        provider="openrouter",
+        model="openrouter/auto",
+        db_path=db_path,
     )
     await update_cancelled(
-        "bbbbbbbb", error_msg="User aborted (Ctrl+C)",
-        payload_json=None, db_path=db_path,
+        "bbbbbbbb",
+        error_msg="User aborted (Ctrl+C)",
+        payload_json=None,
+        db_path=db_path,
     )
 
     await insert_running(
-        "cccccccc", "INFY", "2026-04-26",
-        provider="openrouter", model="openrouter/auto", db_path=db_path,
+        "cccccccc",
+        "INFY",
+        "2026-04-26",
+        provider="openrouter",
+        model="openrouter/auto",
+        db_path=db_path,
     )
     await update_errored(
-        "cccccccc", error_msg="LLM connection refused",
-        payload_json=None, db_path=db_path,
+        "cccccccc",
+        error_msg="LLM connection refused",
+        payload_json=None,
+        db_path=db_path,
     )
 
     return ["aaaaaaaa", "bbbbbbbb", "cccccccc"]
@@ -63,6 +83,7 @@ async def _seed_three_rows(db_path: Path) -> list[str]:
 @pytest.fixture(autouse=True)
 def _clear_streamlit_cache():
     import streamlit as st
+
     st.cache_data.clear()
     yield
     st.cache_data.clear()
@@ -80,19 +101,16 @@ class TestHistoryPageDefaultTable:
     def test_default_table(self, history_app, tmp_path) -> None:
         asyncio.run(_seed_three_rows(tmp_path / "signals.db"))
         at = history_app.run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         dataframes = list(at.dataframe)
-        assert len(dataframes) == 1, (
-            f"Expected exactly 1 dataframe; got {len(dataframes)}"
-        )
+        assert len(dataframes) == 1, f"Expected exactly 1 dataframe; got {len(dataframes)}"
         df_proxy = dataframes[0]
         df = df_proxy.value
         assert len(df) == 3, f"Expected 3 rows; got {len(df)} rows"
 
         import json
+
         cfg_str = df_proxy.proto.columns
         assert cfg_str, "Dataframe proto.columns is empty (no column_config)"
         cfg = json.loads(cfg_str)
@@ -146,8 +164,7 @@ class TestHistoryPageRefresh:
             None,
         )
         assert refresh is not None, (
-            f"Refresh history button missing; got: "
-            f"{[b.label for b in at.button]!r}"
+            f"Refresh history button missing; got: {[b.label for b in at.button]!r}"
         )
         refresh.click()
         at.run(timeout=10)
@@ -179,8 +196,7 @@ class TestHistoryPageStatusChip:
             s_str = str(s)
             if any(token in s_str for token in ("success", "cancelled", "errored")):
                 assert any(g in s_str for g in glyphs), (
-                    f"Status string {s_str!r} missing color glyph; "
-                    f"expected one of {glyphs!r}"
+                    f"Status string {s_str!r} missing color glyph; expected one of {glyphs!r}"
                 )
 
 
@@ -188,20 +204,14 @@ class TestHistoryPageEmptyState:
     def test_empty_state(self, monkeypatch, tmp_path) -> None:
         monkeypatch.setenv("FA_DATA_DIR", str(tmp_path))
         at = AppTest.from_file(str(HISTORY_PAGE_PATH)).run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         markdown_blobs = [m.value for m in at.markdown]
         text_blobs = [t.value for t in at.text]
         haystack = " ".join(markdown_blobs + text_blobs)
         assert "No signals yet" in haystack, (
-            f"Empty-state heading missing; markdown: {markdown_blobs!r}; "
-            f"text: {text_blobs!r}"
+            f"Empty-state heading missing; markdown: {markdown_blobs!r}; text: {text_blobs!r}"
         )
         assert (
-            "Run your first pipeline from the Run page. "
-            "Signals will appear here, newest first."
-        ) in haystack, (
-            f"Empty-state body missing; got: {haystack!r}"
-        )
+            "Run your first pipeline from the Run page. Signals will appear here, newest first."
+        ) in haystack, f"Empty-state body missing; got: {haystack!r}"

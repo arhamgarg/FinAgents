@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from financialagents.dataflows.cache import (
+from finagents.dataflows.cache import (
     TTL_SECONDS,
     get_cached,
     init_cache,
@@ -77,7 +77,7 @@ class TestCache:
     def test_sql_uses_parameterized_placeholders(self) -> None:
         import inspect
 
-        import financialagents.dataflows.cache as cache_module
+        import finagents.dataflows.cache as cache_module
 
         source = inspect.getsource(cache_module)
         assert "WHERE key = ?" in source or "(key, value, fetched_at) VALUES (?, ?, ?)" in source

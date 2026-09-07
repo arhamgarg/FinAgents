@@ -1,22 +1,24 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import TechnicalReport
-from financialagents.agents.managers.schemas import PortfolioContext, PortfolioDecision
-from financialagents.agents.trader.schemas import TradingSignal
-from financialagents.agents.utils.agent_states import AgentState, RiskDebateState
-from financialagents.config import Settings
+from finagents.agents.analysts.schemas import TechnicalReport
+from finagents.agents.managers.schemas import PortfolioContext, PortfolioDecision
+from finagents.agents.trader.schemas import TradingSignal
+from finagents.agents.utils.agent_states import AgentState, RiskDebateState
+from finagents.config import Settings
 
 
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -95,7 +97,7 @@ class TestPortfolioManagerNode:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -105,9 +107,9 @@ class TestPortfolioManagerNode:
             decision="approve",
             pm_notes="low concentration in IT sector",
         )
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(approve_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -120,7 +122,7 @@ class TestPortfolioManagerNode:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -138,9 +140,9 @@ class TestPortfolioManagerNode:
             captured["kwargs"] = kwargs
             return mock_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             side_effect=_capture,
         ):
             asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -153,7 +155,7 @@ class TestPortfolioManagerNode:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -163,9 +165,9 @@ class TestPortfolioManagerNode:
             decision="approve",
             pm_notes="low concentration in IT sector",
         )
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(approve_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -177,7 +179,7 @@ class TestPortfolioManagerNode:
         state_with_signal: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import build_pm_prompt
+        from finagents.agents.managers.portfolio_manager import build_pm_prompt
 
         messages = build_pm_prompt(
             trader_signal=state_with_signal.trader_signal,
@@ -195,7 +197,7 @@ class TestPortfolioManagerNode:
         state_with_signal: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import build_pm_prompt
+        from finagents.agents.managers.portfolio_manager import build_pm_prompt
 
         messages = build_pm_prompt(
             trader_signal=state_with_signal.trader_signal,
@@ -213,7 +215,7 @@ class TestPortfolioManagerNode:
         state_with_signal: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import build_pm_prompt
+        from finagents.agents.managers.portfolio_manager import build_pm_prompt
 
         messages = build_pm_prompt(
             trader_signal=state_with_signal.trader_signal,
@@ -231,7 +233,7 @@ class TestPortfolioManagerNode:
         state_with_signal: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import build_pm_prompt
+        from finagents.agents.managers.portfolio_manager import build_pm_prompt
 
         messages = build_pm_prompt(
             trader_signal=state_with_signal.trader_signal,
@@ -252,7 +254,7 @@ class TestPortfolioManagerNode:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -263,15 +265,13 @@ class TestPortfolioManagerNode:
             pm_notes="low concentration in IT sector",
         )
         structured = MagicMock()
-        structured.ainvoke = AsyncMock(
-            side_effect=[RuntimeError("first-fail"), approve_decision]
-        )
+        structured.ainvoke = AsyncMock(side_effect=[RuntimeError("first-fail"), approve_decision])
         llm = MagicMock()
         llm.with_structured_output.return_value = structured
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=llm,
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -284,17 +284,15 @@ class TestPortfolioManagerNode:
         state_with_signal: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
-        mock_llm = _build_failing_mock_llm(
-            RuntimeError("first-err"), RuntimeError("second-err")
-        )
-        config = {"configurable": {"settings": default_settings}}
+        mock_llm = _build_failing_mock_llm(RuntimeError("first-err"), RuntimeError("second-err"))
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -316,7 +314,7 @@ class TestModifySurfaceClamp:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -331,9 +329,9 @@ class TestModifySurfaceClamp:
             pm_notes="reduce size due to sector concentration",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -347,7 +345,7 @@ class TestModifySurfaceClamp:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -362,9 +360,9 @@ class TestModifySurfaceClamp:
             pm_notes="size reduction only",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -378,7 +376,7 @@ class TestModifySurfaceClamp:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -394,9 +392,9 @@ class TestModifySurfaceClamp:
             pm_notes="size reduction only",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -411,7 +409,7 @@ class TestModifySurfaceClamp:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -426,9 +424,9 @@ class TestModifySurfaceClamp:
             pm_notes="attempted action flip via modify",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -442,7 +440,7 @@ class TestModifySurfaceClamp:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -456,9 +454,9 @@ class TestModifySurfaceClamp:
             pm_notes="reduce position due to sector concentration",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -477,7 +475,7 @@ class TestValidatorRerun:
         trader_signal_buy: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -511,9 +509,9 @@ class TestValidatorRerun:
             pm_notes="reduce size",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(narrow_band_state, config))
@@ -528,7 +526,7 @@ class TestValidatorRerun:
         trader_signal_buy: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -565,9 +563,9 @@ class TestValidatorRerun:
             pm_notes="modify size",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(pm_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state, config))
@@ -583,7 +581,7 @@ class TestValidatorRerun:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -594,13 +592,16 @@ class TestValidatorRerun:
             pm_notes="low concentration in IT sector",
         )
 
-        config = {"configurable": {"settings": default_settings}}
-        with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
-            return_value=_build_mock_llm(approve_decision),
-        ), patch(
-            "financialagents.agents.managers.portfolio_manager.run_validators"
-        ) as mock_run_validators:
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
+        with (
+            patch(
+                "finagents.agents.managers.portfolio_manager.create_llm_client",
+                return_value=_build_mock_llm(approve_decision),
+            ),
+            patch(
+                "finagents.agents.managers.portfolio_manager.run_validators"
+            ) as mock_run_validators,
+        ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
 
         assert mock_run_validators.call_count == 0
@@ -617,7 +618,7 @@ class TestVetoShape:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -636,9 +637,9 @@ class TestVetoShape:
             pm_notes="sector overweight at 40%",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(veto_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -656,7 +657,7 @@ class TestVetoShape:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -670,9 +671,9 @@ class TestVetoShape:
             pm_notes="sector overweight",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(veto_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -686,7 +687,7 @@ class TestVetoShape:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -699,9 +700,9 @@ class TestVetoShape:
             pm_notes="sector overweight",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(veto_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -715,7 +716,7 @@ class TestVetoShape:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -728,9 +729,9 @@ class TestVetoShape:
             pm_notes="sector overweight",
         )
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(veto_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))
@@ -749,7 +750,7 @@ class TestReturnType:
         default_settings: Settings,
         trader_signal_buy: TradingSignal,
     ) -> None:
-        from financialagents.agents.managers.portfolio_manager import (
+        from finagents.agents.managers.portfolio_manager import (
             portfolio_manager_node,
         )
 
@@ -759,9 +760,9 @@ class TestReturnType:
             decision="approve",
             pm_notes="low concentration in IT sector",
         )
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.managers.portfolio_manager.create_llm_client",
+            "finagents.agents.managers.portfolio_manager.create_llm_client",
             return_value=_build_mock_llm(approve_decision),
         ):
             result = asyncio.run(portfolio_manager_node(state_with_signal, config))

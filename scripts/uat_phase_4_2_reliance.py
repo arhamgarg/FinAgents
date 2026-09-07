@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -14,9 +15,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 
-_DEFAULT_OUTPUT = Path(
-    ".planning/phases/04.2-risk-debate-pm-end-to-end/04.2-VERIFICATION.md"
-)
+_DEFAULT_OUTPUT = Path("reports/uat/reliance.md")
 _SECTION_MARKER = "## RELIANCE E2E"
 _TICKER = "RELIANCE"
 
@@ -29,13 +28,13 @@ def _parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=_DEFAULT_OUTPUT,
-        help="Path to 04.2-VERIFICATION.md (default: %(default)s)",
+        help="Path to the Markdown UAT report (default: %(default)s)",
     )
     parser.add_argument(
         "--date",
         type=str,
         default=datetime.now().strftime("%Y-%m-%d"),
-        help="Date passed to FinancialAgentsGraph.apropagate (default: today)",
+        help="Date passed to FinAgentsGraph.apropagate (default: today)",
     )
     parser.add_argument(
         "--dry-run",
@@ -85,12 +84,47 @@ def _stt_floor_check(signal) -> CheckResult:
     )
 
 
+def _acceptance_failures(state, settings) -> list[str]:
+    from scripts.uat_phase_4_2_pm_gate import _is_non_generic
+
+    failures = []
+    ids = state.investment_debate_state
+    rds = state.risk_debate_state
+    bull = len(ids.bull_turns()) if ids is not None else 0
+    bear = len(ids.bear_turns()) if ids is not None else 0
+    risk = len(rds.risk_turns()) if rds is not None else 0
+    if not (bull == bear == settings.max_debate_rounds and bull > 0):
+        failures.append(
+            f"Investment rounds: bull={bull}, bear={bear}; expected {settings.max_debate_rounds} each"
+        )
+    if not (risk == settings.max_risk_discuss_rounds and risk > 0):
+        failures.append(f"Risk rounds: {risk}; expected {settings.max_risk_discuss_rounds}")
+
+    decision = state.final_trade_decision
+    if decision is None:
+        return failures + ["PortfolioDecision is missing"]
+    band = state.technical_report.circuit_band_pct if state.technical_report is not None else None
+    for label, check in (
+        ("Circuit-band check", _circuit_band_check(decision.signal, band)),
+        ("STT floor check", _stt_floor_check(decision.signal)),
+    ):
+        if not check.passed:
+            failures.append(f"{label}: {check.detail}")
+    if decision.decision not in {"approve", "modify", "veto"}:
+        failures.append(f"Invalid PM decision: {decision.decision!r}")
+    if not (decision.pm_notes or "").strip():
+        failures.append("PM notes are missing")
+    elif decision.decision == "approve" and not _is_non_generic(decision.pm_notes):
+        failures.append("PM approval notes fail the non-generic justification check")
+    return failures
+
+
 async def _run_pipeline(date: str):
-    from financialagents.graph.trading_graph import (
-        FinancialAgentsGraph,
+    from finagents.graph.trading_graph import (
+        FinAgentsGraph,
     )
 
-    graph = FinancialAgentsGraph(full_pipeline=True)
+    graph = FinAgentsGraph(full_pipeline=True)
     return await graph.apropagate(_TICKER, date)
 
 
@@ -123,9 +157,7 @@ def _format_evidence_block(
 
     signal = decision.signal
     circuit_band_pct = (
-        state.technical_report.circuit_band_pct
-        if state.technical_report is not None
-        else None
+        state.technical_report.circuit_band_pct if state.technical_report is not None else None
     )
     circuit = _circuit_band_check(signal, circuit_band_pct)
     stt = _stt_floor_check(signal)
@@ -148,12 +180,8 @@ def _format_evidence_block(
 
 
 def _append_to_verification_md(output: Path, block: str) -> None:
-    if not output.exists():
-        raise FileNotFoundError(
-            f"VERIFICATION.md not found at {output} — Task 2 should have "
-            f"scaffolded it before this UAT runs."
-        )
-    existing = output.read_text()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    existing = output.read_text() if output.exists() else ""
     if _SECTION_MARKER in existing:
         new_content = existing + block
     else:
@@ -175,10 +203,10 @@ async def _amain() -> int:
             else:
                 print("[DRY RUN] Marker absent — would append marker + block at EOF.")
         else:
-            print("[DRY RUN] WARNING: output path does not exist yet.")
+            print("[DRY RUN] Report and parent directories would be created on first use.")
         return 0
 
-    from financialagents.config import Settings, resolve_model
+    from finagents.config import Settings, resolve_model
 
     settings = Settings()
     provider_label = getattr(settings, "llm_provider", "unknown")
@@ -212,12 +240,13 @@ async def _amain() -> int:
     block = _format_evidence_block(
         state, timestamp, provider_label, deep_think_model, quick_think_model
     )
+    failures = _acceptance_failures(state, settings)
+    block += f"\n**Acceptance:** {'FAIL' if failures else 'PASS'}\n"
+    block += "".join(f"- {failure}\n" for failure in failures)
     _append_to_verification_md(args.output, block)
     print(block)
-    print(
-        f"[UAT] Evidence appended to {args.output} §{_SECTION_MARKER}."
-    )
-    return 0
+    print(f"[UAT] Evidence appended to {args.output} §{_SECTION_MARKER}.")
+    return 1 if failures else 0
 
 
 def main() -> int:

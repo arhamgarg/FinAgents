@@ -5,9 +5,9 @@ from typing import cast
 import pytest
 from pydantic import BaseModel
 
-from financialagents.config import Settings
-from financialagents.llm_clients.factory import create_llm_client
-from financialagents.testing.llm_mock import (
+from finagents.config import Settings
+from finagents.llm_clients.factory import create_llm_client
+from finagents.testing.llm_mock import (
     CALL_SITE_SCHEMAS,
     LLMHarnessError,
     LLMHarnessExhausted,
@@ -17,14 +17,14 @@ from financialagents.testing.llm_mock import (
     failures,
     fixtures,
 )
-from financialagents.testing.llm_mock._call_sites import CallSite
+from finagents.testing.llm_mock._call_sites import CallSite
 
 
 
 
 @pytest.mark.parametrize("call_site", list(CALL_SITE_SCHEMAS.keys()))
 def test_harness_routes_per_call_site(call_site: str) -> None:
-    settings = Settings(_env_file=None, openrouter_api_key="fake")
+    settings = Settings(openrouter_api_key="fake")
     site = cast(CallSite, call_site)
     canonical = fixtures.HAPPY_PATH_DEFAULTS[site]
     schema: type[BaseModel] = CALL_SITE_SCHEMAS[site]
@@ -34,7 +34,7 @@ def test_harness_routes_per_call_site(call_site: str) -> None:
         llm = create_llm_client(
             "deep_think",
             settings,
-            call_site=call_site,
+            call_site=site,
         )
         structured = llm.with_structured_output(schema)
         result = structured.invoke([])
@@ -49,7 +49,7 @@ def test_unset_call_site_raises() -> None:
     with LLMMockHarness():
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessMissing):
@@ -68,7 +68,7 @@ def test_set_wrong_schema_raises() -> None:
 def test_exhausted_sequence_raises() -> None:
     with LLMMockHarness() as h:
         h.set_sequence("trader", [fixtures.TRADER_SIGNAL_DEFAULT])
-        settings = Settings(_env_file=None, openrouter_api_key="fake")
+        settings = Settings(openrouter_api_key="fake")
         llm = create_llm_client(
             "deep_think",
             settings,
@@ -88,7 +88,7 @@ def test_length_error_raises() -> None:
 
     err = failures.length_error()
     assert isinstance(err, openai.LengthFinishReasonError)
-    assert failures.length_error.SENTINEL == "LengthFinishReasonError"
+    assert getattr(failures.length_error, "SENTINEL") == "LengthFinishReasonError"
     assert "LengthFinishReasonError" in repr(err)
 
 
@@ -99,7 +99,7 @@ def test_validation_error_raises() -> None:
 
     err = failures.validation_error()
     assert isinstance(err, ValidationError)
-    assert failures.validation_error.SENTINEL == "ValidationError"
+    assert getattr(failures.validation_error, "SENTINEL") == "ValidationError"
 
 
 
@@ -109,7 +109,7 @@ def test_runtime_error_raises() -> None:
     assert isinstance(err, RuntimeError)
     assert str(err) == "simulated LLM failure after retry (harness)"
     assert "simulated LLM failure after retry" in str(err)
-    assert failures.runtime_error_after_retry.SENTINEL == "LLM error after retry"
+    assert getattr(failures.runtime_error_after_retry, "SENTINEL") == "LLM error after retry"
 
 
 
@@ -125,7 +125,7 @@ def test_retry_then_succeed_sequence() -> None:
         h.set_sequence("trader", sequence)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         structured = llm.with_structured_output(CALL_SITE_SCHEMAS["trader"])
@@ -141,7 +141,7 @@ def test_provider_class_assertion() -> None:
     import langchain_groq
 
     with pytest.raises(RuntimeError, match="provider client instantiated under hermetic test"):
-        langchain_groq.ChatGroq(model="x", api_key="y")
+        langchain_groq.ChatGroq(model="x")
 
 
 
@@ -161,6 +161,7 @@ def test_nested_harness_restores_outer_sentinel() -> None:
         assert _factory._ACTIVE_HARNESS is outer
 
     assert _factory._ACTIVE_HARNESS is None
+
 
 
 
@@ -200,12 +201,10 @@ def test_off_list_call_site_raises_llm_harness_missing(method_name: str) -> None
         ("conservative_risk", "NEUTRAL_DEFAULT"),
     ],
 )
-def test_cross_persona_registration_rejected(
-    call_site: str, fixture_name: str
-) -> None:
+def test_cross_persona_registration_rejected(call_site: str, fixture_name: str) -> None:
     with LLMMockHarness() as h:
         with pytest.raises(LLMHarnessSchemaError, match="cross-persona") as exc_info:
-            h.set(call_site, getattr(fixtures, fixture_name))  # type: ignore[arg-type]
+            h.set(cast(CallSite, call_site), getattr(fixtures, fixture_name))
 
     msg = str(exc_info.value)
     assert call_site in msg
@@ -219,20 +218,16 @@ def test_cross_persona_registration_rejected(
         ("conservative_risk", "CONSERVATIVE_DEFAULT"),
     ],
 )
-def test_same_persona_registration_still_passes(
-    call_site: str, fixture_name: str
-) -> None:
+def test_same_persona_registration_still_passes(call_site: str, fixture_name: str) -> None:
     with LLMMockHarness() as h:
-        h.set(call_site, getattr(fixtures, fixture_name))  # type: ignore[arg-type]
+        h.set(cast(CallSite, call_site), getattr(fixtures, fixture_name))
 
 
 def test_happy_path_full_registration_still_succeeds() -> None:
     h = LLMMockHarness()
     for call_site, instance in fixtures.HAPPY_PATH_DEFAULTS.items():
         h.set(call_site, instance)  # type: ignore[arg-type]
-    assert len(h._responses) == 13, (
-        f"expected 13 registered call_sites, got {len(h._responses)}"
-    )
+    assert len(h._responses) == 13, f"expected 13 registered call_sites, got {len(h._responses)}"
 
 
 def test_cross_persona_set_sequence_rejected() -> None:
@@ -245,8 +240,8 @@ def test_cross_persona_set_sequence_rejected() -> None:
 
 
 def test_persona_origin_attr_name_locked() -> None:
-    from financialagents.testing.llm_mock import _harness as _harness_mod
-    from financialagents.testing.llm_mock import fixtures as fixtures_mod
+    from finagents.testing.llm_mock import _harness as _harness_mod
+    from finagents.testing.llm_mock import fixtures as fixtures_mod
 
     assert hasattr(fixtures_mod, "_LLM_MOCK_PERSONA_ORIGIN_ATTR"), (
         "fixtures._LLM_MOCK_PERSONA_ORIGIN_ATTR has been renamed or removed — "
@@ -270,13 +265,13 @@ def test_persona_origin_attr_name_locked() -> None:
 
 
 def test_with_structured_output_schema_mismatch_raises() -> None:
-    from financialagents.agents.analysts.schemas import TechnicalReport
+    from finagents.agents.analysts.schemas import TechnicalReport
 
     with LLMMockHarness() as h:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessSchemaError) as exc_info:
@@ -297,7 +292,7 @@ def test_with_structured_output_matching_schema_still_returns_runnable() -> None
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         runnable = llm.with_structured_output(trading_signal_cls)
@@ -312,7 +307,7 @@ def test_with_structured_output_survives_sys_modules_purge() -> None:
 
     original_cls = CALL_SITE_SCHEMAS["trader"]
 
-    mod_name = "financialagents.agents.trader.schemas"
+    mod_name = "finagents.agents.trader.schemas"
     saved = sys.modules.pop(mod_name, None)
     try:
         reloaded_mod = importlib.import_module(mod_name)
@@ -330,7 +325,7 @@ def test_with_structured_output_survives_sys_modules_purge() -> None:
             h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
             llm = create_llm_client(
                 "deep_think",
-                Settings(_env_file=None, openrouter_api_key="fake"),
+                Settings(openrouter_api_key="fake"),
                 call_site="trader",
             )
             runnable = llm.with_structured_output(reimported_cls)
@@ -376,7 +371,7 @@ def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
         outer.set("trader", a_signal)
         outer_llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         outer_runnable = outer_llm.with_structured_output(trading_signal_cls)
@@ -389,7 +384,7 @@ def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
 
             inner_llm = create_llm_client(
                 "deep_think",
-                Settings(_env_file=None, openrouter_api_key="fake"),
+                Settings(openrouter_api_key="fake"),
                 call_site="trader",
             )
             inner_runnable = inner_llm.with_structured_output(trading_signal_cls)
@@ -437,7 +432,7 @@ def test_with_structured_output_locks_to_producer_not_active_at_call_time() -> N
         outer.set("trader", a_signal)
         outer_llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
 
@@ -481,7 +476,7 @@ def test_dispatch_sequence_lock_under_concurrent_invokes() -> None:
         h.set_sequence("trader", list(sequence))  # type: ignore[arg-type]
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         structured = llm.with_structured_output(trading_signal_cls)
@@ -509,7 +504,7 @@ def test_with_structured_output_include_raw_raises_not_implemented() -> None:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(NotImplementedError, match="include_raw=True"):
@@ -523,7 +518,7 @@ def test_harness_chat_model_generate_raises_on_bypass() -> None:
         h.set("trader", fixtures.TRADER_SIGNAL_DEFAULT)
         llm = create_llm_client(
             "deep_think",
-            Settings(_env_file=None, openrouter_api_key="fake"),
+            Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
         with pytest.raises(LLMHarnessError, match="_generate was invoked"):

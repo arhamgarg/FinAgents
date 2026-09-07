@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -13,12 +14,8 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-_DEFAULT_OUTPUT = Path(
-    ".planning/phases/04.2-risk-debate-pm-end-to-end/04.2-VERIFICATION.md"
-)
-_DEFAULT_TICKER_FILE = Path(
-    ".planning/phases/04.2-risk-debate-pm-end-to-end/uat-ticker-batch.txt"
-)
+_DEFAULT_OUTPUT = Path("reports/uat/pm-gate.md")
+_DEFAULT_TICKER_FILE = _REPO_ROOT / "scripts" / "uat-ticker-batch.txt"
 _SECTION_MARKER = "## PM Gate"
 _MODIFICATION_RATE_THRESHOLD = 0.20
 _NON_GENERIC_MIN_CHARS = 40
@@ -34,9 +31,7 @@ NON_GENERIC_TOKENS: tuple[str, ...] = (
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Manual dual-gate UAT for "
-    )
+    parser = argparse.ArgumentParser(description="Manual dual-gate UAT for ")
     parser.add_argument(
         "--tickers",
         type=str,
@@ -53,13 +48,13 @@ def _parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=_DEFAULT_OUTPUT,
-        help="Path to 04.2-VERIFICATION.md (default: %(default)s)",
+        help="Path to the Markdown UAT report (default: %(default)s)",
     )
     parser.add_argument(
         "--date",
         type=str,
         default=datetime.now().strftime("%Y-%m-%d"),
-        help="Date passed to FinancialAgentsGraph.apropagate (default: today)",
+        help="Date passed to FinAgentsGraph.apropagate (default: today)",
     )
     parser.add_argument(
         "--dry-run",
@@ -75,9 +70,7 @@ def _parse_tickers_arg(args: argparse.Namespace) -> list[str]:
     if args.ticker_file.exists():
         text = args.ticker_file.read_text().strip()
         return [t.strip().upper() for t in text.split(",") if t.strip()]
-    raise SystemExit(
-        f"Provide --tickers or create {args.ticker_file} (single-line CSV)"
-    )
+    raise SystemExit(f"Provide --tickers or create {args.ticker_file} (single-line CSV)")
 
 
 def _is_non_generic(pm_notes: str | None) -> bool:
@@ -94,11 +87,11 @@ def _modification_type(decision: str) -> str:
 
 
 async def _run_pipeline(ticker: str, date: str):
-    from financialagents.graph.trading_graph import (
-        FinancialAgentsGraph,
+    from finagents.graph.trading_graph import (
+        FinAgentsGraph,
     )
 
-    graph = FinancialAgentsGraph(full_pipeline=True)
+    graph = FinAgentsGraph(full_pipeline=True)
     return await graph.apropagate(ticker, date)
 
 
@@ -112,10 +105,7 @@ class TickerRow(NamedTuple):
 
 def _format_row(row: TickerRow) -> str:
     if row.error:
-        return (
-            f"| {row.ticker} | error | n/a | "
-            f"FAIL (exception: {row.error}) |"
-        )
+        return f"| {row.ticker} | error | n/a | FAIL (exception: {row.error}) |"
     classification = "non-generic" if row.non_generic else "generic"
     if row.decision != "approve":
         classification = "n/a (decision != approve)"
@@ -151,9 +141,7 @@ def _compute_verdict(rows: list[TickerRow]) -> GateVerdict:
 
     modification_rate = modify_count / total if total else 0.0
     rate_gate = modification_rate >= _MODIFICATION_RATE_THRESHOLD
-    coverage_gate = (
-        approve_count > 0 and non_generic_approves == approve_count
-    )
+    coverage_gate = approve_count > 0 and non_generic_approves == approve_count
 
     if rate_gate and coverage_gate:
         explanation = (
@@ -213,12 +201,8 @@ def _build_evidence_block(rows: list[TickerRow], timestamp: str) -> str:
 
 
 def _append_to_verification_md(output: Path, block: str) -> None:
-    if not output.exists():
-        raise FileNotFoundError(
-            f"VERIFICATION.md not found at {output} — Task 2 should "
-            f"have scaffolded it before this UAT runs."
-        )
-    existing = output.read_text()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    existing = output.read_text() if output.exists() else ""
     if _SECTION_MARKER in existing:
         new_content = existing + block
     else:

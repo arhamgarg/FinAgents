@@ -6,9 +6,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DASH_RUN_PATH = (
-    REPO_ROOT / "financialagents" / "dashboard" / "pages" / "run.py"
-)
+DASH_RUN_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "run.py"
 
 
 _VECTORS = (
@@ -28,21 +26,20 @@ class TestCliSharedRedactionParity:
 
     @pytest.mark.parametrize("vec", _VECTORS)
     def test_cli_and_shared_redact_identically(self, vec: str) -> None:
-        from financialagents._redaction import redact_secrets as shared
-        from financialagents.cli.run_command import (
+        from finagents._redaction import redact_secrets as shared
+        from finagents.cli.run_command import (
             _redact_secrets as cli_redact,
         )
 
         cli_out = cli_redact(vec)
         shared_out = shared(vec)
         assert cli_out == shared_out, (
-            f"redaction drift on vector {vec!r}: "
-            f"cli={cli_out!r} shared={shared_out!r}"
+            f"redaction drift on vector {vec!r}: cli={cli_out!r} shared={shared_out!r}"
         )
 
     def test_cli_helper_is_the_shared_callable(self) -> None:
-        from financialagents._redaction import redact_secrets
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents._redaction import redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
         assert _redact_secrets is redact_secrets, (
             "CLI _redact_secrets is no longer the shared helper — a "
@@ -50,14 +47,12 @@ class TestCliSharedRedactionParity:
         )
 
     def test_cli_pattern_is_the_shared_object(self) -> None:
-        from financialagents._redaction import _SECRET_PATTERN as shared_pat
-        from financialagents.cli.run_command import (
+        from finagents._redaction import _SECRET_PATTERN as shared_pat
+        from finagents.cli.run_command import (
             _SECRET_PATTERN as cli_pat,
         )
 
-        assert cli_pat is shared_pat, (
-            "CLI _SECRET_PATTERN drifted from the shared module"
-        )
+        assert cli_pat is shared_pat, "CLI _SECRET_PATTERN drifted from the shared module"
 
 
 class TestDashboardSharedRedactionParity:
@@ -69,16 +64,12 @@ class TestDashboardSharedRedactionParity:
         tree = self._parse()
         imported_names: set[str] = set()
         for node in tree.body:
-            if isinstance(node, ast.ImportFrom) and (
-                node.module == "financialagents._redaction"
-            ):
+            if isinstance(node, ast.ImportFrom) and (node.module == "finagents._redaction"):
                 for alias in node.names:
                     imported_names.add(alias.name)
-        assert {"_SECRET_PATTERN", "redact_secrets"}.issubset(
-            imported_names
-        ), (
+        assert {"_SECRET_PATTERN", "redact_secrets"}.issubset(imported_names), (
             "Dashboard run.py must import _SECRET_PATTERN and "
-            "redact_secrets from financialagents._redaction — found: "
+            "redact_secrets from finagents._redaction — found: "
             f"{imported_names!r}  regression)"
         )
 

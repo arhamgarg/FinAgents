@@ -9,9 +9,9 @@ from typing import Any
 import pytest
 from rich.console import Console
 
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.storage.migrations import run_migrations
-from financialagents.storage.signals import insert_running, update_success
+from finagents.agents.utils.agent_states import AgentState
+from finagents.storage.migrations import run_migrations
+from finagents.storage.signals import insert_running, update_success
 
 
 def _seed_three_rows(db_path: Path, *, with_payload: bool = False) -> None:
@@ -25,8 +25,11 @@ def _seed_three_rows(db_path: Path, *, with_payload: bool = False) -> None:
     for run_id, ticker, date, created_at in seeds:
         asyncio.run(
             insert_running(
-                run_id, ticker, date,
-                provider="openrouter", model="openrouter/auto",
+                run_id,
+                ticker,
+                date,
+                provider="openrouter",
+                model="openrouter/auto",
                 db_path=db_path,
             )
         )
@@ -34,9 +37,7 @@ def _seed_three_rows(db_path: Path, *, with_payload: bool = False) -> None:
             state = _state_with_debate(ticker, date)
             payload = state.model_dump_json(exclude={"messages"})
         else:
-            payload = AgentState(ticker=ticker, date=date).model_dump_json(
-                exclude={"messages"}
-            )
+            payload = AgentState(ticker=ticker, date=date).model_dump_json(exclude={"messages"})
         asyncio.run(
             update_success(
                 run_id,
@@ -61,8 +62,8 @@ def _seed_three_rows(db_path: Path, *, with_payload: bool = False) -> None:
 
 
 def _state_with_debate(ticker: str, date: str) -> AgentState:
-    from financialagents.agents.managers.schemas import PortfolioDecision
-    from financialagents.agents.trader.schemas import TradingSignal
+    from finagents.agents.managers.schemas import PortfolioDecision
+    from finagents.agents.trader.schemas import TradingSignal
 
     ts = TradingSignal(
         action="BUY",
@@ -105,7 +106,7 @@ def _make_recording_console() -> Console:
 @pytest.fixture
 def patched_db(monkeypatch, tmp_signals_db):
     monkeypatch.setattr(
-        "financialagents.cli.history.signals_db_path",
+        "finagents.cli.history.signals_db_path",
         lambda settings=None: tmp_signals_db,
     )
     return tmp_signals_db
@@ -113,15 +114,19 @@ def patched_db(monkeypatch, tmp_signals_db):
 
 class TestFaHistory:
     def test_default_table(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.history import run_history
+        from finagents.cli.history import run_history
 
         _seed_three_rows(tmp_signals_db)
         console = _make_recording_console()
         rc = asyncio.run(
             run_history(
-                ticker=None, since=None, limit=20,
-                show_all=False, expand=False,
-                prune=False, before=None,
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=False,
+                expand=False,
+                prune=False,
+                before=None,
                 yes=False,
                 console=console,
             )
@@ -129,8 +134,13 @@ class TestFaHistory:
         assert rc == 0
         out = console.export_text()
         for header in (
-            "created_at", "ticker", "action", "confidence",
-            "position_size_pct", "approved", "status",
+            "created_at",
+            "ticker",
+            "action",
+            "confidence",
+            "position_size_pct",
+            "approved",
+            "status",
         ):
             assert header in out, f"missing column header: {header}"
         assert "RELIANCE" in out
@@ -139,11 +149,13 @@ class TestFaHistory:
         assert out.index("RELIANCE") < out.index("TCS") < out.index("INFY")
 
     def test_filters(self, monkeypatch, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli import history as history_mod
+        from finagents.cli import history as history_mod
 
         captured: dict[str, Any] = {}
 
-        async def _fake_load_history(db_path, *, limit, ticker=None, since=None):
+        async def _fake_load_history(
+            db_path, *, limit, ticker=None, since=None, include_payload=True
+        ):
             captured["limit"] = limit
             captured["ticker"] = ticker
             captured["since"] = since
@@ -154,9 +166,13 @@ class TestFaHistory:
         console = _make_recording_console()
         asyncio.run(
             history_mod.run_history(
-                ticker="RELIANCE", since="2026-04-01", limit=5,
-                show_all=False, expand=False,
-                prune=False, before=None,
+                ticker="RELIANCE",
+                since="2026-04-01",
+                limit=5,
+                show_all=False,
+                expand=False,
+                prune=False,
+                before=None,
                 yes=False,
                 console=console,
             )
@@ -170,9 +186,13 @@ class TestFaHistory:
         captured.clear()
         asyncio.run(
             history_mod.run_history(
-                ticker=None, since=None, limit=20,
-                show_all=True, expand=False,
-                prune=False, before=None,
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=True,
+                expand=False,
+                prune=False,
+                before=None,
                 yes=False,
                 console=_make_recording_console(),
             )
@@ -184,7 +204,7 @@ class TestFaHistory:
     def test_prune_non_tty_without_yes_refuses(
         self, monkeypatch, tmp_signals_db, patched_db
     ) -> None:
-        from financialagents.cli.history import run_history
+        from finagents.cli.history import run_history
 
         _seed_three_rows(tmp_signals_db)
         monkeypatch.setattr("sys.stdin.isatty", lambda: False)
@@ -192,9 +212,13 @@ class TestFaHistory:
         console = _make_recording_console()
         rc = asyncio.run(
             run_history(
-                ticker=None, since=None, limit=20,
-                show_all=False, expand=False,
-                prune=True, before="2030-01-01",
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=False,
+                expand=False,
+                prune=True,
+                before="2030-01-01",
                 yes=False,
                 console=console,
             )
@@ -209,18 +233,20 @@ class TestFaHistory:
             conn.close()
         assert n == 3
 
-    def test_prune_with_yes_deletes(
-        self, monkeypatch, tmp_signals_db, patched_db
-    ) -> None:
-        from financialagents.cli.history import run_history
+    def test_prune_with_yes_deletes(self, monkeypatch, tmp_signals_db, patched_db) -> None:
+        from finagents.cli.history import run_history
 
         _seed_three_rows(tmp_signals_db)
         console = _make_recording_console()
         rc = asyncio.run(
             run_history(
-                ticker=None, since=None, limit=20,
-                show_all=False, expand=False,
-                prune=True, before="2030-01-01",
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=False,
+                expand=False,
+                prune=True,
+                before="2030-01-01",
                 yes=True,
                 console=console,
             )
@@ -236,15 +262,19 @@ class TestFaHistory:
         assert n == 0
 
     def test_expand(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.history import run_history
+        from finagents.cli.history import run_history
 
         _seed_three_rows(tmp_signals_db, with_payload=True)
         console = _make_recording_console()
         rc = asyncio.run(
             run_history(
-                ticker=None, since=None, limit=20,
-                show_all=False, expand=True,
-                prune=False, before=None,
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=False,
+                expand=True,
+                prune=False,
+                before=None,
                 yes=False,
                 console=console,
             )
@@ -256,21 +286,22 @@ class TestFaHistory:
         assert "verdict for INFY" in out
 
     def test_empty_state(self, tmp_signals_db, patched_db) -> None:
-        from financialagents.cli.history import run_history
+        from finagents.cli.history import run_history
 
         console = _make_recording_console()
         rc = asyncio.run(
             run_history(
-                ticker=None, since=None, limit=20,
-                show_all=False, expand=False,
-                prune=False, before=None,
+                ticker=None,
+                since=None,
+                limit=20,
+                show_all=False,
+                expand=False,
+                prune=False,
+                before=None,
                 yes=False,
                 console=console,
             )
         )
         assert rc == 0
         out = console.export_text()
-        assert (
-            "No signals yet. Run `fa run <ticker>` to generate your first signal."
-            in out
-        )
+        assert "No signals yet. Run `fa run <ticker>` to generate your first signal." in out

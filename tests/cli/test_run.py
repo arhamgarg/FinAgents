@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import asyncio
 import json
 import re
@@ -23,7 +25,7 @@ def _read_signals(db_path) -> list[dict]:
 class TestRedactSecrets:
 
     def test_canonical_groq(self) -> None:
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
         s = "connection failed: GROQ_API_KEY=secret123"
         r = _redact_secrets(s)
@@ -32,35 +34,31 @@ class TestRedactSecrets:
         assert r.count("***") == 1
 
     def test_lowercase_standalone_api_key(self) -> None:
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
         assert _redact_secrets("api_key=foo") == "api_key=***"
 
     def test_negative_case_substring_not_matched(self) -> None:
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
         neg = _redact_secrets("my_api_key_lookup=foo")
         assert "***" not in neg
 
     def test_angelone_prefix(self) -> None:
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
-        assert (
-            _redact_secrets("ANGELONE_TOTP_SECRET=xyz") == "ANGELONE_TOTP_SECRET=***"
-        )
+        assert _redact_secrets("ANGELONE_TOTP_SECRET=xyz") == "ANGELONE_TOTP_SECRET=***"
 
     def test_reddit_prefix(self) -> None:
-        from financialagents.cli.run_command import _redact_secrets
+        from finagents.cli.run_command import _redact_secrets
 
-        assert (
-            _redact_secrets("REDDIT_CLIENT_SECRET=abc") == "REDDIT_CLIENT_SECRET=***"
-        )
+        assert _redact_secrets("REDDIT_CLIENT_SECRET=abc") == "REDDIT_CLIENT_SECRET=***"
 
 
 class TestRunIdGeneration:
 
     def test_run_id_stable_8hex(self) -> None:
-        from financialagents.cli.run_command import _new_run_id
+        from finagents.cli.run_command import _new_run_id
 
         run_id = _new_run_id()
         assert re.match(r"^[0-9a-f]{8}$", run_id), f"unexpected run_id: {run_id!r}"
@@ -68,10 +66,8 @@ class TestRunIdGeneration:
 
 class TestFaRun:
 
-    def test_happy_path_json(
-        self, fake_pipeline, tmp_signals_db, capsys
-    ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+    def test_happy_path_json(self, fake_pipeline, tmp_signals_db, capsys) -> None:
+        from finagents.cli.run_command import run_pipeline
 
         rc = asyncio.run(
             run_pipeline(
@@ -92,10 +88,8 @@ class TestFaRun:
         assert rows[0]["action"] == "BUY"
         assert re.match(r"^[0-9a-f]{8}$", rows[0]["run_id"])
 
-    def test_rich_panel(
-        self, fake_pipeline, tmp_signals_db, capsys
-    ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+    def test_rich_panel(self, fake_pipeline, tmp_signals_db, capsys) -> None:
+        from finagents.cli.run_command import run_pipeline
 
         rc = asyncio.run(
             run_pipeline(
@@ -114,17 +108,15 @@ class TestFaRun:
         assert len(rows) == 1
         assert rows[0]["status"] == "success"
 
-    def test_debug_traceback_reraises(
-        self, fake_pipeline, tmp_signals_db, monkeypatch
-    ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+    def test_debug_traceback_reraises(self, fake_pipeline, tmp_signals_db, monkeypatch) -> None:
+        from finagents.cli.run_command import run_pipeline
 
         async def _broken_stream(*args, **kwargs):
             raise RuntimeError("boom: GROQ_API_KEY=topsecret")
             yield  # pragma: no cover — generator marker
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             _broken_stream,
         )
 
@@ -144,19 +136,17 @@ class TestFaRun:
         assert "topsecret" not in rows[0]["error_msg"]
         assert "GROQ_API_KEY=***" in rows[0]["error_msg"]
 
-    def test_no_debug_renders_error_panel(
-        self, tmp_signals_db, capsys, monkeypatch
-    ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+    def test_no_debug_renders_error_panel(self, tmp_signals_db, capsys, monkeypatch) -> None:
+        from finagents.cli.run_command import run_pipeline
         from unittest.mock import MagicMock
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: fake_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
 
@@ -165,7 +155,7 @@ class TestFaRun:
             yield  # pragma: no cover — generator marker
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             _broken_stream,
         )
 
@@ -189,20 +179,20 @@ class TestFaRun:
     ) -> None:
         from unittest.mock import MagicMock
 
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.cli.run_command import run_pipeline
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: fake_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
 
         async def _stream_then_raise(*args, **kwargs):
-            from financialagents.observability.events import PipelineEvent
+            from finagents.observability.events import PipelineEvent
 
             yield PipelineEvent(
                 kind="node_status",
@@ -218,7 +208,7 @@ class TestFaRun:
             raise exc
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             _stream_then_raise,
         )
 
@@ -236,16 +226,10 @@ class TestFaRun:
         rows = _read_signals(tmp_signals_db)
         assert len(rows) == 1
         row = rows[0]
-        assert row["status"] == "errored", (
-            f"expected status='errored', got {row['status']!r}"
-        )
+        assert row["status"] == "errored", f"expected status='errored', got {row['status']!r}"
         error_msg = row["error_msg"] or ""
-        assert "boom" in error_msg, (
-            f"expected real exception text in error_msg; got {error_msg!r}"
-        )
-        assert "topsecret" not in error_msg, (
-            f"secret leaked to DB; error_msg={error_msg!r}"
-        )
+        assert "boom" in error_msg, f"expected real exception text in error_msg; got {error_msg!r}"
+        assert "topsecret" not in error_msg, f"secret leaked to DB; error_msg={error_msg!r}"
         assert "GROQ_API_KEY=***" in error_msg, (
             f"expected redaction marker in error_msg; got {error_msg!r}"
         )
@@ -260,20 +244,20 @@ class TestFaRun:
     ) -> None:
         from unittest.mock import MagicMock
 
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.cli.run_command import run_pipeline
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: fake_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
 
         async def _stream_then_raise(*args, **kwargs):
-            from financialagents.observability.events import PipelineEvent
+            from finagents.observability.events import PipelineEvent
 
             yield PipelineEvent(
                 kind="node_status",
@@ -289,7 +273,7 @@ class TestFaRun:
             raise exc
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             _stream_then_raise,
         )
 
@@ -318,11 +302,11 @@ class TestFaRun:
         self, fake_pipeline, tmp_signals_db, freeze_ist_today, monkeypatch
     ) -> None:
         monkeypatch.setattr(
-            "financialagents.cli.run_command.ist_today_str",
+            "finagents.cli.run_command.ist_today_str",
             lambda: freeze_ist_today,
             raising=False,
         )
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.cli.run_command import run_pipeline
 
         rc = asyncio.run(
             run_pipeline(
@@ -342,19 +326,19 @@ class TestFaRun:
     ) -> None:
         from unittest.mock import AsyncMock, MagicMock
 
-        from financialagents.agents.utils.agent_states import AgentState
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.agents.utils.agent_states import AgentState
+        from finagents.cli.run_command import run_pipeline
 
         partial_state = AgentState(ticker="RELIANCE", date="2026-04-26")
         assert partial_state.final_trade_decision is None
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: fake_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
 
@@ -367,13 +351,13 @@ class TestFaRun:
             yield _make_event(kind="completed", final_state=partial_state)
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             fake_stream,
         )
 
         update_success_spy = AsyncMock()
         monkeypatch.setattr(
-            "financialagents.storage.signals.update_success",
+            "finagents.storage.signals.update_success",
             update_success_spy,
         )
 
@@ -393,9 +377,7 @@ class TestFaRun:
         rows = _read_signals(tmp_signals_db)
         assert len(rows) == 1
         row = rows[0]
-        assert row["status"] == "errored", (
-            f"expected 'errored' but got {row['status']!r}"
-        )
+        assert row["status"] == "errored", f"expected 'errored' but got {row['status']!r}"
         assert row["action"] is None
         err = row["error_msg"] or ""
         assert (
@@ -406,28 +388,27 @@ class TestFaRun:
         out = capsys.readouterr().out
         assert "RELIANCE" in out
 
-    def test_first_ctrl_c(
-        self, tmp_signals_db, capsys, monkeypatch
-    ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+    def test_first_ctrl_c(self, tmp_signals_db, capsys, monkeypatch) -> None:
+        from finagents.cli.run_command import run_pipeline
         from unittest.mock import AsyncMock, MagicMock
 
         broken_graph = MagicMock()
         broken_graph.apropagate = AsyncMock(side_effect=KeyboardInterrupt())
+
         async def _ki_stream(*args, **kwargs):
             raise KeyboardInterrupt()
             yield  # pragma: no cover — generator marker
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: broken_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             _ki_stream,
         )
 
@@ -446,9 +427,9 @@ class TestFaRun:
 
 
 def _make_event(**kwargs):
-    from financialagents.observability.events import PipelineEvent
+    from finagents.observability.events import PipelineEvent
 
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         kind="node_status",
         node_name=None,
         status=None,
@@ -482,8 +463,8 @@ class TestLiveRenderIntegration:
     def test_run_command_uses_live_render_in_tty(
         self, tmp_signals_db, fake_pipeline, capsys, monkeypatch
     ) -> None:
-        from financialagents.agents.utils.agent_states import AgentState
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.agents.utils.agent_states import AgentState
+        from finagents.cli.run_command import run_pipeline
 
         final_state: AgentState = fake_pipeline
 
@@ -501,12 +482,12 @@ class TestLiveRenderIntegration:
             yield _make_event(kind="completed", final_state=final_state)
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             fake_stream,
         )
 
         called = {"live": 0, "log": 0}
-        from financialagents.cli import live as live_mod
+        from finagents.cli import live as live_mod
 
         original_live = live_mod.run_with_live_render
         original_log = live_mod.run_with_log_lines
@@ -519,12 +500,8 @@ class TestLiveRenderIntegration:
             called["log"] += 1
             return await original_log(*args, **kwargs)
 
-        monkeypatch.setattr(
-            "financialagents.cli.run_command.run_with_live_render", spy_live
-        )
-        monkeypatch.setattr(
-            "financialagents.cli.run_command.run_with_log_lines", spy_log
-        )
+        monkeypatch.setattr("finagents.cli.run_command.run_with_live_render", spy_live)
+        monkeypatch.setattr("finagents.cli.run_command.run_with_log_lines", spy_log)
 
         rc = asyncio.run(
             run_pipeline(
@@ -543,7 +520,7 @@ class TestLiveRenderIntegration:
     def test_run_command_uses_log_lines_for_json(
         self, tmp_signals_db, fake_pipeline, capsys, monkeypatch
     ) -> None:
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.cli.run_command import run_pipeline
 
         final_state = fake_pipeline
 
@@ -561,7 +538,7 @@ class TestLiveRenderIntegration:
             yield _make_event(kind="completed", final_state=final_state)
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             fake_stream,
         )
 
@@ -579,12 +556,8 @@ class TestLiveRenderIntegration:
             called["live"] += 1
             return None
 
-        monkeypatch.setattr(
-            "financialagents.cli.run_command.run_with_log_lines", spy_log
-        )
-        monkeypatch.setattr(
-            "financialagents.cli.run_command.run_with_live_render", spy_live
-        )
+        monkeypatch.setattr("finagents.cli.run_command.run_with_log_lines", spy_log)
+        monkeypatch.setattr("finagents.cli.run_command.run_with_live_render", spy_live)
 
         rc = asyncio.run(
             run_pipeline(
@@ -605,18 +578,18 @@ class TestLiveRenderIntegration:
     def test_cancelled_run_persists_partial_payload(
         self, tmp_signals_db, fake_providers, monkeypatch
     ) -> None:
-        from financialagents.agents.utils.agent_states import AgentState
-        from financialagents.cli import live as live_mod
-        from financialagents.cli import run_command as rc_mod
+        from finagents.agents.utils.agent_states import AgentState
+        from finagents.cli import live as live_mod
+        from finagents.cli import run_command as rc_mod
         from unittest.mock import MagicMock
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
-            "financialagents.cli.run_command.FinancialAgentsGraph",
+            "finagents.cli.run_command.FinAgentsGraph",
             lambda **kw: fake_graph,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path",
+            "finagents.cli.run_command.signals_db_path",
             lambda settings=None: tmp_signals_db,
         )
 
@@ -642,11 +615,11 @@ class TestLiveRenderIntegration:
             return ev
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.install_sigint_handler",
+            "finagents.cli.run_command.install_sigint_handler",
             install_pre_set,
         )
         monkeypatch.setattr(
-            "financialagents.cli.run_command.stream_pipeline_events",
+            "finagents.cli.run_command.stream_pipeline_events",
             fake_stream,
         )
 
@@ -664,9 +637,7 @@ class TestLiveRenderIntegration:
         rows = _read_signals(tmp_signals_db)
         assert len(rows) == 1
         row = rows[0]
-        assert row["status"] == "cancelled", (
-            f"expected cancelled status, got {row['status']!r}"
-        )
+        assert row["status"] == "cancelled", f"expected cancelled status, got {row['status']!r}"
         assert row["payload_json"] is not None, (
             "P5- cancelled rows MUST persist the partial AgentState"
         )
@@ -677,7 +648,7 @@ class TestLiveRenderIntegration:
         import os as _os
         import signal as _signal
 
-        from financialagents.cli.live import install_sigint_handler
+        from finagents.cli.live import install_sigint_handler
 
         async def main():
             flag = install_sigint_handler()
@@ -692,7 +663,7 @@ class TestLiveRenderIntegration:
     def test_second_ctrl_c_hard_kills(self, monkeypatch) -> None:
         import os as _os
 
-        from financialagents.cli.live import install_sigint_handler
+        from finagents.cli.live import install_sigint_handler
 
         recorded = []
 

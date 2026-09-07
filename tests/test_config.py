@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 
-from financialagents.config import PROVIDER_DEFAULTS, Settings, resolve_model
+from finagents.config import PROVIDER_DEFAULTS, Settings, resolve_model
 
 
 class TestSettingsDefaults:
@@ -21,7 +21,7 @@ class TestSettingsDefaults:
     def test_optional_keys_default_to_none(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, openrouter_api_key="fake")
+            s = Settings(openrouter_api_key="fake")
         assert s.groq_api_key is None
         assert s.cerebras_api_key is None
         assert s.angelone_api_key is None
@@ -32,7 +32,7 @@ class TestSettingsDefaults:
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, openrouter_api_key="fake")
+            s = Settings(openrouter_api_key="fake")
         assert s.llm_provider == "openrouter"
 
 
@@ -41,13 +41,13 @@ class TestSettingsEnvLoading:
     def test_env_overrides_provider(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
         monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
-        s = Settings(_env_file=None)
+        s = Settings()
         assert s.llm_provider == "groq"
 
     def test_env_overrides_model(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DEEP_THINK_LLM", "custom-model")
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
-        s = Settings(_env_file=None)
+        s = Settings()
         assert s.deep_think_llm == "custom-model"
 
     def test_invalid_provider_rejected(
@@ -55,7 +55,7 @@ class TestSettingsEnvLoading:
     ) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "openai")
         with pytest.raises(Exception):
-            Settings(_env_file=None)
+            Settings()
 
     def test_fa_data_dir_env(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch, tmp_path
@@ -63,7 +63,7 @@ class TestSettingsEnvLoading:
         target = str(tmp_path / "fa")
         monkeypatch.setenv("FA_DATA_DIR", target)
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
-        s = Settings(_env_file=None)
+        s = Settings()
         assert s.fa_data_dir == target
 
     def test_fa_data_dir_default_none(
@@ -71,7 +71,7 @@ class TestSettingsEnvLoading:
     ) -> None:
         monkeypatch.delenv("FA_DATA_DIR", raising=False)
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
-        s = Settings(_env_file=None)
+        s = Settings()
         assert s.fa_data_dir is None
 
 
@@ -88,7 +88,7 @@ class TestDebateParams:
     ) -> None:
         monkeypatch.setenv("MAX_DEBATE_ROUNDS", "5")
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
-        s = Settings(_env_file=None)
+        s = Settings()
         assert s.max_debate_rounds == 5
 
 
@@ -99,7 +99,7 @@ class TestStartupWarnings:
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            Settings(_env_file=None)
+            Settings()
             groq_warnings = [x for x in w if "GROQ_API_KEY" in str(x.message)]
             assert len(groq_warnings) >= 1
 
@@ -110,7 +110,7 @@ class TestStartupWarnings:
         monkeypatch.setenv("GROQ_API_KEY", "fake-scaffold")
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            Settings(_env_file=None)
+            Settings()
             hits = [x for x in w if "OPENROUTER_API_KEY" in str(x.message)]
             assert len(hits) >= 1
 
@@ -121,10 +121,9 @@ class TestStartupWarnings:
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            Settings(_env_file=None)
+            Settings()
             hits = [x for x in w if "CEREBRAS_API_KEY" in str(x.message)]
             assert len(hits) >= 1
-
 
 
 class TestPhase4SettingsFields:
@@ -155,7 +154,7 @@ class TestPhase4SettingsFields:
         import pydantic
 
         with pytest.raises(pydantic.ValidationError):
-            Settings(_env_file=None, position_sizing_method="moon_math")  # ty: ignore[unknown-argument, invalid-argument-type]
+            Settings(position_sizing_method="moon_math")  # ty: ignore[invalid-argument-type]
 
     def test_no_debate_compression_max_chars_field(self, default_settings: Settings) -> None:
         assert not hasattr(default_settings, "debate_compression_max_chars")
@@ -164,7 +163,7 @@ class TestPhase4SettingsFields:
         assert default_settings.max_debate_rounds == 3
 
     def test_default_time_horizon_is_positional(self) -> None:
-        s = Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+        s = Settings(llm_provider="openrouter", openrouter_api_key="fake")
         assert s.default_time_horizon == "positional"
 
     def test_default_time_horizon_rejects_intraday(self) -> None:
@@ -172,22 +171,20 @@ class TestPhase4SettingsFields:
 
         with pytest.raises(pydantic.ValidationError):
             Settings(
-                _env_file=None,
                 llm_provider="openrouter",
                 openrouter_api_key="fake",
-                default_time_horizon="intraday",
-            )  # ty: ignore[invalid-argument-type]
+                default_time_horizon="intraday",  # ty: ignore[invalid-argument-type]  # Invalid input.
+            )
 
     def test_default_time_horizon_rejects_swing(self) -> None:
         import pydantic
 
         with pytest.raises(pydantic.ValidationError):
             Settings(
-                _env_file=None,
                 llm_provider="openrouter",
                 openrouter_api_key="fake",
-                default_time_horizon="swing",
-            )  # ty: ignore[invalid-argument-type]
+                default_time_horizon="swing",  # ty: ignore[invalid-argument-type]  # Invalid input.
+            )
 
 
 class TestResolveModel:
@@ -195,7 +192,10 @@ class TestResolveModel:
     def test_override_wins_for_deep_tier(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, deep_think_llm="anthropic/claude-3.5-sonnet", openrouter_api_key="fake")
+            s = Settings(
+                deep_think_llm="anthropic/claude-3.5-sonnet",
+                openrouter_api_key="fake",
+            )
 
         assert resolve_model(s, "groq", "deep") == "anthropic/claude-3.5-sonnet"
         assert resolve_model(s, "cerebras", "deep") == "anthropic/claude-3.5-sonnet"
@@ -204,7 +204,7 @@ class TestResolveModel:
     def test_override_wins_for_quick_tier(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, quick_think_llm="custom-quick-model", openrouter_api_key="fake")
+            s = Settings(quick_think_llm="custom-quick-model", openrouter_api_key="fake")
 
         assert resolve_model(s, "groq", "quick") == "custom-quick-model"
         assert resolve_model(s, "openrouter", "quick") == "custom-quick-model"
@@ -223,30 +223,25 @@ class TestResolveModel:
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, deep_think_llm=None, quick_think_llm=None, openrouter_api_key="fake")
+            s = Settings(deep_think_llm=None, quick_think_llm=None, openrouter_api_key="fake")
 
         assert resolve_model(s, "openrouter", "deep") == PROVIDER_DEFAULTS["openrouter"]["deep"]
         assert resolve_model(s, "openrouter", "quick") == PROVIDER_DEFAULTS["openrouter"]["quick"]
 
-    def test_default_resolves_per_provider(
-        self, clean_env: None
-    ) -> None:
+    def test_default_resolves_per_provider(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, deep_think_llm=None, quick_think_llm=None, openrouter_api_key="fake")
+            s = Settings(deep_think_llm=None, quick_think_llm=None, openrouter_api_key="fake")
 
         assert resolve_model(s, "cerebras", "deep") == PROVIDER_DEFAULTS["cerebras"]["deep"]
         assert resolve_model(s, "cerebras", "quick") == PROVIDER_DEFAULTS["cerebras"]["quick"]
         assert resolve_model(s, "groq", "deep") == PROVIDER_DEFAULTS["groq"]["deep"]
         assert resolve_model(s, "groq", "quick") == PROVIDER_DEFAULTS["groq"]["quick"]
 
-    def test_override_one_tier_other_tier_falls_through(
-        self, clean_env: None
-    ) -> None:
+    def test_override_one_tier_other_tier_falls_through(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             s_deep = Settings(
-                _env_file=None,
                 deep_think_llm="anthropic/claude-3.5-sonnet",
                 quick_think_llm=None,
                 openrouter_api_key="fake",
@@ -258,7 +253,6 @@ class TestResolveModel:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             s_quick = Settings(
-                _env_file=None,
                 deep_think_llm=None,
                 quick_think_llm="custom-quick-model",
                 openrouter_api_key="fake",
@@ -270,7 +264,7 @@ class TestResolveModel:
     def test_unknown_provider_raises_value_error(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None, openrouter_api_key="fake")
+            s = Settings(openrouter_api_key="fake")
 
         with pytest.raises(ValueError, match=r"Unsupported provider 'grokk'"):
             resolve_model(s, "grokk", "deep")
@@ -281,56 +275,52 @@ class TestRequireAtLeastOneLlmKey:
     def test_zero_keys_raises_value_error(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from financialagents.config import Settings
+        from finagents.config import Settings
 
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         with pytest.raises(ValueError, match=r"No LLM provider API key"):
-            Settings(_env_file=None)
+            Settings()
 
     def test_error_message_lists_three_env_vars(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from financialagents.config import Settings
+        from finagents.config import Settings
 
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         with pytest.raises(ValueError) as exc_info:
-            Settings(_env_file=None)
+            Settings()
         msg = str(exc_info.value)
         assert "OPENROUTER_API_KEY" in msg
         assert "CEREBRAS_API_KEY" in msg
         assert "GROQ_API_KEY" in msg
 
-    def test_one_key_is_enough(
-        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from financialagents.config import Settings
+    def test_one_key_is_enough(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        from finagents.config import Settings
 
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None)
+            s = Settings()
         assert s.openrouter_api_key == "fake"
 
-    def test_multiple_keys_no_error(
-        self, clean_env: None, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from financialagents.config import Settings
+    def test_multiple_keys_no_error(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+        from finagents.config import Settings
 
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake1")
         monkeypatch.setenv("GROQ_API_KEY", "fake2")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None)
+            s = Settings()
         assert s.openrouter_api_key == "fake1"
         assert s.groq_api_key == "fake2"
 
     def test_ollama_provider_rejected(self, clean_env: None) -> None:
         import pydantic
 
-        from financialagents.config import Settings
+        from finagents.config import Settings
 
         with pytest.raises(pydantic.ValidationError, match="llm_provider"):
-            Settings(_env_file=None, llm_provider="ollama", openrouter_api_key="fake")  # ty: ignore[invalid-argument-type]
+            Settings(llm_provider="ollama", openrouter_api_key="fake")  # ty: ignore[invalid-argument-type]
 
     def test_stale_ollama_api_key_ignored(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
@@ -339,6 +329,6 @@ class TestRequireAtLeastOneLlmKey:
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            s = Settings(_env_file=None)
+            s = Settings()
         assert s.openrouter_api_key == "fake"
         assert not hasattr(s, "ollama_api_key")

@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from financialagents.dataflows.scrip_master import InstrumentNotFound
-from financialagents.dataflows.session_manager import AngelOneAuthError
+from finagents.dataflows.scrip_master import InstrumentNotFound
+from finagents.dataflows.session_manager import AngelOneAuthError
 
 
 
@@ -23,7 +23,8 @@ def _load_fixture(name: str) -> dict:
 
 @pytest.fixture(autouse=True)
 def reset_session(monkeypatch):
-    import financialagents.dataflows.session_manager as sm_mod
+    import finagents.dataflows.session_manager as sm_mod
+
     monkeypatch.setattr(sm_mod, "_instance", None)
     yield
     monkeypatch.setattr(sm_mod, "_instance", None)
@@ -32,7 +33,7 @@ def reset_session(monkeypatch):
 @pytest.fixture
 def isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db = tmp_path / "test_ohlcv.db"
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", db)
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", db)
     return db
 
 
@@ -42,8 +43,9 @@ def angel_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ANGELONE_CLIENT_ID", "TEST01")
     monkeypatch.setenv("ANGELONE_PIN", "1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
-    from financialagents.config import Settings
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    from finagents.config import Settings
+
+    return Settings(openrouter_api_key="fake")
 
 
 
@@ -59,11 +61,11 @@ async def test_ohlcv_daily_single_request(
     mock_smart_connect.getCandleData.return_value = daily_fixture
 
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
@@ -90,15 +92,17 @@ async def test_ohlcv_intraday_chunks(
     mock_smart_connect.getCandleData.side_effect = [page1, page2]
 
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
-    result = await get_ohlcv("RELIANCE", start, end, interval="FIVE_MINUTE", settings=angel_settings)
+    result = await get_ohlcv(
+        "RELIANCE", start, end, interval="FIVE_MINUTE", settings=angel_settings
+    )
 
     assert result.status == "ok"
     assert result.data is not None
@@ -121,11 +125,11 @@ async def test_ohlcv_cache_hit(
     mock_smart_connect.getCandleData.return_value = daily_fixture
 
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
@@ -151,11 +155,11 @@ async def test_instrument_not_found(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(side_effect=InstrumentNotFound("symbol='BADTICKER' exchange='NSE'")),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
@@ -178,12 +182,12 @@ async def test_auth_error_wrapped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
     mock_smart_connect.getCandleData.side_effect = AngelOneAuthError("AB1050 invalid TOTP")
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
@@ -197,7 +201,7 @@ async def test_auth_error_wrapped(
 
 
 def test_chunk_math() -> None:
-    from financialagents.dataflows.ohlcv_client import _split_date_range
+    from finagents.dataflows.ohlcv_client import _split_date_range
 
     start = datetime(2024, 1, 1)
     twelve_days_end = datetime(2024, 1, 12)
@@ -227,11 +231,11 @@ async def test_dataframe_columns(
     mock_smart_connect.getCandleData.return_value = daily_fixture
 
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)
@@ -254,11 +258,11 @@ async def test_empty_response_is_empty_status(
     mock_smart_connect.getCandleData.return_value = {"status": True, "data": []}
 
     monkeypatch.setattr(
-        "financialagents.dataflows.ohlcv_client.scrip_master.resolve_token",
+        "finagents.dataflows.ohlcv_client.scrip_master.resolve_token",
         AsyncMock(return_value="2885"),
     )
 
-    from financialagents.dataflows.ohlcv_client import get_ohlcv
+    from finagents.dataflows.ohlcv_client import get_ohlcv
 
     start = datetime(2024, 1, 1, 9, 15)
     end = datetime(2024, 1, 12, 15, 30)

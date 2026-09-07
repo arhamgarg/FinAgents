@@ -68,8 +68,8 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
+# Generated manual acceptance reports
+/reports/uat/
 
 # PyBuilder
 .pybuilder/

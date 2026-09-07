@@ -24,7 +24,7 @@ def freeze_ist_today(monkeypatch: pytest.MonkeyPatch) -> str:
     frozen = "2026-04-26"
 
     monkeypatch.setattr(
-        "financialagents.cli.ist_dates.ist_today_str",
+        "finagents.cli.ist_dates.ist_today_str",
         lambda: frozen,
         raising=False,
     )
@@ -39,9 +39,9 @@ def fake_providers(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def fake_pipeline(monkeypatch, tmp_signals_db):
-    from financialagents.agents.managers.schemas import PortfolioDecision
-    from financialagents.agents.trader.schemas import TradingSignal
-    from financialagents.agents.utils.agent_states import AgentState
+    from finagents.agents.managers.schemas import PortfolioDecision
+    from finagents.agents.trader.schemas import TradingSignal
+    from finagents.agents.utils.agent_states import AgentState
 
     ts = TradingSignal(
         action="BUY",
@@ -78,15 +78,15 @@ def fake_pipeline(monkeypatch, tmp_signals_db):
     fake_graph = MagicMock()
     fake_graph.apropagate = AsyncMock(return_value=state)
     monkeypatch.setattr(
-        "financialagents.cli.run_command.FinancialAgentsGraph",
+        "finagents.cli.run_command.FinAgentsGraph",
         lambda **kw: fake_graph,
     )
     monkeypatch.setattr(
-        "financialagents.cli.run_command.signals_db_path",
+        "finagents.cli.run_command.signals_db_path",
         lambda settings=None: tmp_signals_db,
     )
 
-    from financialagents.observability.events import PipelineEvent
+    from finagents.observability.events import PipelineEvent
 
     async def _default_stream(*args, **kwargs):
         yield PipelineEvent(
@@ -102,7 +102,7 @@ def fake_pipeline(monkeypatch, tmp_signals_db):
         yield PipelineEvent(kind="completed", final_state=state)
 
     monkeypatch.setattr(
-        "financialagents.cli.run_command.stream_pipeline_events",
+        "finagents.cli.run_command.stream_pipeline_events",
         _default_stream,
     )
     return state

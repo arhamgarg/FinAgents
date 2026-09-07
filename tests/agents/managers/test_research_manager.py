@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pydantic
 import pytest
 
-from financialagents.agents.analysts.schemas import (
+from finagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     TechnicalReport,
     NewsReport,
 )
-from financialagents.agents.managers.schemas import Finding, ResearchBrief
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.config import Settings
+from finagents.agents.managers.schemas import Finding, ResearchBrief
+from finagents.agents.utils.agent_states import AgentState
+from finagents.config import Settings
+
 
 
 
@@ -90,13 +93,14 @@ def mock_research_brief() -> ResearchBrief:
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    return Settings(openrouter_api_key="fake")
+
 
 
 
 class TestNormalizeWeights:
     def test_weights_sum_to_one(self):
-        from financialagents.agents.managers.research_manager import normalize_weights
+        from finagents.agents.managers.research_manager import normalize_weights
 
         raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         result = normalize_weights(raw)
@@ -106,14 +110,14 @@ class TestNormalizeWeights:
         assert abs(sum(result.values()) - 1.0) < 1e-9
 
     def test_preserves_relative_ordering(self):
-        from financialagents.agents.managers.research_manager import normalize_weights
+        from finagents.agents.managers.research_manager import normalize_weights
 
         raw = {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
         result = normalize_weights(raw)
         assert result["fundamentals"] > result["technical"] > result["news"]
 
     def test_zero_total_returns_equal_weights(self):
-        from financialagents.agents.managers.research_manager import normalize_weights
+        from finagents.agents.managers.research_manager import normalize_weights
 
         raw = {"a": 0.0, "b": 0.0, "c": 0.0}
         result = normalize_weights(raw)
@@ -121,7 +125,7 @@ class TestNormalizeWeights:
         assert all(abs(v - 1.0 / 3) < 1e-9 for v in result.values())
 
     def test_negative_weights_clamped_to_zero(self):
-        from financialagents.agents.managers.research_manager import normalize_weights
+        from finagents.agents.managers.research_manager import normalize_weights
 
         raw = {"technical": -1.0, "fundamentals": 2.0, "news": 1.0}
         result = normalize_weights(raw)
@@ -133,6 +137,7 @@ class TestNormalizeWeights:
 
 
 
+
 class TestResearchManagerNode:
     def test_returns_research_summary_with_key_findings(
         self,
@@ -140,17 +145,17 @@ class TestResearchManagerNode:
         mock_research_brief: ResearchBrief,
         default_settings: Settings,
     ):
-        from financialagents.agents.managers.research_manager import research_manager_node
+        from finagents.agents.managers.research_manager import research_manager_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_research_brief)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.managers.research_manager.create_llm_client",
+            "finagents.agents.managers.research_manager.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(research_manager_node(populated_state, config))
@@ -166,17 +171,17 @@ class TestResearchManagerNode:
         mock_research_brief: ResearchBrief,
         default_settings: Settings,
     ):
-        from financialagents.agents.managers.research_manager import research_manager_node
+        from finagents.agents.managers.research_manager import research_manager_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_research_brief)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.managers.research_manager.create_llm_client",
+            "finagents.agents.managers.research_manager.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(research_manager_node(populated_state, config))
@@ -195,7 +200,7 @@ class TestResearchManagerNode:
         populated_state: AgentState,
         mock_research_brief: ResearchBrief,
     ):
-        from financialagents.agents.managers.research_manager import (
+        from finagents.agents.managers.research_manager import (
             build_research_manager_prompt,
             normalize_weights,
         )
@@ -210,7 +215,7 @@ class TestResearchManagerNode:
             weights=norm_weights,
         )
 
-        full_text = " ".join(m.content for m in messages)
+        full_text = " ".join(m.text for m in messages)
         assert "Fundamentals" in full_text or "fundamentals" in full_text
         assert "emphasis" in full_text.lower() or "weight" in full_text.lower() or "%" in full_text
 
@@ -220,20 +225,18 @@ class TestResearchManagerNode:
         mock_research_brief: ResearchBrief,
         default_settings: Settings,
     ):
-        from financialagents.agents.managers.research_manager import research_manager_node
+        from finagents.agents.managers.research_manager import research_manager_node
 
-        ainvoke_mock = AsyncMock(
-            side_effect=[RuntimeError("LLM timeout"), mock_research_brief]
-        )
+        ainvoke_mock = AsyncMock(side_effect=[RuntimeError("LLM timeout"), mock_research_brief])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.managers.research_manager.create_llm_client",
+            "finagents.agents.managers.research_manager.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(research_manager_node(populated_state, config))
@@ -246,7 +249,7 @@ class TestResearchManagerNode:
         fundamentals_report: FundamentalsAnalystReport,
         news_report: NewsReport,
     ):
-        from financialagents.agents.managers.research_manager import (
+        from finagents.agents.managers.research_manager import (
             build_research_manager_prompt,
             normalize_weights,
         )
@@ -257,9 +260,7 @@ class TestResearchManagerNode:
             notes="No OHLCV data",
         )
 
-        weights = normalize_weights(
-            {"technical": 1.0, "fundamentals": 1.5, "news": 0.8}
-        )
+        weights = normalize_weights({"technical": 1.0, "fundamentals": 1.5, "news": 0.8})
         messages = build_research_manager_prompt(
             technical_report=zero_technical_report,
             fundamentals_report=fundamentals_report,
@@ -267,8 +268,12 @@ class TestResearchManagerNode:
             weights=weights,
         )
 
-        full_text = " ".join(m.content for m in messages)
-        assert "NO DATA" in full_text or "no data" in full_text.lower() or "confidence: 0.0" in full_text.lower()
+        full_text = " ".join(m.text for m in messages)
+        assert (
+            "NO DATA" in full_text
+            or "no data" in full_text.lower()
+            or "confidence: 0.0" in full_text.lower()
+        )
 
     def test_uses_deep_think_llm(
         self,
@@ -276,17 +281,17 @@ class TestResearchManagerNode:
         mock_research_brief: ResearchBrief,
         default_settings: Settings,
     ):
-        from financialagents.agents.managers.research_manager import research_manager_node
+        from finagents.agents.managers.research_manager import research_manager_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_research_brief)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.managers.research_manager.create_llm_client",
+            "finagents.agents.managers.research_manager.create_llm_client",
             return_value=mock_llm,
         ) as mock_create:
             asyncio.run(research_manager_node(populated_state, config))
@@ -300,9 +305,9 @@ class TestResearchManagerNode:
         populated_state: AgentState,
         mock_research_brief: ResearchBrief,
     ):
-        from financialagents.agents.managers.research_manager import research_manager_node
+        from finagents.agents.managers.research_manager import research_manager_node
 
-        settings = Settings(_env_file=None, openrouter_api_key="fake")
+        settings = Settings(openrouter_api_key="fake")
         settings.analyst_weights = {"technical": 2.0, "fundamentals": 1.0, "news": 1.0}
 
         mock_structured_llm = MagicMock()
@@ -310,15 +315,16 @@ class TestResearchManagerNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": settings}}
+        config: RunnableConfig = {"configurable": {"settings": settings}}
 
         with patch(
-            "financialagents.agents.managers.research_manager.create_llm_client",
+            "finagents.agents.managers.research_manager.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(research_manager_node(populated_state, config))
 
         assert "research_summary" in result
+
 
 
 

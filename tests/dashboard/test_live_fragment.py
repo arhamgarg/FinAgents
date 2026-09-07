@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import queue
 import threading
-import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from financialagents.observability.events import PipelineEvent
+from finagents.observability.events import PipelineEvent
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -18,7 +17,7 @@ LIVE_FRAGMENT_PAGE_PATH = REPO_ROOT / "tests" / "dashboard" / "_live_fragment_ap
 
 class TestApplyEventToStageState:
     def test_apply_event_helper(self) -> None:
-        from financialagents.dashboard.live_fragment import (
+        from finagents.dashboard.live_fragment import (
             _initial_stage_state,
             apply_event_to_stage_state,
         )
@@ -59,7 +58,7 @@ class TestApplyEventToStageState:
         assert analysts["completed_at"] == 12.5
 
     def test_round_advanced_updates_debate_round(self) -> None:
-        from financialagents.dashboard.live_fragment import (
+        from finagents.dashboard.live_fragment import (
             _initial_stage_state,
             apply_event_to_stage_state,
         )
@@ -75,7 +74,7 @@ class TestApplyEventToStageState:
 
 class TestDrainQueueAndApply:
     def test_drain_queue_processes_events_in_order(self) -> None:
-        from financialagents.dashboard.live_fragment import (
+        from finagents.dashboard.live_fragment import (
             _initial_stage_state,
             drain_queue_and_apply,
         )
@@ -112,7 +111,7 @@ class TestDrainQueueAndApply:
         assert analysts["children"]["fundamentals_analyst_node"]["status"] == "running"
 
     def test_completed_event_sets_session_state_flags(self) -> None:
-        from financialagents.dashboard.live_fragment import (
+        from finagents.dashboard.live_fragment import (
             _initial_stage_state,
             drain_queue_and_apply,
         )
@@ -135,7 +134,7 @@ class TestDrainQueueAndApply:
         assert last_event.kind == "completed"
 
     def test_errored_event_preserves_error_field(self) -> None:
-        from financialagents.dashboard.live_fragment import (
+        from finagents.dashboard.live_fragment import (
             _initial_stage_state,
             drain_queue_and_apply,
         )
@@ -178,8 +177,8 @@ class TestPersonaSizePctRender:
 
         app_src = (
             "import streamlit as st\n"
-            "from financialagents.observability.events import PipelineEvent\n"
-            "from financialagents.dashboard.live_fragment import (\n"
+            "from finagents.observability.events import PipelineEvent\n"
+            "from finagents.dashboard.live_fragment import (\n"
             " _initial_stage_state,\n"
             " apply_event_to_stage_state,\n"
             " render_live_region,\n"
@@ -211,13 +210,10 @@ class TestPersonaSizePctRender:
         app_path.write_text(app_src)
 
         at = AppTest.from_file(str(app_path)).run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         markdown_text = " ".join(m.value for m in at.markdown)
         assert "4.5%" in markdown_text, (
-            f"Persona size_pct preview '4.5%' missing from rendered output: "
-            f"{markdown_text!r}"
+            f"Persona size_pct preview '4.5%' missing from rendered output: {markdown_text!r}"
         )
 
 
@@ -256,7 +252,7 @@ class TestCancelPipeline:
 
     @pytest.mark.asyncio
     async def test_cancel_event_set_mid_stream_terminates_producer(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         async def upstream():
             yield (
@@ -293,15 +289,13 @@ class TestCancelPipeline:
         assert recording.aclose_awaited, (
             "stream_pipeline_events did not call agen.aclose() on cancel"
         )
-        assert all(
-            ev.node_name != "fundamentals_analyst_node" for ev in events
-        ), (
+        assert all(ev.node_name != "fundamentals_analyst_node" for ev in events), (
             "stream_pipeline_events drained step 2 after cancel — "
             "expected early return before __anext__"
         )
 
     def test_cancel_pipeline_helper_flips_flag_and_joins_thread(self) -> None:
-        from financialagents.dashboard.live_fragment import cancel_pipeline
+        from finagents.dashboard.live_fragment import cancel_pipeline
 
         class _SessionStateShim(dict):
             def __getattr__(self, key):
@@ -321,7 +315,7 @@ class TestCancelPipeline:
 
         evt = threading.Event()
         thread = threading.Thread(
-            target=lambda: time.sleep(2),
+            target=evt.wait,
             daemon=True,
         )
         thread.start()
@@ -351,11 +345,11 @@ class TestCancelPipeline:
             )
         finally:
             evt.set()
+            thread.join(timeout=1)
+            assert not thread.is_alive()
 
-    def test_start_pipeline_stores_cancel_and_thread_in_session_state(
-        self, monkeypatch
-    ) -> None:
-        from financialagents.dashboard import live_fragment
+    def test_start_pipeline_stores_cancel_and_thread_in_session_state(self, monkeypatch) -> None:
+        from finagents.dashboard import live_fragment
 
         monkeypatch.setattr(
             live_fragment,

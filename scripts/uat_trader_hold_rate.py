@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from __future__ import annotations
 
 import argparse
@@ -18,9 +19,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Manual hold-rate UAT for trader_node "
-    )
+    parser = argparse.ArgumentParser(description="Manual hold-rate UAT for trader_node ")
     parser.add_argument(
         "--tickers",
         type=str,
@@ -30,11 +29,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(
-            ".planning/phases/04.1-trader-position-sizing-guardrails/"
-            "04.1-VERIFICATION.md"
-        ),
-        help="Path to VERIFICATION.md file to append the hold-rate table to",
+        default=Path("reports/uat/trader-hold-rate.md"),
+        help="Path to the Markdown hold-rate report (created on first use)",
     )
     parser.add_argument(
         "--dry-run",
@@ -45,7 +41,7 @@ def _parse_args() -> argparse.Namespace:
         "--date",
         type=str,
         default=datetime.now().strftime("%Y-%m-%d"),
-        help="Date passed to FinancialAgentsGraph.propagate (default: today)",
+        help="Date passed to FinAgentsGraph.propagate (default: today)",
     )
     parser.add_argument(
         "--sec-list-fixture",
@@ -72,9 +68,7 @@ def load_sec_list(source: Path | bytes) -> list[TickerRow]:
     else:
         content = source
     rows: list[TickerRow] = []
-    reader = csv.DictReader(
-        io.StringIO(content.decode("utf-8", errors="replace"))
-    )
+    reader = csv.DictReader(io.StringIO(content.decode("utf-8", errors="replace")))
     required_cols = {"Symbol", "Series", "Band"}
     fieldnames = set(reader.fieldnames or ())
     missing = required_cols - fieldnames
@@ -118,7 +112,9 @@ class UatResult(NamedTuple):
     trader_action: str
     hold_reason: str
     nonzero_analyst_count: int
-    analyst_confidences: dict[str, float]
+    analyst_confidences: dict[
+        str, float
+    ]
 
 
 def _format_per_analyst(conf: dict[str, float]) -> str:
@@ -167,7 +163,9 @@ def _tier_hold_rate(
     return holds, total, pct
 
 
-def _format_tier_line(label: str, threshold: float, holds: int, total: int, pct: float | None) -> str:
+def _format_tier_line(
+    label: str, threshold: float, holds: int, total: int, pct: float | None
+) -> str:
     if pct is None:
         return (
             f"- **{label}** (overall_confidence >= {threshold:.1f} AND directional): "
@@ -205,20 +203,22 @@ def format_results_table(results: list[UatResult]) -> str:
 
     lines.append("")
     lines.append("**Tiered hold-rate (ROADMAP SC-5, / **")
-    lines.append(_format_tier_line("data-rich", DATA_RICH_CONF_THRESHOLD, rich_holds, rich_total, rich_pct))
-    lines.append(_format_tier_line("data-poor", DATA_POOR_CONF_THRESHOLD, poor_holds, poor_total, poor_pct))
+    lines.append(
+        _format_tier_line("data-rich", DATA_RICH_CONF_THRESHOLD, rich_holds, rich_total, rich_pct)
+    )
+    lines.append(
+        _format_tier_line("data-poor", DATA_POOR_CONF_THRESHOLD, poor_holds, poor_total, poor_pct)
+    )
     return "\n".join(lines) + "\n"
 
 
 async def run_pipeline(ticker: str, date: str) -> UatResult:
-    from financialagents.graph.trading_graph import FinancialAgentsGraph
+    from finagents.graph.trading_graph import FinAgentsGraph
 
-    graph = FinancialAgentsGraph(full_pipeline=True)
+    graph = FinAgentsGraph(full_pipeline=True)
     state = await graph.apropagate(ticker, date)
     overall = (
-        state.research_summary.overall_confidence
-        if state.research_summary is not None
-        else 0.0
+        state.research_summary.overall_confidence if state.research_summary is not None else 0.0
     )
     per_analyst: dict[str, float] = (
         dict(state.research_summary.analyst_confidences)
@@ -234,15 +234,25 @@ async def run_pipeline(ticker: str, date: str) -> UatResult:
     signal = state.trader_signal
     if signal is None:
         return UatResult(
-            ticker, overall, scan_debate_direction(thesis),
-            "HOLD", "trader_signal missing", nonzero_count, per_analyst,
+            ticker,
+            overall,
+            scan_debate_direction(thesis or ""),
+            "HOLD",
+            "trader_signal missing",
+            nonzero_count,
+            per_analyst,
         )
     reason = signal.circuit_band_note or ""
     if not reason and signal.action == "HOLD":
         reason = (signal.rationale or "")[:80]
     return UatResult(
-        ticker, overall, scan_debate_direction(thesis),
-        signal.action, reason, nonzero_count, per_analyst,
+        ticker,
+        overall,
+        scan_debate_direction(thesis or ""),
+        signal.action,
+        reason,
+        nonzero_count,
+        per_analyst,
     )
 
 
@@ -259,10 +269,11 @@ def main() -> int:
         rows = load_sec_list(args.sec_list_fixture)
     else:
         import httpx
+
         NSE_URL = "https://nsearchives.nseindia.com/content/equities/sec_list.csv"
         resp = httpx.get(
             NSE_URL,
-            headers={"User-Agent": "financialagents/1.0"},
+            headers={"User-Agent": "FinAgents/1.0"},
             timeout=30.0,
         )
         resp.raise_for_status()
@@ -287,7 +298,11 @@ def main() -> int:
         print("[dry-run] OQ-1 'No Band' exclusion: OK")
         synthetic = [
             UatResult(
-                t, 0.70, "BUY", "BUY", "",
+                t,
+                0.70,
+                "BUY",
+                "BUY",
+                "",
                 3 if i % 2 == 0 else 1,
                 {"technical": 0.78, "fundamentals": 0.6, "news": 0.6}
                 if i % 2 == 0
@@ -301,6 +316,7 @@ def main() -> int:
         return 0
 
     print(f"Running full pipeline on {len(tickers)} tickers for date={args.date}...")
+
     async def _run_all(ticker_list: list[str], date: str) -> list[UatResult]:
         acc: list[UatResult] = []
         for idx, tkr in enumerate(ticker_list, 1):
@@ -310,8 +326,13 @@ def main() -> int:
             except Exception as exc:
                 acc.append(
                     UatResult(
-                        tkr, 0.0, "MIXED", "HOLD",
-                        f"pipeline error: {exc}"[:80], 0, {},
+                        tkr,
+                        0.0,
+                        "MIXED",
+                        "HOLD",
+                        f"pipeline error: {exc}"[:80],
+                        0,
+                        {},
                     )
                 )
         return acc
@@ -321,20 +342,10 @@ def main() -> int:
     table = format_results_table(results)
     print("\n" + table)
 
-    if not args.output.exists():
-        print(f"ERROR: VERIFICATION.md not found at {args.output}", file=sys.stderr)
-        print(
-            "Run Task 2 (scaffold 04.1-VERIFICATION.md) before running this UAT.",
-            file=sys.stderr,
-        )
-        return 4
-    existing = args.output.read_text()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    existing = args.output.read_text() if args.output.exists() else ""
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    block = (
-        f"\n### Run {stamp}\n\n"
-        f"**Batch:** {', '.join(tickers)}\n\n"
-        f"{table}\n"
-    )
+    block = f"\n### Run {stamp}\n\n**Batch:** {', '.join(tickers)}\n\n{table}\n"
     marker = "## Hold-Rate Results"
     if marker in existing:
         new_content = existing + block
@@ -365,14 +376,16 @@ def main() -> int:
     poor_fail = poor_pct is not None and poor_pct >= HOLD_RATE_PASS_PCT
 
     rich_msg = (
-        "data-rich: N/A (empty)" if rich_pct is None
+        "data-rich: N/A (empty)"
+        if rich_pct is None
         else f"data-rich: {rich_holds}/{rich_total} = {rich_pct:.1f}% "
-             f"({'FAIL' if rich_fail else 'PASS'})"
+        f"({'FAIL' if rich_fail else 'PASS'})"
     )
     poor_msg = (
-        "data-poor: N/A (empty)" if poor_pct is None
+        "data-poor: N/A (empty)"
+        if poor_pct is None
         else f"data-poor: {poor_holds}/{poor_total} = {poor_pct:.1f}% "
-             f"({'FAIL' if poor_fail else 'PASS'})"
+        f"({'FAIL' if poor_fail else 'PASS'})"
     )
 
     if rich_fail or poor_fail:

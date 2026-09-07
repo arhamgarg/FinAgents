@@ -1,216 +1,90 @@
-from __future__ import annotations
-
-import asyncio
-from collections.abc import Callable
-from unittest.mock import AsyncMock, patch
-
-import numpy as np
-import pandas as pd
 import pytest
 
-from financialagents.agents.managers.schemas import PortfolioDecision
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.config import Settings
-from financialagents.dataflows.data_result import DataResult
-from financialagents.testing.llm_mock import LLMMockHarness, failures, fixtures
+from finagents.agents.utils.agent_states import AgentState, RiskDebateState
+from finagents.config import Settings
+from finagents.graph.setup import build_full_pipeline, call_risk_debate_subgraph
+from finagents.testing.llm_mock import CALL_SITE_SCHEMAS, failures, fixtures
+from tests.pipeline import pipeline_scenario
 
 
-def _synthetic_ohlcv_250() -> pd.DataFrame:
-    np.random.seed(42)
-    price = 100 + np.cumsum(np.random.randn(250) * 0.5)
-    dates = pd.date_range("2024-01-01", periods=250, freq="B")
-    return pd.DataFrame(
-        {
-            "open": price + np.random.randn(250) * 0.3,
-            "high": price + np.abs(np.random.randn(250)) * 0.5,
-            "low": price - np.abs(np.random.randn(250)) * 0.5,
-            "close": price,
-            "volume": np.random.randint(100_000, 1_000_000, 250).astype(float),
-        },
-        index=dates,
-    )
-
-
-def _run_pipeline_with_harness(
-    max_debate_rounds: int,
-    max_risk_discuss_rounds: int,
-    harness_setup_fn: Callable[[LLMMockHarness], None] | None = None,
-) -> AgentState:
-    from financialagents.graph.setup import build_full_pipeline
-
-    ohlcv_result: DataResult[pd.DataFrame] = DataResult(
-        status="ok", data=_synthetic_ohlcv_250(), source="angelone-synthetic"
-    )
-    empty_fundamentals: DataResult = DataResult(
-        status="empty", data=None, source="harness-empty"
-    )
-    empty_news: DataResult = DataResult(
-        status="empty", data=None, source="harness-empty"
-    )
-
-    with (
-        patch(
-            "financialagents.agents.analysts.technical_analyst.get_ohlcv",
-            new_callable=AsyncMock,
-            return_value=ohlcv_result,
-        ),
-        patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-            new_callable=AsyncMock,
-            return_value=empty_fundamentals,
-        ),
-        patch(
-            "financialagents.agents.analysts.news_analyst.get_news",
-            new_callable=AsyncMock,
-            return_value=empty_news,
-        ),
-        LLMMockHarness.happy_path() as h,
-    ):
-        if harness_setup_fn is not None:
-            harness_setup_fn(h)
+@pytest.mark.parametrize("invest_rounds,risk_rounds", [(1, 1), (3, 2)])
+async def test_populated_pipeline_exercises_every_call_site(invest_rounds, risk_rounds):
+    with pipeline_scenario() as h:
         graph = build_full_pipeline()
-        settings = Settings(_env_file=None, openrouter_api_key="fake")
-        settings.max_debate_rounds = max_debate_rounds
-        settings.max_risk_discuss_rounds = max_risk_discuss_rounds
-        config = {
-            "configurable": {
-                "settings": settings,
-                "thread_id": "reliance-ci-smoke",
-            }
-        }
-        initial = AgentState(ticker="RELIANCE", date="2024-12-31")
-        result = asyncio.run(graph.ainvoke(initial, config=config))
-    return AgentState.model_validate(result) if isinstance(result, dict) else result
-
-
-class TestFullPipelineReliance:
-
-    def test_full_pipeline_emits_portfolio_decision(self) -> None:
-        final = _run_pipeline_with_harness(
-            max_debate_rounds=1, max_risk_discuss_rounds=1
-        )
-
-        assert final.final_trade_decision is not None
-        assert isinstance(final.final_trade_decision, PortfolioDecision)
-        assert final.final_trade_decision.decision in {"approve", "modify", "veto"}
-        assert final.final_trade_decision.pm_notes
-        assert final.final_trade_decision.signal is not None
-        assert final.final_trade_decision.signal.action in {"BUY", "HOLD", "SELL"}
-
-    def test_full_pipeline_invest_round_count_preserved(self) -> None:
-        final = _run_pipeline_with_harness(
-            max_debate_rounds=2, max_risk_discuss_rounds=1
-        )
-
-        ids = final.investment_debate_state
-        assert ids is not None
-        assert len(ids.bull_turns()) == 2, (
-            f" round-count off-by-one: bull_turns={ids.bull_turns()}"
-        )
-        assert len(ids.bear_turns()) == 2, (
-            f" round-count off-by-one: bear_turns={ids.bear_turns()}"
-        )
-        assert ids.investment_thesis is not None and len(ids.investment_thesis) > 0
-
-    def test_full_pipeline_risk_round_count(self) -> None:
-        final = _run_pipeline_with_harness(
-            max_debate_rounds=1, max_risk_discuss_rounds=2
-        )
-
-        rds = final.risk_debate_state
-        assert rds is not None, (
-            " risk_init_node must seed risk_debate_state before subgraph"
-        )
-        assert len(rds.risk_turns()) == 2, (
-            f" round-count off-by-one: risk_turns={rds.risk_turns()}"
-        )
-        assert rds.synthesized_position_size_pct == 0.030
-
-    def test_full_pipeline_recursion_limit_applied(self) -> None:
-        import financialagents.graph.setup as setup_mod
-        from financialagents.agents.utils.agent_states import RiskDebateState
-
-        captured_configs: list[dict] = []
-
-        class _SpySubgraph:
-            async def ainvoke(self, state, config=None):
-                captured_configs.append(config or {})
-                return state.model_dump() if hasattr(state, "model_dump") else state
-
-        original_cache = setup_mod._RISK_DEBATE_SUBGRAPH
-        setup_mod._RISK_DEBATE_SUBGRAPH = _SpySubgraph()  # ty: ignore[invalid-assignment]
-        try:
-            seeded_state = AgentState(
-                ticker="RELIANCE",
-                date="2024-01-15",
-                risk_debate_state=RiskDebateState(max_rounds=2),
+        state = AgentState.model_validate(
+            await graph.ainvoke(
+                AgentState(ticker="RELIANCE", date="2024-12-31"),
+                config={
+                    "configurable": {
+                        "settings": Settings(
+                            max_debate_rounds=invest_rounds, max_risk_discuss_rounds=risk_rounds
+                        )
+                    }
+                },
             )
-            asyncio.run(setup_mod.call_risk_debate_subgraph(seeded_state))
-        finally:
-            setup_mod._RISK_DEBATE_SUBGRAPH = original_cache
-
-        assert captured_configs, "wrapper never called the subgraph — wiring broken"
-        assert captured_configs[0].get("recursion_limit") == 16, (
-            f" formula violated: expected recursion_limit=16, "
-            f"got {captured_configs[0]}"
         )
-
-
+    assert state.final_trade_decision is not None
+    assert state.final_trade_decision.pm_notes
+    assert state.final_trade_decision.signal.action in {"BUY", "SELL", "HOLD"}
+    assert state.investment_debate_state is not None
+    assert len(state.investment_debate_state.bull_turns()) == invest_rounds
+    assert len(state.investment_debate_state.bear_turns()) == invest_rounds
+    assert state.investment_debate_state.investment_thesis
+    assert state.risk_debate_state is not None
+    assert len(state.risk_debate_state.risk_turns()) == risk_rounds
+    assert state.risk_debate_state.synthesized_position_size_pct == pytest.approx(0.030)
+    expected: dict[str, int] = dict.fromkeys(CALL_SITE_SCHEMAS, 1)
+    expected.update(bull_researcher=invest_rounds, bear_researcher=invest_rounds)
+    expected.update(
+        dict.fromkeys(
+            ["aggressive_risk", "neutral_risk", "conservative_risk", "risk_debate_consolidation"],
+            risk_rounds,
+        )
+    )
+    assert h.calls == expected
 
 
 @pytest.mark.parametrize(
-    "scenario",
-    ["happy", "single_node_fail", "multi_node_fail", "retry_then_success"],
+    "sites,retry",
+    [
+        (["bull_researcher"], False),
+        (["technical_analyst", "fundamentals_analyst", "news_analyst"], False),
+        (["trader"], True),
+    ],
 )
-def test_full_pipeline_failure_scenarios(scenario: str) -> None:
-
-    def setup(h: LLMMockHarness) -> None:
-        if scenario == "happy":
-            pass
-        elif scenario == "single_node_fail":
+async def test_failure_scenarios_consume_registered_failures(sites, retry):
+    with pipeline_scenario() as h:
+        for site in sites:
+            response = fixtures.HAPPY_PATH_DEFAULTS[site]
             h.set_sequence(
-                "bull_researcher",
-                [failures.length_error(), failures.length_error()],
+                site, [failures.length_error(), response if retry else failures.length_error()]
             )
-        elif scenario == "multi_node_fail":
-            active_failure_sites = ("bull_researcher", "bear_researcher")
-            dormant_failure_sites = ("news_analyst",)
-            for site in active_failure_sites + dormant_failure_sites:
-                h.set_sequence(
-                    site,
-                    [failures.length_error(), failures.length_error()],
-                )
-        elif scenario == "retry_then_success":
-            h.set_sequence(
-                "trader",
-                failures.retry_then_succeed(fixtures.TRADER_SIGNAL_DEFAULT),
-            )
-        else:
-            raise AssertionError(f"unhandled scenario: {scenario!r}")
-
-    final = _run_pipeline_with_harness(
-        max_debate_rounds=1,
-        max_risk_discuss_rounds=1,
-        harness_setup_fn=setup,
-    )
-
-    assert final.final_trade_decision is not None, (
-        f"scenario={scenario!r}: pipeline did not produce a PortfolioDecision"
-    )
-    assert isinstance(final.final_trade_decision, PortfolioDecision), (
-        f"scenario={scenario!r}: final_trade_decision is not a PortfolioDecision"
-    )
-
-    sentinel = failures.length_error.SENTINEL  # ty: ignore[unresolved-attribute]
-    assert final.investment_debate_state is not None
-    bulls = final.investment_debate_state.bull_turns()
-    if scenario in ("single_node_fail", "multi_node_fail"):
-        assert any(sentinel in t for t in bulls), (
-            f"scenario={scenario!r}: expected SENTINEL {sentinel!r} substring "
-            f"in bull_history but got {bulls!r}"
+        result = await build_full_pipeline().ainvoke(
+            AgentState(ticker="RELIANCE", date="2024-12-31"),
+            config={
+                "configurable": {
+                    "settings": Settings(max_debate_rounds=1, max_risk_discuss_rounds=1)
+                }
+            },
         )
-    elif scenario == "retry_then_success":
-        assert not any(sentinel in t for t in bulls), (
-            f"scenario={scenario!r}: trader retry succeeded so no sentinel "
-            f"should have fired in bull_history; got {bulls!r}"
-        )
+    state = AgentState.model_validate(result)
+    assert state.final_trade_decision is not None
+    assert all(h.calls[site] == 2 for site in sites)
+    if "news_analyst" in sites:
+        assert state.news_report is not None
+        assert state.fundamentals_report is not None
+        assert state.technical_report is not None
+        assert state.news_report.confidence == 0
+        assert state.fundamentals_report.confidence == 0
+        assert state.technical_report.confidence == 0
+
+
+async def test_risk_recursion_limit_applied(monkeypatch):
+    from unittest.mock import AsyncMock
+    import finagents.graph.setup as setup
+
+    risk = RiskDebateState(max_rounds=2)
+    invoke = AsyncMock(return_value=risk.model_dump())
+    monkeypatch.setattr(setup, "_RISK_DEBATE_SUBGRAPH", type("Graph", (), {"ainvoke": invoke})())
+    await call_risk_debate_subgraph(AgentState(risk_debate_state=risk))
+    assert invoke.call_args.kwargs["config"]["recursion_limit"] == 16

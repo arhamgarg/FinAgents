@@ -6,7 +6,7 @@ import random
 
 import pytest
 
-import financialagents.dataflows.rate_limits as rate_limits_module
+import finagents.dataflows.rate_limits as rate_limits_module
 
 
 class TestRateLimits:

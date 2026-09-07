@@ -10,7 +10,7 @@ import pytest
 
 class TestPipelineEventDataclass:
     def test_pipeline_event_is_frozen_and_hashable(self) -> None:
-        from financialagents.observability.events import PipelineEvent
+        from finagents.observability.events import PipelineEvent
 
         ev = PipelineEvent(
             kind="node_status",
@@ -19,10 +19,10 @@ class TestPipelineEventDataclass:
         )
         assert hash(ev) == hash(ev)
         with pytest.raises(Exception):
-            ev.kind = "errored"  # type: ignore[misc]
+            ev.kind = "errored"  # ty: ignore[invalid-assignment]  # Deliberately test frozen mutation.
 
     def test_module_public_surface(self) -> None:
-        from financialagents.observability import events as mod
+        from finagents.observability import events as mod
 
         assert set(mod.__all__) == {
             "PipelineEvent",
@@ -33,7 +33,7 @@ class TestPipelineEventDataclass:
         }
 
     def test_stage_for_node_covers_production_graph(self) -> None:
-        from financialagents.observability.events import STAGE_FOR_NODE
+        from finagents.observability.events import STAGE_FOR_NODE
 
         production_nodes = {
             "technical_analyst_node": "Analysts",
@@ -76,12 +76,10 @@ class _MockGraph:
         self.scripted = scripted
 
     async def astream(self, *args: Any, **kwargs: Any):
-        from financialagents.observability.events import STAGE_FOR_NODE
+        from finagents.observability.events import STAGE_FOR_NODE
 
         for ns, payload in self.scripted:
-            if isinstance(payload, dict) and any(
-                k in STAGE_FOR_NODE for k in payload
-            ):
+            if isinstance(payload, dict) and any(k in STAGE_FOR_NODE for k in payload):
                 mode = "updates"
             else:
                 mode = "values"
@@ -91,7 +89,7 @@ class _MockGraph:
 class TestPipelineEventStream:
     @pytest.mark.asyncio
     async def test_subgraph_node_names(self) -> None:
-        from financialagents.observability.events import (
+        from finagents.observability.events import (
             STAGE_FOR_NODE,
             stream_pipeline_events,
         )
@@ -110,7 +108,7 @@ class TestPipelineEventStream:
 
     @pytest.mark.asyncio
     async def test_round_counter(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         g = _MockGraph(
             [
@@ -129,7 +127,7 @@ class TestPipelineEventStream:
 
     @pytest.mark.asyncio
     async def test_round_counter_no_advance_without_current_round(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         g = _MockGraph(
             [
@@ -144,7 +142,7 @@ class TestPipelineEventStream:
 
     @pytest.mark.asyncio
     async def test_persona_size_pct(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         g_dict = _MockGraph(
             [
@@ -163,11 +161,7 @@ class TestPipelineEventStream:
         evs = []
         async for ev in stream_pipeline_events(g_dict, {}, {}):
             evs.append(ev)
-        agg = [
-            e
-            for e in evs
-            if e.node_name == "aggressive_risk_node" and e.status == "completed"
-        ]
+        agg = [e for e in evs if e.node_name == "aggressive_risk_node" and e.status == "completed"]
         assert agg and agg[0].position_size_pct == 4.5
 
         g_json = _MockGraph(
@@ -176,9 +170,7 @@ class TestPipelineEventStream:
                     (),
                     {
                         "aggressive_risk_node": {
-                            "aggressive_assessment": (
-                                '{"recommended_position_size_pct": 0.045}'
-                            )
+                            "aggressive_assessment": ('{"recommended_position_size_pct": 0.045}')
                         }
                     },
                 ),
@@ -187,16 +179,12 @@ class TestPipelineEventStream:
         evs = []
         async for ev in stream_pipeline_events(g_json, {}, {}):
             evs.append(ev)
-        agg = [
-            e
-            for e in evs
-            if e.node_name == "aggressive_risk_node" and e.status == "completed"
-        ]
+        agg = [e for e in evs if e.node_name == "aggressive_risk_node" and e.status == "completed"]
         assert agg and agg[0].position_size_pct == 0.045
 
     @pytest.mark.asyncio
     async def test_raises_become_errored_event(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         class _RaisingGraph:
             async def astream(self, *args: Any, **kwargs: Any):
@@ -208,13 +196,13 @@ class TestPipelineEventStream:
         with pytest.raises(RuntimeError):
             async for ev in stream_pipeline_events(_RaisingGraph(), {}, {}):
                 evs.append(ev)
-        assert any(
-            e.kind == "errored" and e.status == "errored" for e in evs
-        ), f"expected errored event before re-raise, got {evs!r}"
+        assert any(e.kind == "errored" and e.status == "errored" for e in evs), (
+            f"expected errored event before re-raise, got {evs!r}"
+        )
 
     @pytest.mark.asyncio
     async def test_completed_event_carries_final_state(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         full_state = {"ticker": "RELIANCE", "date": "2026-04-26"}
         g = _MockGraph(
@@ -228,13 +216,11 @@ class TestPipelineEventStream:
             evs.append(ev)
         completed = [e for e in evs if e.kind == "completed"]
         assert completed
-        assert completed[0].final_state is None or (
-            completed[0].final_state.ticker == "RELIANCE"
-        )
+        assert completed[0].final_state is None or (completed[0].final_state.ticker == "RELIANCE")
 
     @pytest.mark.asyncio
     async def test_cancelled_via_asyncio_cancel(self) -> None:
-        from financialagents.observability.events import stream_pipeline_events
+        from finagents.observability.events import stream_pipeline_events
 
         class _SlowGraph:
             async def astream(self, *args: Any, **kwargs: Any):
@@ -253,6 +239,6 @@ class TestPipelineEventStream:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert any(
-            e.kind == "errored" and e.status == "cancelled" for e in evs
-        ), f"expected cancelled event, got {evs!r}"
+        assert any(e.kind == "errored" and e.status == "cancelled" for e in evs), (
+            f"expected cancelled event, got {evs!r}"
+        )

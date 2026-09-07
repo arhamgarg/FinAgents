@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 class TestISTDates:
     def test_ist_today_str_format(self) -> None:
-        from financialagents.cli.ist_dates import ist_today_str
+        from finagents.cli.ist_dates import ist_today_str
 
         result = ist_today_str()
         assert re.match(r"^\d{4}-\d{2}-\d{2}$", result), (

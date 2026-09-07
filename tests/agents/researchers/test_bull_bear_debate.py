@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.config import Settings
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 class TestDebateRetryIdempotency:
@@ -19,12 +21,12 @@ class TestDebateRetryIdempotency:
         self,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bull_researcher import (
+        from finagents.agents.researchers.bull_researcher import (
             BullArgument,
             bull_researcher_node,
         )
-        from financialagents.agents.utils.agent_states import InvestDebateState
-        from financialagents.graph.reducers import merge_by_key
+        from finagents.agents.utils.agent_states import InvestDebateState
+        from finagents.graph.reducers import merge_by_key
 
         state = InvestDebateState(
             current_round=1,
@@ -42,15 +44,15 @@ class TestDebateRetryIdempotency:
         s2.ainvoke = AsyncMock(return_value=BullArgument(argument="text-v2"))
         mock_llm_2.with_structured_output.return_value = s2
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm_1,
         ):
             first_return = asyncio.run(bull_researcher_node(state, config))
         with patch(
-            "financialagents.agents.researchers.bull_researcher.create_llm_client",
+            "finagents.agents.researchers.bull_researcher.create_llm_client",
             return_value=mock_llm_2,
         ):
             second_return = asyncio.run(bull_researcher_node(state, config))
@@ -66,12 +68,12 @@ class TestDebateRetryIdempotency:
         self,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.bear_researcher import (
+        from finagents.agents.researchers.bear_researcher import (
             BearArgument,
             bear_researcher_node,
         )
-        from financialagents.agents.utils.agent_states import InvestDebateState
-        from financialagents.graph.reducers import merge_by_key
+        from finagents.agents.utils.agent_states import InvestDebateState
+        from finagents.graph.reducers import merge_by_key
 
         state = InvestDebateState(
             current_round=1,
@@ -90,15 +92,15 @@ class TestDebateRetryIdempotency:
         s2.ainvoke = AsyncMock(return_value=BearArgument(argument="bear-v2"))
         mock_llm_2.with_structured_output.return_value = s2
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm_1,
         ):
             first_return = asyncio.run(bear_researcher_node(state, config))
         with patch(
-            "financialagents.agents.researchers.bear_researcher.create_llm_client",
+            "finagents.agents.researchers.bear_researcher.create_llm_client",
             return_value=mock_llm_2,
         ):
             second_return = asyncio.run(bear_researcher_node(state, config))

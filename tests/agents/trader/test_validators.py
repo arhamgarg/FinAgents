@@ -1,19 +1,21 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import pytest
 
-from financialagents.agents.trader.schemas import TradingSignal
-from financialagents.config import Settings
+from finagents.agents.trader.schemas import TradingSignal
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    return Settings(openrouter_api_key="fake")
 
 
 def _make_signal(
     *,
-    action: str = "BUY",
+    action: Literal["BUY", "SELL", "HOLD"] = "BUY",
     conviction: float = 0.8,
     entry_price: float | None = 1500.0,
     stop_loss: float | None = 1450.0,
@@ -22,7 +24,7 @@ def _make_signal(
     position_size_pct: float | None = None,
 ) -> TradingSignal:
     return TradingSignal(
-        action=action,  # type: ignore[arg-type]
+        action=action,
         conviction=conviction,
         entry_price=entry_price,
         stop_loss=stop_loss,
@@ -33,10 +35,8 @@ def _make_signal(
 
 
 class TestPriceGrounding:
-    def test_price_grounding_overwrites_entry_price(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_price_grounding_overwrites_entry_price(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             price_grounding_validator,
         )
@@ -52,10 +52,8 @@ class TestPriceGrounding:
         assert result.halted is False
         assert result.signal.action == "BUY"
 
-    def test_price_grounding_none_forces_hold(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_price_grounding_none_forces_hold(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             price_grounding_validator,
         )
@@ -73,10 +71,8 @@ class TestPriceGrounding:
         assert result.signal.position_size_pct is None
         assert result.signal.position_size_shares is None
 
-    def test_price_grounding_preserves_conviction(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_price_grounding_preserves_conviction(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             price_grounding_validator,
         )
@@ -93,7 +89,7 @@ class TestPriceGrounding:
 
 class TestCircuitBand:
     def test_circuit_band_80pct_breach(self, default_settings: Settings) -> None:
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             circuit_band_validator,
         )
@@ -113,7 +109,7 @@ class TestCircuitBand:
     def test_circuit_band_unavailable_annotates_but_allows_signal(
         self, default_settings: Settings
     ) -> None:
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.validators import (
             CIRCUIT_BAND_UNAVAILABLE_NOTE,
             ValidatorContext,
             circuit_band_validator,
@@ -133,7 +129,7 @@ class TestCircuitBand:
     def test_circuit_band_unavailable_still_blocks_extreme_stop(
         self, default_settings: Settings
     ) -> None:
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             circuit_band_validator,
         )
@@ -150,10 +146,8 @@ class TestCircuitBand:
         assert result.signal.circuit_band_note is not None
         assert "circuit band" in result.signal.circuit_band_note.lower()
 
-    def test_circuit_band_within_threshold_allows_signal(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_circuit_band_within_threshold_allows_signal(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             circuit_band_validator,
         )
@@ -171,7 +165,7 @@ class TestCircuitBand:
 
 class TestSttFloor:
     def test_stt_floor(self, default_settings: Settings) -> None:
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             stt_cost_floor_validator,
         )
@@ -191,10 +185,8 @@ class TestSttFloor:
         assert result.halted is True
         assert "0.3%" in (result.signal.rationale or "")
 
-    def test_stt_floor_above_threshold_allows_signal(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_stt_floor_above_threshold_allows_signal(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             stt_cost_floor_validator,
         )
@@ -209,10 +201,8 @@ class TestSttFloor:
         assert result.signal.action == "BUY"
         assert result.halted is False
 
-    def test_stt_floor_skips_when_already_hold(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_stt_floor_skips_when_already_hold(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             stt_cost_floor_validator,
         )
@@ -229,10 +219,8 @@ class TestSttFloor:
 
 
 class TestKellyCap:
-    def test_kelly_cap_clips_oversized_position(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_kelly_cap_clips_oversized_position(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             kelly_cap_validator,
         )
@@ -247,10 +235,8 @@ class TestKellyCap:
         assert result.signal.position_size_pct == pytest.approx(0.05)
         assert result.signal.action == "BUY"
 
-    def test_kelly_cap_leaves_small_position_alone(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_kelly_cap_leaves_small_position_alone(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             kelly_cap_validator,
         )
@@ -265,7 +251,7 @@ class TestKellyCap:
         assert result.signal.position_size_pct == pytest.approx(0.04)
 
     def test_kelly_cap_none_is_noop(self, default_settings: Settings) -> None:
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             kelly_cap_validator,
         )
@@ -281,10 +267,8 @@ class TestKellyCap:
 
 
 class TestRunValidatorsChain:
-    def test_validators_collect_all_notes_after_hold(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_validators_collect_all_notes_after_hold(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             CIRCUIT_BAND_UNAVAILABLE_NOTE,
             ValidatorContext,
             run_validators,
@@ -306,10 +290,8 @@ class TestRunValidatorsChain:
         assert result.circuit_band_note == CIRCUIT_BAND_UNAVAILABLE_NOTE
         assert result.position_size_pct == pytest.approx(0.05)
 
-    def test_chain_runs_all_validators_in_order(
-        self, default_settings: Settings
-    ) -> None:
-        from financialagents.agents.trader.validators import (
+    def test_chain_runs_all_validators_in_order(self, default_settings: Settings) -> None:
+        from finagents.agents.trader.validators import (
             ValidatorContext,
             run_validators,
         )

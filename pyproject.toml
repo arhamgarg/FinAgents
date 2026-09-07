@@ -3,7 +3,7 @@ requires = ["uv_build>=0.5,<1.0"]
 build-backend = "uv_build"
 
 [project]
-name = "financialagents"
+name = "finagents"
 version = "0.1.0"
 description = "Multi-agent LLM trading signal framework for Indian equities"
 requires-python = ">=3.12,<3.14"
@@ -23,10 +23,8 @@ dependencies = [
     "httpx==0.28.1",
     "beautifulsoup4>=4.14.3",
     "lxml>=6.0.3",
-    "praw==7.8.1",
     "aiosqlite==0.22.1",
     "aiolimiter==1.2.1",
-    "trendspyg==0.4.2",
     "pandas==3.0.2",
     "pandas-ta==0.4.71b0",
     "pyarrow>=16.0",
@@ -37,8 +35,8 @@ dependencies = [
 ]
 
 [project.scripts]
-financialagents = "financialagents.cli.main:app"
-fa = "financialagents.cli.main:app"
+finagents = "finagents.cli.main:app"
+fa = "finagents.cli.main:app"
 
 [project.optional-dependencies]
 dev = [
@@ -50,17 +48,18 @@ dev = [
 ]
 
 [tool.uv.build-backend]
-module-name = "financialagents"
+module-name = "finagents"
 module-root = ""
 
-[tool.ty]
+[tool.ty.src]
+exclude = ["finagents/_archive/**"]
 [tool.ty.environment]
-python-version = "3.11"
+python-version = "3.12"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100

@@ -1,22 +1,24 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import TechnicalReport
-from financialagents.agents.managers.schemas import Finding, ResearchBrief
-from financialagents.agents.trader.schemas import TradingSignal
-from financialagents.agents.utils.agent_states import AgentState, InvestDebateState
-from financialagents.config import Settings
+from finagents.agents.analysts.schemas import TechnicalReport
+from finagents.agents.managers.schemas import Finding, ResearchBrief
+from finagents.agents.trader.schemas import TradingSignal
+from finagents.agents.utils.agent_states import AgentState, InvestDebateState
+from finagents.config import Settings
 
 
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, openrouter_api_key="fake")
+    return Settings(openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -38,9 +40,7 @@ def mock_technical_report() -> TechnicalReport:
 @pytest.fixture
 def mock_research_brief() -> ResearchBrief:
     return ResearchBrief(
-        key_findings=[
-            Finding(analyst="technical", key_point="Uptrend", weight=0.25)
-        ],
+        key_findings=[Finding(analyst="technical", key_point="Uptrend", weight=0.25)],
         consensus_view="Positive outlook",
         overall_confidence=0.76,
         analyst_confidences={
@@ -91,17 +91,17 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_trading_signal)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(populated_state, config))
@@ -115,24 +115,22 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_trading_signal)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ) as mock_create:
             asyncio.run(trader_node(populated_state, config))
 
-        mock_create.assert_called_once_with(
-            "deep_think", default_settings, call_site="trader"
-        )
+        mock_create.assert_called_once_with("deep_think", default_settings, call_site="trader")
 
     def test_price_grounding_overrides_llm_entry_price(
         self,
@@ -140,17 +138,17 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_trading_signal)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(populated_state, config))
@@ -164,17 +162,17 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_trading_signal)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(populated_state, config))
@@ -188,20 +186,18 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
-        ainvoke_mock = AsyncMock(
-            side_effect=[RuntimeError("timeout"), mock_trading_signal]
-        )
+        ainvoke_mock = AsyncMock(side_effect=[RuntimeError("timeout"), mock_trading_signal])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(populated_state, config))
@@ -215,7 +211,7 @@ class TestTraderNode:
         populated_state: AgentState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         ainvoke_mock = AsyncMock(
             side_effect=[RuntimeError("first error"), RuntimeError("second error")]
@@ -225,10 +221,10 @@ class TestTraderNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(populated_state, config))
@@ -246,7 +242,7 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         tech = TechnicalReport(
             current_price=None,
@@ -267,10 +263,10 @@ class TestTraderNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(state, config))
@@ -284,8 +280,8 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
-        from financialagents.agents.trader.validators import (
+        from finagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.validators import (
             CIRCUIT_BAND_UNAVAILABLE_NOTE,
         )
 
@@ -308,10 +304,10 @@ class TestTraderNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(state, config))
@@ -325,7 +321,7 @@ class TestTraderNode:
         mock_research_brief: ResearchBrief,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         tech = TechnicalReport(
             current_price=2450.75,
@@ -354,10 +350,10 @@ class TestTraderNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(state, config))
@@ -380,7 +376,7 @@ class TestTraderNode:
         mock_trading_signal: TradingSignal,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.trader.trader import trader_node
+        from finagents.agents.trader.trader import trader_node
 
         tech = TechnicalReport(
             current_price=2450.75,
@@ -401,10 +397,10 @@ class TestTraderNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
 
         with patch(
-            "financialagents.agents.trader.trader.create_llm_client",
+            "finagents.agents.trader.trader.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(trader_node(state, config))
@@ -418,10 +414,7 @@ def test_pipe12_no_forbidden_analyst_reads() -> None:
     import re
     from pathlib import Path
 
-    source_path = (
-        Path(__file__).parent.parent.parent.parent
-        / "financialagents/agents/trader/trader.py"
-    )
+    source_path = Path(__file__).parent.parent.parent.parent / "finagents/agents/trader/trader.py"
     source = source_path.read_text()
     forbidden = [
         "state.fundamentals_report",

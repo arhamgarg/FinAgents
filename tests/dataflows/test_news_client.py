@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pytest_httpx import HTTPXMock
 
-from financialagents.dataflows.news_client import (
+from finagents.dataflows.news_client import (
     _parse_economic_times,
     _parse_livemint,
     _parse_moneycontrol,
     get_news,
 )
-from financialagents.dataflows.news_schema import NewsArticle
+from finagents.dataflows.news_schema import NewsArticle
 
 
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "news"
@@ -51,13 +51,19 @@ def test_livemint_parser() -> None:
 
 @pytest.mark.asyncio
 async def test_aggregator_ok_when_3_sources_succeed(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
-        httpx_mock.add_response(url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes())
-        httpx_mock.add_response(url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes())
-        httpx_mock.add_response(url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes())
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+        httpx_mock.add_response(
+            url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
+        )
         result = await get_news("RELIANCE")
 
     assert result.status == "ok"
@@ -69,13 +75,17 @@ async def test_aggregator_ok_when_3_sources_succeed(
 
 @pytest.mark.asyncio
 async def test_aggregator_ok_when_2_sources_succeed(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
         httpx_mock.add_response(url=MC_URL, status_code=503)
-        httpx_mock.add_response(url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes())
-        httpx_mock.add_response(url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes())
+        httpx_mock.add_response(
+            url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
+        )
         result = await get_news("RELIANCE")
 
     assert result.status == "ok"
@@ -84,13 +94,15 @@ async def test_aggregator_ok_when_2_sources_succeed(
 
 @pytest.mark.asyncio
 async def test_aggregator_partial_when_1_source_succeeds(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
         httpx_mock.add_response(url=MC_URL, status_code=503)
         httpx_mock.add_response(url=ET_URL, status_code=503)
-        httpx_mock.add_response(url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes())
+        httpx_mock.add_response(
+            url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
+        )
         result = await get_news("RELIANCE")
 
     assert result.status == "partial"
@@ -100,10 +112,10 @@ async def test_aggregator_partial_when_1_source_succeeds(
 
 @pytest.mark.asyncio
 async def test_aggregator_error_when_0_sources_succeed(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
         httpx_mock.add_response(url=MC_URL, status_code=503)
         httpx_mock.add_response(url=ET_URL, status_code=503)
         httpx_mock.add_response(url=LM_URL, status_code=503)
@@ -117,10 +129,8 @@ async def test_aggregator_error_when_0_sources_succeed(
 
 
 @pytest.mark.asyncio
-async def test_dedup_across_sources(
-    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from financialagents.dataflows.news_client import _dedupe
+async def test_dedup_across_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from finagents.dataflows.news_client import _dedupe
 
     articles = [
         NewsArticle(
@@ -145,9 +155,9 @@ async def test_dedup_across_sources(
 
 @pytest.mark.asyncio
 async def test_ticker_sanitization_rejects_injection(
-    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
     result = await get_news("RELIANCE/../etc")
     assert result.status == "error"
     assert result.error is not None
@@ -156,15 +166,21 @@ async def test_ticker_sanitization_rejects_injection(
 
 @pytest.mark.asyncio
 async def test_rate_limiter_per_domain(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
     acquire_mock = AsyncMock()
-    with patch("financialagents.dataflows.news_client.rate_limits") as mock_rl:
+    with patch("finagents.dataflows.news_client.rate_limits") as mock_rl:
         mock_rl.acquire = acquire_mock
-        httpx_mock.add_response(url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes())
-        httpx_mock.add_response(url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes())
-        httpx_mock.add_response(url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes())
+        httpx_mock.add_response(
+            url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
+        )
         await get_news("RELIANCE")
 
     call_args = [call.args[0] for call in acquire_mock.call_args_list]
@@ -176,21 +192,27 @@ async def test_rate_limiter_per_domain(
 
 @pytest.mark.asyncio
 async def test_cache_hit(
-    httpx_mock: HTTPXMock, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     cache_path = tmp_path / "cache.db"
-    monkeypatch.setattr("financialagents.dataflows.cache.CACHE_DB_PATH", cache_path)
-    monkeypatch.setattr("financialagents.dataflows.news_client.cache.CACHE_DB_PATH", cache_path)
+    monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", cache_path)
+    monkeypatch.setattr("finagents.dataflows.news_client.cache.CACHE_DB_PATH", cache_path)
 
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
-        httpx_mock.add_response(url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes())
-        httpx_mock.add_response(url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes())
-        httpx_mock.add_response(url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes())
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+        httpx_mock.add_response(
+            url=MC_URL, content=(FIXTURE_DIR / "moneycontrol_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=ET_URL, content=(FIXTURE_DIR / "economictimes_reliance.html").read_bytes()
+        )
+        httpx_mock.add_response(
+            url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
+        )
         first = await get_news("RELIANCE")
 
     assert first.status == "ok"
 
-    with patch("financialagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
+    with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
         second = await get_news("RELIANCE")
 
     assert second.status == "ok"

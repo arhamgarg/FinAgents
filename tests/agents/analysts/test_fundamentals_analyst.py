@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import FundamentalsAnalystReport
-from financialagents.dataflows.data_result import DataResult
-from financialagents.dataflows.fundamentals_schema import (
+from finagents.agents.analysts.schemas import FundamentalsAnalystReport
+from finagents.dataflows.data_result import DataResult
+from finagents.dataflows.fundamentals_schema import (
     DebtBalance,
     FundamentalsReport,
     Profitability,
@@ -20,7 +20,7 @@ from financialagents.dataflows.fundamentals_schema import (
 
 @pytest.fixture
 def agent_state():
-    from financialagents.agents.utils.agent_states import AgentState
+    from finagents.agents.utils.agent_states import AgentState
 
     return AgentState(ticker="RELIANCE", date="2024-12-31")
 
@@ -90,32 +90,29 @@ class TestFundamentalsAnalystNode:
         fundamentals_report: FundamentalsReport,
         valid_fundamentals_analyst_report: FundamentalsAnalystReport,
     ):
-        data_result = DataResult(
-            status="ok", data=fundamentals_report, source="screener"
-        )
+        data_result = DataResult(status="ok", data=fundamentals_report, source="screener")
 
         mock_structured_llm = MagicMock()
-        mock_structured_llm.ainvoke = AsyncMock(
-            return_value=valid_fundamentals_analyst_report
-        )
+        mock_structured_llm.ainvoke = AsyncMock(return_value=valid_fundamentals_analyst_report)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        with patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ), patch(
-            "financialagents.agents.analysts.fundamentals_analyst.create_llm_client",
-            return_value=mock_llm,
+        with (
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+                new_callable=AsyncMock,
+                return_value=data_result,
+            ),
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.create_llm_client",
+                return_value=mock_llm,
+            ),
         ):
-            from financialagents.agents.analysts.fundamentals_analyst import (
+            from finagents.agents.analysts.fundamentals_analyst import (
                 fundamentals_analyst_node,
             )
 
-            result = await fundamentals_analyst_node(
-                agent_state, {"configurable": {}}
-            )
+            result = await fundamentals_analyst_node(agent_state, {"configurable": {}})
 
         assert "fundamentals_report" in result
         report = result["fundamentals_report"]
@@ -134,17 +131,15 @@ class TestFundamentalsAnalystNode:
         )
 
         with patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+            "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
             new_callable=AsyncMock,
             return_value=data_result,
         ):
-            from financialagents.agents.analysts.fundamentals_analyst import (
+            from finagents.agents.analysts.fundamentals_analyst import (
                 fundamentals_analyst_node,
             )
 
-            result = await fundamentals_analyst_node(
-                agent_state, {"configurable": {}}
-            )
+            result = await fundamentals_analyst_node(agent_state, {"configurable": {}})
 
         assert "fundamentals_report" in result
         report = result["fundamentals_report"]
@@ -156,17 +151,15 @@ class TestFundamentalsAnalystNode:
         data_result = DataResult(status="empty", data=None)
 
         with patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+            "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
             new_callable=AsyncMock,
             return_value=data_result,
         ):
-            from financialagents.agents.analysts.fundamentals_analyst import (
+            from finagents.agents.analysts.fundamentals_analyst import (
                 fundamentals_analyst_node,
             )
 
-            result = await fundamentals_analyst_node(
-                agent_state, {"configurable": {}}
-            )
+            result = await fundamentals_analyst_node(agent_state, {"configurable": {}})
 
         assert "fundamentals_report" in result
         report = result["fundamentals_report"]
@@ -179,9 +172,7 @@ class TestFundamentalsAnalystNode:
         fundamentals_report: FundamentalsReport,
         valid_fundamentals_analyst_report: FundamentalsAnalystReport,
     ):
-        data_result = DataResult(
-            status="ok", data=fundamentals_report, source="screener"
-        )
+        data_result = DataResult(status="ok", data=fundamentals_report, source="screener")
 
         mock_ainvoke = AsyncMock(
             side_effect=[RuntimeError("LLM timeout"), valid_fundamentals_analyst_report]
@@ -191,21 +182,22 @@ class TestFundamentalsAnalystNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        with patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ), patch(
-            "financialagents.agents.analysts.fundamentals_analyst.create_llm_client",
-            return_value=mock_llm,
+        with (
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+                new_callable=AsyncMock,
+                return_value=data_result,
+            ),
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.create_llm_client",
+                return_value=mock_llm,
+            ),
         ):
-            from financialagents.agents.analysts.fundamentals_analyst import (
+            from finagents.agents.analysts.fundamentals_analyst import (
                 fundamentals_analyst_node,
             )
 
-            result = await fundamentals_analyst_node(
-                agent_state, {"configurable": {}}
-            )
+            result = await fundamentals_analyst_node(agent_state, {"configurable": {}})
 
         assert "fundamentals_report" in result
         assert isinstance(result["fundamentals_report"], FundamentalsAnalystReport)
@@ -218,9 +210,7 @@ class TestFundamentalsAnalystNode:
         fundamentals_report: FundamentalsReport,
         valid_fundamentals_analyst_report: FundamentalsAnalystReport,
     ):
-        data_result = DataResult(
-            status="ok", data=fundamentals_report, source="screener"
-        )
+        data_result = DataResult(status="ok", data=fundamentals_report, source="screener")
 
         report_no_sources = FundamentalsAnalystReport(
             pe_ratio=24.5,
@@ -234,20 +224,21 @@ class TestFundamentalsAnalystNode:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
-        with patch(
-            "financialagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ), patch(
-            "financialagents.agents.analysts.fundamentals_analyst.create_llm_client",
-            return_value=mock_llm,
+        with (
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
+                new_callable=AsyncMock,
+                return_value=data_result,
+            ),
+            patch(
+                "finagents.agents.analysts.fundamentals_analyst.create_llm_client",
+                return_value=mock_llm,
+            ),
         ):
-            from financialagents.agents.analysts.fundamentals_analyst import (
+            from finagents.agents.analysts.fundamentals_analyst import (
                 fundamentals_analyst_node,
             )
 
-            result = await fundamentals_analyst_node(
-                agent_state, {"configurable": {}}
-            )
+            result = await fundamentals_analyst_node(agent_state, {"configurable": {}})
 
         assert "screener" in result["fundamentals_report"].data_sources

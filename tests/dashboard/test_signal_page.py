@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from typing import Any, Literal
+
 import asyncio
 from pathlib import Path
 
 import pytest
 
 AppTest = pytest.importorskip(
-    "streamlit.testing.v1", reason="Streamlit AppTest required",
+    "streamlit.testing.v1",
+    reason="Streamlit AppTest required",
 ).AppTest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SIGNAL_PAGE_PATH = (
-    REPO_ROOT / "financialagents" / "dashboard" / "pages" / "signal.py"
-)
+SIGNAL_PAGE_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "signal.py"
 
 
 
@@ -22,16 +23,16 @@ def _build_payload_json(
     *,
     ticker: str = "RELIANCE",
     date: str = "2026-04-26",
-    action: str = "BUY",
-    decision: str = "approve",
+    action: Literal["BUY", "SELL", "HOLD"] = "BUY",
+    decision: Literal["approve", "modify", "veto"] = "approve",
     bulls: list[str] | None = None,
     bears: list[str] | None = None,
     persona_assessments: dict[str, str] | None = None,
 ) -> str:
-    from financialagents.agents.managers.schemas import PortfolioDecision
-    from financialagents.agents.risk_mgmt.schemas import PersonaAssessment
-    from financialagents.agents.trader.schemas import TradingSignal
-    from financialagents.agents.utils.agent_states import (
+    from finagents.agents.managers.schemas import PortfolioDecision
+    from finagents.agents.risk_mgmt.schemas import PersonaAssessment
+    from finagents.agents.trader.schemas import TradingSignal
+    from finagents.agents.utils.agent_states import (
         AgentState,
         InvestDebateState,
         RiskDebateState,
@@ -62,7 +63,7 @@ def _build_payload_json(
         )
     risk_debate = None
     if persona_assessments:
-        serialised: dict[str, str] = {}
+        serialised: dict[str, Any] = {}
         for persona_label, main_argument in persona_assessments.items():
             pa = PersonaAssessment(
                 main_argument=main_argument,
@@ -87,39 +88,55 @@ def _build_payload_json(
 
 
 async def _seed_success_row(db_path: Path, run_id: str, payload_json: str) -> None:
-    from financialagents.storage.migrations import run_migrations
-    from financialagents.storage.signals import insert_running, update_success
+    from finagents.storage.migrations import run_migrations
+    from finagents.storage.signals import insert_running, update_success
 
     await run_migrations(db_path)
     await insert_running(
-        run_id, "RELIANCE", "2026-04-26",
-        provider="openrouter", model="openrouter/auto", db_path=db_path,
+        run_id,
+        "RELIANCE",
+        "2026-04-26",
+        provider="openrouter",
+        model="openrouter/auto",
+        db_path=db_path,
     )
     await update_success(
-        run_id, action="BUY", confidence=0.78,
-        position_size_pct=4.5, approved=True, pm_decision="approve",
-        payload_json=payload_json, db_path=db_path,
+        run_id,
+        action="BUY",
+        confidence=0.78,
+        position_size_pct=4.5,
+        approved=True,
+        pm_decision="approve",
+        payload_json=payload_json,
+        db_path=db_path,
     )
 
 
 async def _seed_cancelled_row(db_path: Path, run_id: str) -> None:
-    from financialagents.storage.migrations import run_migrations
-    from financialagents.storage.signals import insert_running, update_cancelled
+    from finagents.storage.migrations import run_migrations
+    from finagents.storage.signals import insert_running, update_cancelled
 
     await run_migrations(db_path)
     await insert_running(
-        run_id, "TCS", "2026-04-26",
-        provider="openrouter", model="openrouter/auto", db_path=db_path,
+        run_id,
+        "TCS",
+        "2026-04-26",
+        provider="openrouter",
+        model="openrouter/auto",
+        db_path=db_path,
     )
     await update_cancelled(
-        run_id, error_msg="User aborted (Ctrl+C)",
-        payload_json=None, db_path=db_path,
+        run_id,
+        error_msg="User aborted (Ctrl+C)",
+        payload_json=None,
+        db_path=db_path,
     )
 
 
 @pytest.fixture(autouse=True)
 def _clear_streamlit_cache():
     import streamlit as st
+
     st.cache_data.clear()
     yield
     st.cache_data.clear()
@@ -137,18 +154,14 @@ class TestSignalPagePermalink:
         at = AppTest.from_file(str(SIGNAL_PAGE_PATH))
         at.query_params["id"] = run_id
         at.run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         markdown_blobs = " ".join(m.value for m in at.markdown)
         assert ":green[BUY]" in markdown_blobs or "BUY" in markdown_blobs, (
             f"Verdict word missing from rendered markdown: {markdown_blobs!r}"
         )
         title_blobs = " ".join(t.value for t in at.title)
-        assert "RELIANCE" in title_blobs, (
-            f"Ticker missing from title: {title_blobs!r}"
-        )
+        assert "RELIANCE" in title_blobs, f"Ticker missing from title: {title_blobs!r}"
 
 
 class TestSignalPageDebateColumns:
@@ -169,24 +182,21 @@ class TestSignalPageDebateColumns:
         at = AppTest.from_file(str(SIGNAL_PAGE_PATH))
         at.query_params["id"] = run_id
         at.run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         markdown_blobs = " ".join(m.value for m in at.markdown)
         for label in ("Bull", "Bear", "aggressive", "neutral", "conservative"):
             assert label in markdown_blobs, (
-                f"Debate label {label!r} missing from rendered markdown; "
-                f"got: {markdown_blobs!r}"
+                f"Debate label {label!r} missing from rendered markdown; got: {markdown_blobs!r}"
             )
 
         assert "Round 1" in markdown_blobs, (
             f"Round 1 heading missing from rendered markdown; got: {markdown_blobs!r}"
         )
 
-        text_blobs = " ".join(
-            (m.value for m in at.markdown)
-        ) + " " + " ".join(t.value for t in at.text)
+        text_blobs = (
+            " ".join((m.value for m in at.markdown)) + " " + " ".join(t.value for t in at.text)
+        )
         for snippet in (
             "Bull says go up",
             "Bear says caution",
@@ -194,9 +204,7 @@ class TestSignalPageDebateColumns:
             "Neutral view",
             "Conservative view",
         ):
-            assert snippet in text_blobs, (
-                f"Debate snippet {snippet!r} missing; got: {text_blobs!r}"
-            )
+            assert snippet in text_blobs, f"Debate snippet {snippet!r} missing; got: {text_blobs!r}"
 
 
 class TestSignalPageInvalidRunId:
@@ -205,9 +213,7 @@ class TestSignalPageInvalidRunId:
         at = AppTest.from_file(str(SIGNAL_PAGE_PATH))
         at.query_params["id"] = "notHEX!!"
         at.run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         warning_text = " ".join(w.value for w in at.warning)
         assert "No signal found with run_id" in warning_text, (
@@ -230,9 +236,7 @@ class TestSignalPagePartialState:
         at = AppTest.from_file(str(SIGNAL_PAGE_PATH))
         at.query_params["id"] = run_id
         at.run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         warning_text = " ".join(w.value for w in at.warning)
         assert "Run cancelled. Partial state saved." in warning_text, (
@@ -248,9 +252,7 @@ class TestSignalPageNoIdQueryParam:
     def test_no_id_query_param(self, monkeypatch, tmp_path) -> None:
         monkeypatch.setenv("FA_DATA_DIR", str(tmp_path))
         at = AppTest.from_file(str(SIGNAL_PAGE_PATH)).run(timeout=10)
-        assert not at.exception, (
-            f"AppTest raised: {[str(e.value) for e in at.exception]}"
-        )
+        assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
 
         info_text = " ".join(i.value for i in at.info)
         assert "No signal selected. Open History and click a row." in info_text, (

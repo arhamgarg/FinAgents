@@ -5,16 +5,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.analysts.schemas import NewsReport
-from financialagents.dataflows.data_result import DataResult
-from financialagents.dataflows.news_schema import NewsArticle
+from finagents.agents.analysts.schemas import NewsReport
+from finagents.dataflows.data_result import DataResult
+from finagents.dataflows.news_schema import NewsArticle
 
 
 
 
 @pytest.fixture
 def agent_state():
-    from financialagents.agents.utils.agent_states import AgentState
+    from finagents.agents.utils.agent_states import AgentState
 
     return AgentState(ticker="TESTCO", date="2024-12-31")
 
@@ -50,15 +50,18 @@ async def _run_node_with_mocks(
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_report)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-    with patch(
-        "financialagents.agents.analysts.news_analyst.get_news",
-        new_callable=AsyncMock,
-        return_value=data_result,
-    ), patch(
-        "financialagents.agents.analysts.news_analyst.create_llm_client",
-        return_value=mock_llm,
+    with (
+        patch(
+            "finagents.agents.analysts.news_analyst.get_news",
+            new_callable=AsyncMock,
+            return_value=data_result,
+        ),
+        patch(
+            "finagents.agents.analysts.news_analyst.create_llm_client",
+            return_value=mock_llm,
+        ),
     ):
-        from financialagents.agents.analysts.news_analyst import news_analyst_node
+        from finagents.agents.analysts.news_analyst import news_analyst_node
 
         return await news_analyst_node(agent_state, {"configurable": {}})
 

@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.utils.agent_states import InvestDebateState
-from financialagents.config import Settings
+from finagents.agents.utils.agent_states import InvestDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -27,7 +29,8 @@ def populated_state_with_full_history() -> InvestDebateState:
 
 @pytest.fixture
 def mock_thesis():
-    from financialagents.agents.researchers.investment_thesis import InvestmentThesis
+    from finagents.agents.researchers.investment_thesis import InvestmentThesis
+
     return InvestmentThesis(
         synthesis=(
             "On balance, the bull case outweighs the bear on valuation + momentum; "
@@ -45,19 +48,18 @@ class TestInvestmentThesisNode:
         mock_thesis,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
+        from finagents.agents.researchers.investment_thesis import investment_thesis_node
+
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_thesis)
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
+            "finagents.agents.researchers.investment_thesis.create_llm_client",
             return_value=mock_llm,
         ):
-            result = asyncio.run(
-                investment_thesis_node(populated_state_with_full_history, config)
-            )
+            result = asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
         assert "investment_thesis" in result
         assert isinstance(result["investment_thesis"], str)
         assert len(result["investment_thesis"]) > 0
@@ -68,7 +70,8 @@ class TestInvestmentThesisNode:
         mock_thesis,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
+        from finagents.agents.researchers.investment_thesis import investment_thesis_node
+
         captured_prompts: list = []
 
         async def capture_ainvoke(prompt):
@@ -79,9 +82,9 @@ class TestInvestmentThesisNode:
         mock_structured_llm.ainvoke = capture_ainvoke
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
+            "finagents.agents.researchers.investment_thesis.create_llm_client",
             return_value=mock_llm,
         ):
             asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
@@ -98,20 +101,19 @@ class TestInvestmentThesisNode:
         mock_thesis,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
+        from finagents.agents.researchers.investment_thesis import investment_thesis_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("LLM timeout"), mock_thesis])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
+            "finagents.agents.researchers.investment_thesis.create_llm_client",
             return_value=mock_llm,
         ):
-            result = asyncio.run(
-                investment_thesis_node(populated_state_with_full_history, config)
-            )
+            result = asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
         assert ainvoke_mock.call_count == 2
         assert "investment_thesis" in result
 
@@ -120,20 +122,19 @@ class TestInvestmentThesisNode:
         populated_state_with_full_history: InvestDebateState,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
+        from finagents.agents.researchers.investment_thesis import investment_thesis_node
+
         ainvoke_mock = AsyncMock(side_effect=[RuntimeError("first"), RuntimeError("second")])
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
+            "finagents.agents.researchers.investment_thesis.create_llm_client",
             return_value=mock_llm,
         ):
-            result = asyncio.run(
-                investment_thesis_node(populated_state_with_full_history, config)
-            )
+            result = asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
         assert ainvoke_mock.call_count == 2
         assert "investment_thesis" in result
         sentinel = result["investment_thesis"]
@@ -147,7 +148,8 @@ class TestInvestmentThesisNode:
         mock_thesis,
         default_settings: Settings,
     ) -> None:
-        from financialagents.agents.researchers.investment_thesis import investment_thesis_node
+        from finagents.agents.researchers.investment_thesis import investment_thesis_node
+
         captured_prompts: list = []
 
         async def capture_ainvoke(prompt):
@@ -158,9 +160,9 @@ class TestInvestmentThesisNode:
         mock_structured_llm.ainvoke = capture_ainvoke
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
-        config = {"configurable": {"settings": default_settings}}
+        config: RunnableConfig = {"configurable": {"settings": default_settings}}
         with patch(
-            "financialagents.agents.researchers.investment_thesis.create_llm_client",
+            "finagents.agents.researchers.investment_thesis.create_llm_client",
             return_value=mock_llm,
         ):
             asyncio.run(investment_thesis_node(populated_state_with_full_history, config))
@@ -172,12 +174,14 @@ class TestInvestmentThesisNode:
 class TestInvestmentThesisSchema:
     def test_required_field_synthesis(self) -> None:
         import pydantic
-        from financialagents.agents.researchers.investment_thesis import InvestmentThesis
+        from finagents.agents.researchers.investment_thesis import InvestmentThesis
+
         with pytest.raises(pydantic.ValidationError):
             InvestmentThesis()
 
     def test_optional_strength_fields_default_to_none(self) -> None:
-        from financialagents.agents.researchers.investment_thesis import InvestmentThesis
+        from finagents.agents.researchers.investment_thesis import InvestmentThesis
+
         thesis = InvestmentThesis(synthesis="the synthesis")
         assert thesis.bull_strength is None
         assert thesis.bear_strength is None

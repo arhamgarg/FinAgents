@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from financialagents.agents.utils.agent_states import AgentState
-from financialagents.storage.migrations import run_migrations
-from financialagents.storage.signals import insert_running, update_success
+from finagents.agents.utils.agent_states import AgentState
+from finagents.storage.migrations import run_migrations
+from finagents.storage.signals import insert_running, update_success
 
 
 def _seed_three_rows(db_path: Path) -> None:
@@ -25,14 +25,15 @@ def _seed_three_rows(db_path: Path) -> None:
     for run_id, ticker, date, created_at in seeds:
         asyncio.run(
             insert_running(
-                run_id, ticker, date,
-                provider="openrouter", model="openrouter/auto",
+                run_id,
+                ticker,
+                date,
+                provider="openrouter",
+                model="openrouter/auto",
                 db_path=db_path,
             )
         )
-        payload = AgentState(ticker=ticker, date=date).model_dump_json(
-            exclude={"messages"}
-        )
+        payload = AgentState(ticker=ticker, date=date).model_dump_json(exclude={"messages"})
         asyncio.run(
             update_success(
                 run_id,
@@ -59,7 +60,7 @@ def _seed_three_rows(db_path: Path) -> None:
 @pytest.fixture
 def patched_db(monkeypatch, tmp_signals_db):
     monkeypatch.setattr(
-        "financialagents.cli.export.signals_db_path",
+        "finagents.cli.export.signals_db_path",
         lambda settings=None: tmp_signals_db,
     )
     return tmp_signals_db
@@ -67,9 +68,13 @@ def patched_db(monkeypatch, tmp_signals_db):
 
 class TestFaExport:
     def test_json(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
 
@@ -91,17 +96,30 @@ class TestFaExport:
         assert tickers == ["RELIANCE", "TCS", "INFY"]
         for row in parsed:
             for col in (
-                "run_id", "ticker", "date", "created_at",
-                "provider", "model", "status", "action",
-                "confidence", "position_size_pct", "approved",
-                "pm_decision", "error_msg",
+                "run_id",
+                "ticker",
+                "date",
+                "created_at",
+                "provider",
+                "model",
+                "status",
+                "action",
+                "confidence",
+                "position_size_pct",
+                "approved",
+                "pm_decision",
+                "error_msg",
             ):
                 assert col in row, f"missing column in JSON row: {col}"
 
     def test_csv(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
 
@@ -121,18 +139,31 @@ class TestFaExport:
         assert len(rows) == 3
         assert reader.fieldnames is not None
         for col in (
-            "run_id", "ticker", "date", "created_at",
-            "provider", "model", "status", "action",
-            "confidence", "position_size_pct", "approved",
-            "pm_decision", "error_msg",
+            "run_id",
+            "ticker",
+            "date",
+            "created_at",
+            "provider",
+            "model",
+            "status",
+            "action",
+            "confidence",
+            "position_size_pct",
+            "approved",
+            "pm_decision",
+            "error_msg",
         ):
             assert col in reader.fieldnames, f"missing CSV header: {col}"
         assert [r["ticker"] for r in rows] == ["RELIANCE", "TCS", "INFY"]
 
     def test_no_rows_match(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
 
@@ -147,16 +178,17 @@ class TestFaExport:
         )
         assert rc == 0
         captured = capsys.readouterr()
-        assert (
-            "No signals match the given filters. Showing 0 rows."
-            in captured.err
-        )
+        assert "No signals match the given filters. Showing 0 rows." in captured.err
         assert json.loads(captured.out) == []
 
     def test_no_rows_match_csv_header_only(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
 
@@ -171,19 +203,20 @@ class TestFaExport:
         )
         assert rc == 0
         captured = capsys.readouterr()
-        assert (
-            "No signals match the given filters. Showing 0 rows."
-            in captured.err
-        )
+        assert "No signals match the given filters. Showing 0 rows." in captured.err
         reader = _csv.DictReader(io.StringIO(captured.out))
         assert list(reader) == []
         assert reader.fieldnames is not None
         assert "ticker" in reader.fieldnames
 
     def test_until_filter(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
 
@@ -205,9 +238,13 @@ class TestFaExport:
         )
 
     def test_invalid_format(
-        self, monkeypatch, capsys, tmp_signals_db, patched_db,
+        self,
+        monkeypatch,
+        capsys,
+        tmp_signals_db,
+        patched_db,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         rc = asyncio.run(
             run_export(
@@ -224,9 +261,13 @@ class TestFaExport:
         assert "json or csv" in captured.err
 
     def test_out_file_overwrite_refused_non_tty(
-        self, monkeypatch, tmp_signals_db, patched_db, tmp_path,
+        self,
+        monkeypatch,
+        tmp_signals_db,
+        patched_db,
+        tmp_path,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
         target = tmp_path / "existing.json"
@@ -247,9 +288,13 @@ class TestFaExport:
         assert target.read_text() == "PRIOR CONTENT"
 
     def test_out_file_overwrite_with_yes(
-        self, monkeypatch, tmp_signals_db, patched_db, tmp_path,
+        self,
+        monkeypatch,
+        tmp_signals_db,
+        patched_db,
+        tmp_path,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
         target = tmp_path / "existing.json"
@@ -272,9 +317,13 @@ class TestFaExport:
         assert len(parsed) == 3
 
     def test_out_file_new_path(
-        self, monkeypatch, tmp_signals_db, patched_db, tmp_path,
+        self,
+        monkeypatch,
+        tmp_signals_db,
+        patched_db,
+        tmp_path,
     ) -> None:
-        from financialagents.cli.export import run_export
+        from finagents.cli.export import run_export
 
         _seed_three_rows(tmp_signals_db)
         target = tmp_path / "new" / "fresh.csv"
@@ -300,22 +349,21 @@ class TestFaExport:
 class TestLoadHistoryUntil:
 
     def test_until_excludes_rows_at_or_after(self, tmp_signals_db) -> None:
-        from financialagents.storage.signals import load_history
+        from finagents.storage.signals import load_history
 
         _seed_three_rows(tmp_signals_db)
 
-        rows = asyncio.run(
-            load_history(tmp_signals_db, limit=20, until="2026-04-26")
-        )
+        rows = asyncio.run(load_history(tmp_signals_db, limit=20, until="2026-04-26"))
         tickers = {r["ticker"] for r in rows}
         assert tickers == {"TCS", "INFY"}, (
             f"--until 2026-04-26 should exclude RELIANCE, got {tickers}"
         )
 
     def test_until_composes_with_since_and_ticker(
-        self, tmp_signals_db,
+        self,
+        tmp_signals_db,
     ) -> None:
-        from financialagents.storage.signals import load_history
+        from finagents.storage.signals import load_history
 
         _seed_three_rows(tmp_signals_db)
 
@@ -332,13 +380,12 @@ class TestLoadHistoryUntil:
         assert rows[0]["ticker"] == "TCS"
 
     def test_until_none_preserves_legacy_behavior(
-        self, tmp_signals_db,
+        self,
+        tmp_signals_db,
     ) -> None:
-        from financialagents.storage.signals import load_history
+        from finagents.storage.signals import load_history
 
         _seed_three_rows(tmp_signals_db)
 
-        rows = asyncio.run(
-            load_history(tmp_signals_db, limit=20, until=None)
-        )
+        rows = asyncio.run(load_history(tmp_signals_db, limit=20, until=None))
         assert len(rows) == 3

@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.risk_mgmt.consolidation import (
+from finagents.agents.risk_mgmt.consolidation import (
     _parse_size,
     build_consolidation_prompt,
     risk_debate_consolidation_node,
 )
-from financialagents.agents.risk_mgmt.schemas import RiskConsolidation
-from financialagents.agents.utils.agent_states import RiskDebateState
-from financialagents.config import Settings
+from finagents.agents.risk_mgmt.schemas import RiskConsolidation
+from finagents.agents.utils.agent_states import RiskDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 def _state_with_persona_sizes(
@@ -44,9 +46,7 @@ def _state_with_persona_sizes(
 
 def _mock_consolidation_llm(synthesis_text: str = "weighted synthesis"):
     mock_structured = MagicMock()
-    mock_structured.ainvoke = AsyncMock(
-        return_value=RiskConsolidation(synthesis=synthesis_text)
-    )
+    mock_structured.ainvoke = AsyncMock(return_value=RiskConsolidation(synthesis=synthesis_text))
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value = mock_structured
     return mock_llm
@@ -83,9 +83,7 @@ class TestParseSize:
         assert _parse_size("3.14") == 0.0
 
     def test_returns_zero_for_field_value_null(self) -> None:
-        assert _parse_size(
-            '{"recommended_position_size_pct":null,"confidence":0.7}'
-        ) == 0.0
+        assert _parse_size('{"recommended_position_size_pct":null,"confidence":0.7}') == 0.0
 
 
 class TestWeightedSizeSynthesis:
@@ -93,10 +91,10 @@ class TestWeightedSizeSynthesis:
         state = _state_with_persona_sizes(agg=0.05, neu=0.03, con=0.01)
         mock_llm = _mock_consolidation_llm()
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         expected = 0.25 * 0.05 + 0.50 * 0.03 + 0.25 * 0.01
         assert result["synthesized_position_size_pct"] == pytest.approx(expected)
@@ -105,10 +103,10 @@ class TestWeightedSizeSynthesis:
         state = _state_with_persona_sizes(agg=0.0, neu=0.0, con=0.0)
         mock_llm = _mock_consolidation_llm("all reject")
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         assert result["synthesized_position_size_pct"] == 0.0
 
@@ -117,10 +115,10 @@ class TestWeightedSizeSynthesis:
         state.aggressive_assessment = None
         mock_llm = _mock_consolidation_llm()
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         expected = 0.25 * 0.0 + 0.50 * 0.03 + 0.25 * 0.01
         assert result["synthesized_position_size_pct"] == pytest.approx(expected)
@@ -130,17 +128,16 @@ class TestWeightedSizeSynthesis:
         state.neutral_assessment = "not-json"
         mock_llm = _mock_consolidation_llm()
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         expected = 0.25 * 0.05 + 0.50 * 0.0 + 0.25 * 0.01
         assert result["synthesized_position_size_pct"] == pytest.approx(expected)
 
     def test_non_default_weights_override(self) -> None:
         custom = Settings(
-            _env_file=None,
             llm_provider="openrouter",
             openrouter_api_key="fake",
             risk_persona_weights={"aggressive": 0.5, "neutral": 0.3, "conservative": 0.2},
@@ -148,10 +145,10 @@ class TestWeightedSizeSynthesis:
         state = _state_with_persona_sizes(agg=0.05, neu=0.03, con=0.01)
         mock_llm = _mock_consolidation_llm()
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": custom}}
+            config: RunnableConfig = {"configurable": {"settings": custom}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         expected = 0.5 * 0.05 + 0.3 * 0.03 + 0.2 * 0.01
         assert result["synthesized_position_size_pct"] == pytest.approx(expected)
@@ -162,10 +159,10 @@ class TestDictKeyedHistoryMigration:
         state = _state_with_persona_sizes(current_round=1)
         mock_llm = _mock_consolidation_llm("r1-synth")
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         assert set(result["risk_debate_history"].keys()) == {1}
         assert result["risk_debate_history"][1] == "r1-synth"
@@ -175,10 +172,10 @@ class TestDictKeyedHistoryMigration:
         state = _state_with_persona_sizes(current_round=0)
         mock_llm = _mock_consolidation_llm("r0-synth")
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         assert result["risk_debate_history"] == {0: "r0-synth"}
         assert result["current_round"] == 1
@@ -187,13 +184,15 @@ class TestDictKeyedHistoryMigration:
         state = _state_with_persona_sizes()
         mock_llm = _mock_consolidation_llm()
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         assert set(result.keys()) == {
-            "risk_debate_history", "current_round", "synthesized_position_size_pct",
+            "risk_debate_history",
+            "current_round",
+            "synthesized_position_size_pct",
         }
 
 
@@ -207,10 +206,10 @@ class TestConsolidationRetryOnce:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
         assert mock_structured.ainvoke.await_count == 2
         assert result["risk_debate_history"][0] == "ok"
@@ -224,10 +223,10 @@ class TestConsolidationRetryOnce:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured
         with patch(
-            "financialagents.agents.risk_mgmt.consolidation.create_llm_client",
+            "finagents.agents.risk_mgmt.consolidation.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(risk_debate_consolidation_node(state, config))
 
         assert mock_structured.ainvoke.await_count == 2
@@ -246,8 +245,11 @@ class TestConsolidationPrompt:
     def test_embeds_all_three_persona_assessments(self) -> None:
         state = _state_with_persona_sizes()
         msgs = build_consolidation_prompt(state)
-        human = msgs[1].content
+        human = msgs[1].text
         assert isinstance(human, str)
+        assert state.aggressive_assessment is not None
+        assert state.neutral_assessment is not None
+        assert state.conservative_assessment is not None
         assert state.aggressive_assessment in human
         assert state.neutral_assessment in human
         assert state.conservative_assessment in human
@@ -255,18 +257,18 @@ class TestConsolidationPrompt:
     def test_embeds_trader_signal_snapshot(self) -> None:
         state = _state_with_persona_sizes()
         msgs = build_consolidation_prompt(state)
-        human = msgs[1].content
+        human = msgs[1].text
         assert state.trader_signal_snapshot in human
 
     def test_round_2_includes_prior_consolidation(self) -> None:
         state = _state_with_persona_sizes(current_round=1)
         state.risk_debate_history = {0: "Round-1 synthesis text."}
         msgs = build_consolidation_prompt(state)
-        human = msgs[1].content
+        human = msgs[1].text
         assert "Round-1 synthesis text." in human
 
     def test_round_1_has_placeholder(self) -> None:
         state = _state_with_persona_sizes(current_round=0)
         msgs = build_consolidation_prompt(state)
-        human = msgs[1].content
+        human = msgs[1].text
         assert "first round" in human.lower() or "no prior consolidation" in human.lower()

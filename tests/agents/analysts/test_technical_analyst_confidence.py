@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from financialagents.agents.analysts.schemas import TechnicalReport
-from financialagents.dataflows.data_result import DataResult
+from finagents.agents.analysts.schemas import TechnicalReport
+from finagents.dataflows.data_result import DataResult
 
 
 
@@ -31,7 +31,7 @@ def ohlcv_250() -> pd.DataFrame:
 
 @pytest.fixture
 def agent_state():
-    from financialagents.agents.utils.agent_states import AgentState
+    from finagents.agents.utils.agent_states import AgentState
 
     return AgentState(ticker="TESTCO", date="2024-12-31")
 
@@ -63,9 +63,7 @@ def _build_report(
     )
 
 
-async def _run_node_with_mocks(
-    agent_state, ohlcv_df: pd.DataFrame, mock_report: TechnicalReport
-):
+async def _run_node_with_mocks(agent_state, ohlcv_df: pd.DataFrame, mock_report: TechnicalReport):
     data_result = DataResult(status="ok", data=ohlcv_df, source="angelone")
     mock_structured_llm = MagicMock()
     mock_structured_llm.ainvoke = AsyncMock(return_value=mock_report)
@@ -85,22 +83,27 @@ async def _run_node_with_mocks(
         "current_price": mock_report.current_price,
         "atr_14": mock_report.atr_14,
     }
-    with patch(
-        "financialagents.agents.analysts.technical_analyst.get_ohlcv",
-        new_callable=AsyncMock,
-        return_value=data_result,
-    ), patch(
-        "financialagents.agents.analysts.technical_analyst.create_llm_client",
-        return_value=mock_llm,
-    ), patch(
-        "financialagents.agents.analysts.technical_analyst.compute_technical_indicators",
-        return_value=indicators_dict,
-    ), patch(
-        "financialagents.dataflows.surveillance_client.get_surveillance_data",
-        new_callable=AsyncMock,
-        return_value=(None, False),
+    with (
+        patch(
+            "finagents.agents.analysts.technical_analyst.get_ohlcv",
+            new_callable=AsyncMock,
+            return_value=data_result,
+        ),
+        patch(
+            "finagents.agents.analysts.technical_analyst.create_llm_client",
+            return_value=mock_llm,
+        ),
+        patch(
+            "finagents.agents.analysts.technical_analyst.compute_technical_indicators",
+            return_value=indicators_dict,
+        ),
+        patch(
+            "finagents.agents.analysts.technical_analyst.get_surveillance_data",
+            new_callable=AsyncMock,
+            return_value=(None, False),
+        ),
     ):
-        from financialagents.agents.analysts.technical_analyst import (
+        from finagents.agents.analysts.technical_analyst import (
             technical_analyst_node,
         )
 

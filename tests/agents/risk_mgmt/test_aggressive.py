@@ -1,24 +1,26 @@
 from __future__ import annotations
 
+from langchain_core.runnables import RunnableConfig
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from financialagents.agents.risk_mgmt.aggressive import (
+from finagents.agents.risk_mgmt.aggressive import (
     AGGRESSIVE_SCENARIO,
     AGGRESSIVE_TEMPERATURE,
     aggressive_risk_node,
     build_aggressive_prompt,
 )
-from financialagents.agents.risk_mgmt.schemas import PersonaAssessment
-from financialagents.agents.utils.agent_states import RiskDebateState
-from financialagents.config import Settings
+from finagents.agents.risk_mgmt.schemas import PersonaAssessment
+from finagents.agents.utils.agent_states import RiskDebateState
+from finagents.config import Settings
 
 
 @pytest.fixture
 def default_settings() -> Settings:
-    return Settings(_env_file=None, llm_provider="openrouter", openrouter_api_key="fake")
+    return Settings(llm_provider="openrouter", openrouter_api_key="fake")
 
 
 @pytest.fixture
@@ -102,10 +104,10 @@ class TestAggressiveNodeBehavior:
         mock_llm.with_structured_output.return_value = mock_structured
 
         with patch(
-            "financialagents.agents.risk_mgmt.aggressive.create_llm_client",
+            "finagents.agents.risk_mgmt.aggressive.create_llm_client",
             return_value=mock_llm,
         ) as mock_create:
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(aggressive_risk_node(fresh_risk_state, config))
 
         assert "aggressive_assessment" in result
@@ -133,10 +135,10 @@ class TestAggressiveNodeBehavior:
         mock_llm.with_structured_output.return_value = mock_structured
 
         with patch(
-            "financialagents.agents.risk_mgmt.aggressive.create_llm_client",
+            "finagents.agents.risk_mgmt.aggressive.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(aggressive_risk_node(fresh_risk_state, config))
 
         assert ainvoke_mock.await_count == 2
@@ -147,19 +149,17 @@ class TestAggressiveNodeBehavior:
     ) -> None:
         import json
 
-        ainvoke_mock = AsyncMock(
-            side_effect=[RuntimeError("first"), RuntimeError("second")]
-        )
+        ainvoke_mock = AsyncMock(side_effect=[RuntimeError("first"), RuntimeError("second")])
         mock_structured = MagicMock()
         mock_structured.ainvoke = ainvoke_mock
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured
 
         with patch(
-            "financialagents.agents.risk_mgmt.aggressive.create_llm_client",
+            "finagents.agents.risk_mgmt.aggressive.create_llm_client",
             return_value=mock_llm,
         ):
-            config = {"configurable": {"settings": default_settings}}
+            config: RunnableConfig = {"configurable": {"settings": default_settings}}
             result = asyncio.run(aggressive_risk_node(fresh_risk_state, config))
 
         assert ainvoke_mock.await_count == 2
@@ -171,9 +171,7 @@ class TestAggressiveNodeBehavior:
         assert "second" in sentinel["main_argument"]
         assert "first" in sentinel["main_argument"]
 
-    def test_none_config_uses_default_settings(
-        self, fresh_risk_state: RiskDebateState
-    ) -> None:
+    def test_none_config_uses_default_settings(self, fresh_risk_state: RiskDebateState) -> None:
         mock_assessment = _build_mock_assessment()
         mock_structured = MagicMock()
         mock_structured.ainvoke = AsyncMock(return_value=mock_assessment)
@@ -181,7 +179,7 @@ class TestAggressiveNodeBehavior:
         mock_llm.with_structured_output.return_value = mock_structured
 
         with patch(
-            "financialagents.agents.risk_mgmt.aggressive.create_llm_client",
+            "finagents.agents.risk_mgmt.aggressive.create_llm_client",
             return_value=mock_llm,
         ):
             result = asyncio.run(aggressive_risk_node(fresh_risk_state, None))

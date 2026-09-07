@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import MagicMock, patch
 
-from financialagents.agents.researchers.bear_researcher import BearArgument
-from financialagents.agents.researchers.bull_researcher import BullArgument
-from financialagents.agents.researchers.investment_thesis import InvestmentThesis
-from financialagents.agents.utils.agent_states import InvestDebateState
+from finagents.agents.researchers.bear_researcher import BearArgument
+from finagents.agents.researchers.bull_researcher import BullArgument
+from finagents.agents.researchers.investment_thesis import InvestmentThesis
+from finagents.agents.utils.agent_states import InvestDebateState
 
 
 def _make_mock_llm(coro_factory):
@@ -20,7 +20,7 @@ def _make_mock_llm(coro_factory):
 class TestInvestDebateSubgraphCompiles:
 
     def test_build_returns_compiled_graph(self) -> None:
-        from financialagents.graph.subgraphs.invest_debate import (
+        from finagents.graph.subgraphs.invest_debate import (
             build_invest_debate_subgraph,
         )
 
@@ -48,19 +48,19 @@ class TestInvestDebateSubgraphRoundCount:
 
         with (
             patch(
-                "financialagents.agents.researchers.bull_researcher.create_llm_client",
+                "finagents.agents.researchers.bull_researcher.create_llm_client",
                 return_value=_make_mock_llm(fake_bull_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.bear_researcher.create_llm_client",
+                "finagents.agents.researchers.bear_researcher.create_llm_client",
                 return_value=_make_mock_llm(fake_bear_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.investment_thesis.create_llm_client",
+                "finagents.agents.researchers.investment_thesis.create_llm_client",
                 return_value=_make_mock_llm(fake_plan_ainvoke),
             ),
         ):
-            from financialagents.graph.subgraphs.invest_debate import (
+            from finagents.graph.subgraphs.invest_debate import (
                 build_invest_debate_subgraph,
             )
 
@@ -70,8 +70,7 @@ class TestInvestDebateSubgraphRoundCount:
 
         rehydrated = InvestDebateState.model_validate(result)
         assert len(rehydrated.bull_turns()) == 3, (
-            f" off-by-one — expected 3 bull turns, got "
-            f"{len(rehydrated.bull_turns())}"
+            f" off-by-one — expected 3 bull turns, got {len(rehydrated.bull_turns())}"
         )
         assert len(rehydrated.bear_turns()) == 3
         assert rehydrated.investment_thesis == "synthesized plan"
@@ -90,19 +89,19 @@ class TestInvestDebateSubgraphRoundCount:
 
         with (
             patch(
-                "financialagents.agents.researchers.bull_researcher.create_llm_client",
+                "finagents.agents.researchers.bull_researcher.create_llm_client",
                 return_value=_make_mock_llm(fake_bull_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.bear_researcher.create_llm_client",
+                "finagents.agents.researchers.bear_researcher.create_llm_client",
                 return_value=_make_mock_llm(fake_bear_ainvoke),
             ),
             patch(
-                "financialagents.agents.researchers.investment_thesis.create_llm_client",
+                "finagents.agents.researchers.investment_thesis.create_llm_client",
                 return_value=_make_mock_llm(fake_plan_ainvoke),
             ),
         ):
-            from financialagents.graph.subgraphs.invest_debate import (
+            from finagents.graph.subgraphs.invest_debate import (
                 build_invest_debate_subgraph,
             )
 

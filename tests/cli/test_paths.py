@@ -10,7 +10,7 @@ class TestFADataDirIntegration:
     @pytest.mark.asyncio
     async def test_fa_data_dir_env_end_to_end(
         self,
-        clean_env,
+        default_settings,
         monkeypatch,
         tmp_path: Path,
         fake_pipeline,
@@ -18,21 +18,24 @@ class TestFADataDirIntegration:
         target_dir = tmp_path / "fa-data"
         monkeypatch.setenv("FA_DATA_DIR", str(target_dir))
 
-        from financialagents.storage.paths import signals_db_path as real
+        from finagents.storage.paths import signals_db_path as real
 
         monkeypatch.setattr(
-            "financialagents.cli.run_command.signals_db_path", real,
+            "finagents.cli.run_command.signals_db_path",
+            real,
         )
         monkeypatch.setattr(
-            "financialagents.cli.history.signals_db_path", real,
+            "finagents.cli.history.signals_db_path",
+            real,
         )
         monkeypatch.setattr(
-            "financialagents.cli.export.signals_db_path", real,
+            "finagents.cli.export.signals_db_path",
+            real,
         )
 
-        from financialagents.cli.export import run_export
-        from financialagents.cli.history import run_history
-        from financialagents.cli.run_command import run_pipeline
+        from finagents.cli.export import run_export
+        from finagents.cli.history import run_history
+        from finagents.cli.run_command import run_pipeline
 
         rc = await run_pipeline(
             ticker="RELIANCE",
@@ -77,22 +80,19 @@ class TestFADataDirIntegration:
             n = conn.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
         finally:
             conn.close()
-        assert n >= 1, (
-            f"FA_DATA_DIR={target_dir} signals.db is empty after run_pipeline"
-        )
+        assert n >= 1, f"FA_DATA_DIR={target_dir} signals.db is empty after run_pipeline"
 
     def test_fa_data_dir_unset_uses_platformdirs(
-        self, clean_env, monkeypatch,
+        self,
+        default_settings,
+        monkeypatch,
     ) -> None:
         monkeypatch.delenv("FA_DATA_DIR", raising=False)
-        from financialagents.config import Settings
-        from financialagents.storage.paths import signals_db_path
+        from finagents.config import Settings
+        from finagents.storage.paths import signals_db_path
 
-        p = signals_db_path(Settings(_env_file=None, openrouter_api_key="fake"))
-        expected = (
-            Path(platformdirs.user_data_dir("financialagents", appauthor=False))
-            / "signals.db"
-        )
+        p = signals_db_path(Settings(openrouter_api_key="fake"))
+        expected = Path(platformdirs.user_data_dir("finagents", appauthor=False)) / "signals.db"
         assert p == expected, (
             f"signals_db_path with FA_DATA_DIR unset returned {p}, "
             f"expected platformdirs default {expected}"
@@ -100,21 +100,26 @@ class TestFADataDirIntegration:
 
     @pytest.mark.asyncio
     async def test_fa_data_dir_empty_dir_graceful(
-        self, clean_env, monkeypatch, tmp_path: Path,
+        self,
+        default_settings,
+        monkeypatch,
+        tmp_path: Path,
     ) -> None:
         target_dir = tmp_path / "fa-empty"
         monkeypatch.setenv("FA_DATA_DIR", str(target_dir))
-        from financialagents.storage.paths import signals_db_path as real
+        from finagents.storage.paths import signals_db_path as real
 
         monkeypatch.setattr(
-            "financialagents.cli.history.signals_db_path", real,
+            "finagents.cli.history.signals_db_path",
+            real,
         )
         monkeypatch.setattr(
-            "financialagents.cli.export.signals_db_path", real,
+            "finagents.cli.export.signals_db_path",
+            real,
         )
 
-        from financialagents.cli.export import run_export
-        from financialagents.cli.history import run_history
+        from finagents.cli.export import run_export
+        from finagents.cli.history import run_history
 
         rc = await run_history(
             ticker=None,
