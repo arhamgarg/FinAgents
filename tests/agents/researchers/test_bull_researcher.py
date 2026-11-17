@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.utils.agent_states import InvestDebateState
 from finagents.config import Settings
@@ -158,10 +157,11 @@ class TestBullResearcherNode:
 class TestBullArgumentSchema:
     def test_required_field_argument(self) -> None:
         import pydantic
+
         from finagents.agents.researchers.bull_researcher import BullArgument
 
         with pytest.raises(pydantic.ValidationError):
-            BullArgument(key_points=[])
+            BullArgument(key_points=[])  # ty: ignore[missing-argument]
 
     def test_optional_key_points_defaults_to_empty_list(self) -> None:
         from finagents.agents.researchers.bull_researcher import BullArgument

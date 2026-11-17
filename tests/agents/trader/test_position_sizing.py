@@ -6,7 +6,6 @@ import pytest
 
 
 class TestAtrBasedSize:
-
     def test_normal_case(self) -> None:
         from finagents.agents.trader.position_sizing import atr_based_size
 
@@ -59,7 +58,6 @@ class TestAtrBasedSize:
 
 
 class TestKellySize:
-
     def test_kelly_normal_case(self) -> None:
         from finagents.agents.trader.position_sizing import kelly_size
 
@@ -92,7 +90,6 @@ class TestKellySize:
 
 
 class TestFixedFractionalSize:
-
     def test_fixed_fractional_normal_case(self) -> None:
         from finagents.agents.trader.position_sizing import fixed_fractional_size
 
@@ -129,25 +126,24 @@ class TestFixedFractionalSize:
 
 
 class TestFloorRounding:
-
     def test_floor_rounding_atr_based(self) -> None:
         from finagents.agents.trader.position_sizing import atr_based_size
 
-        pct, shares = atr_based_size(
+        _pct, shares = atr_based_size(
             capital=100_000,
             risk_per_trade_pct=0.02095,
             atr=50.0,
             atr_multiplier=2.0,
             entry_price=2450.0,
         )
-        assert shares == 20, f" floor violation: got {shares}, expected 20"
+        assert shares == 20, f"Floor violation: got {shares}, expected 20"
         expected = math.floor((100_000 * 0.02095) / 100.0)
         assert shares == expected
 
     def test_floor_rounding_fixed_fractional(self) -> None:
         from finagents.agents.trader.position_sizing import fixed_fractional_size
 
-        pct, shares = fixed_fractional_size(
+        _pct, shares = fixed_fractional_size(
             capital=100_000,
             risk_per_trade_pct=0.02096,
             entry_price=100.0,

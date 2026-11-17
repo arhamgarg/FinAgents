@@ -194,8 +194,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-
 # Marimo
 marimo/_static/
 marimo/_lsp/

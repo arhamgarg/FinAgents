@@ -6,11 +6,11 @@ from streamlit.testing.v1 import AppTest
 from finagents.config import Settings
 from finagents.storage.paths import signals_db_path
 from finagents.storage.signals import load_history
-from tests.pipeline import pipeline_scenario
+from tests.support.pipeline import pipeline_scenario
 
 
 def test_dashboard_consecutive_runs():
-    pages = Path(__file__).resolve().parents[2] / "finagents/dashboard/pages"
+    pages = Path(__file__).resolve().parents[2] / "src/finagents/dashboard/pages"
     at = AppTest.from_file(str(pages / "run.py")).run()
     with pipeline_scenario() as h:
         ids = []

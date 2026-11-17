@@ -3,14 +3,14 @@ from __future__ import annotations
 import asyncio
 import io
 import sys
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import redirect_stderr
-from typing import Any, AsyncGenerator, AsyncIterator, cast
+from typing import Any, cast
 
 import pytest
 
 
 class _SlowFakeGraph:
-
     async def astream(
         self,
         initial_state: Any,
@@ -24,7 +24,6 @@ class _SlowFakeGraph:
 
 
 class _RaisingFakeGraph:
-
     async def astream(
         self,
         initial_state: Any,

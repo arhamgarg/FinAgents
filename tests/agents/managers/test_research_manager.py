@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pydantic
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
-    TechnicalReport,
     NewsReport,
+    TechnicalReport,
 )
 from finagents.agents.managers.schemas import Finding, ResearchBrief
 from finagents.agents.utils.agent_states import AgentState
 from finagents.config import Settings
-
-
 
 
 @pytest.fixture
@@ -96,8 +93,6 @@ def default_settings() -> Settings:
     return Settings(openrouter_api_key="fake")
 
 
-
-
 class TestNormalizeWeights:
     def test_weights_sum_to_one(self):
         from finagents.agents.managers.research_manager import normalize_weights
@@ -134,8 +129,6 @@ class TestNormalizeWeights:
         assert result["technical"] == 0.0
         assert abs(result["fundamentals"] - 2.0 / 3) < 1e-9
         assert abs(result["news"] - 1.0 / 3) < 1e-9
-
-
 
 
 class TestResearchManagerNode:
@@ -307,8 +300,10 @@ class TestResearchManagerNode:
     ):
         from finagents.agents.managers.research_manager import research_manager_node
 
-        settings = Settings(openrouter_api_key="fake")
-        settings.analyst_weights = {"technical": 2.0, "fundamentals": 1.0, "news": 1.0}
+        settings = Settings(
+            openrouter_api_key="fake",
+            analyst_weights={"technical": 2.0, "fundamentals": 1.0, "news": 1.0},
+        )
 
         mock_structured_llm = MagicMock()
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_research_brief)
@@ -326,10 +321,7 @@ class TestResearchManagerNode:
         assert "research_summary" in result
 
 
-
-
 class TestResearchBriefConfidenceValidation:
-
     @pytest.mark.parametrize("bad_value", [1.1, 99.9, -0.01, -1.0, 2.0])
     def test_research_brief_rejects_out_of_range_overall_confidence(self, bad_value: float):
         with pytest.raises(pydantic.ValidationError):

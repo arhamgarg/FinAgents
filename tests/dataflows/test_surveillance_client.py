@@ -11,8 +11,6 @@ FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "nse"
 SAMPLE_FIXTURE = FIXTURE_DIR / "sec_list_sample.csv"
 
 
-
-
 @pytest.mark.asyncio
 async def test_cold_cache_fetches_and_stores(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -25,8 +23,6 @@ async def test_cold_cache_fetches_and_stores(httpx_mock, tmp_path, monkeypatch):
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("TRENT")
     assert circuit_pct == pytest.approx(0.20)
     assert t2t is False
-
-
 
 
 @pytest.mark.asyncio
@@ -42,8 +38,6 @@ async def test_no_band_returns_none_for_circuit_pct(httpx_mock, tmp_path, monkey
     assert t2t is False
 
 
-
-
 @pytest.mark.asyncio
 async def test_band_20_parses_to_0_20(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -55,8 +49,6 @@ async def test_band_20_parses_to_0_20(httpx_mock, tmp_path, monkeypatch):
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("ZOMATO")
     assert circuit_pct == pytest.approx(0.20)
     assert t2t is False
-
-
 
 
 @pytest.mark.asyncio
@@ -72,8 +64,6 @@ async def test_band_5_parses_to_0_05(httpx_mock, tmp_path, monkeypatch):
     assert t2t is False
 
 
-
-
 @pytest.mark.asyncio
 async def test_series_be_is_t2t(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -85,8 +75,6 @@ async def test_series_be_is_t2t(httpx_mock, tmp_path, monkeypatch):
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("BLUECHIP")
     assert circuit_pct == pytest.approx(0.02)
     assert t2t is True
-
-
 
 
 @pytest.mark.asyncio
@@ -102,8 +90,6 @@ async def test_series_bz_is_t2t(httpx_mock, tmp_path, monkeypatch):
     assert t2t is True
 
 
-
-
 @pytest.mark.asyncio
 async def test_series_st_is_t2t(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -115,8 +101,6 @@ async def test_series_st_is_t2t(httpx_mock, tmp_path, monkeypatch):
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("FAKESURV")
     assert circuit_pct == pytest.approx(0.10)
     assert t2t is True
-
-
 
 
 @pytest.mark.asyncio
@@ -132,8 +116,6 @@ async def test_ticker_not_in_list_returns_safe_default(httpx_mock, tmp_path, mon
     assert t2t is False
 
 
-
-
 @pytest.mark.asyncio
 async def test_fetch_failure_returns_safe_default(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -146,8 +128,6 @@ async def test_fetch_failure_returns_safe_default(httpx_mock, tmp_path, monkeypa
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("TRENT")
     assert circuit_pct is None
     assert t2t is False
-
-
 
 
 @pytest.mark.asyncio
@@ -172,8 +152,6 @@ async def test_warm_cache_skips_http(tmp_path, monkeypatch):
     assert t2t is True
 
 
-
-
 @pytest.mark.asyncio
 async def test_ticker_lookup_is_case_insensitive(httpx_mock, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -185,8 +163,6 @@ async def test_ticker_lookup_is_case_insensitive(httpx_mock, tmp_path, monkeypat
     circuit_pct, t2t = await surveillance_client.get_surveillance_data("trent")
     assert circuit_pct == pytest.approx(0.20)
     assert t2t is False
-
-
 
 
 @pytest.mark.asyncio

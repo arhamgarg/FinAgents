@@ -1,6 +1,6 @@
 [build-system]
-requires = ["uv_build>=0.5,<1.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "finagents"
@@ -37,29 +37,115 @@ dependencies = [
 [project.scripts]
 finagents = "finagents.cli.main:app"
 fa = "finagents.cli.main:app"
+gate = "scripts.gate:entry"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "ty>=0.0.29",
     "ruff",
     "pytest>=9.0",
     "pytest-asyncio>=1.0",
+    "pytest-cov>=7.1",
+    "coverage>=7.14",
     "pytest-httpx==0.36.2",
+    "import-linter>=2.16",
+    "tomli-w>=1.2",
 ]
 
-[tool.uv.build-backend]
-module-name = "finagents"
-module-root = ""
+[tool.hatch.build.targets.wheel]
+packages = ["src/finagents", "scripts"]
 
-[tool.ty.src]
-exclude = ["finagents/_archive/**"]
 [tool.ty.environment]
 python-version = "3.12"
 
-[tool.pytest.ini_options]
+[tool.importlinter]
+root_package = "finagents"
+
+[[tool.importlinter.contracts]]
+id = "layers"
+name = "finagents packages import only from their own layer or a lower one"
+type = "layers"
+containers = ["finagents"]
+exhaustive = true
+layers = [
+    "cli | dashboard | testing",
+    "observability",
+    "graph",
+    "agents",
+    "llm_clients | dataflows",
+    "storage",
+    "config | _redaction | clock",
+]
+ignore_imports = []
+broken_contract_guidance = """
+Move the imported code down to the lowest layer in `layers` that uses it, or have the higher layer pass it in.
+"""
+
+[[tool.importlinter.contracts]]
+id = "root"
+name = "the finagents package root imports only the lazy FinAgentsGraph export"
+type = "forbidden"
+source_modules = ["finagents"]
+forbidden_modules = ["finagents.**"]
+as_packages = false
+allow_indirect_imports = true
+ignore_imports = ["finagents -> finagents.graph.trading_graph"]
+broken_contract_guidance = """
+Keep finagents/__init__.py to `__version__` and the lazy `FinAgentsGraph` export. Import from `finagents.<subpackage>`, the subpackage that owns the code.
+"""
+
+[[tool.importlinter.contracts]]
+id = "testing"
+name = "no finagents module outside finagents.testing imports the LLM test harness"
+type = "protected"
+protected_modules = ["finagents.testing"]
+allowed_importers = []
+broken_contract_guidance = """
+finagents.testing is the test harness. Production code takes its collaborators as arguments; tests install the harness.
+"""
+
+[tool.pytest]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+strict_markers = true
+strict_config = true
+markers = []
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "PL", "ANN", "S", "DTZ", "TID"]
+ignore = ["PLR0913", "ANN401", "UP042", "S101", "S603", "S607"]
+allowed-confusables = ["σ", "–", "×"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "read wall-clock time through finagents.clock"
+"datetime.date.today".msg = "read wall-clock time through finagents.clock"
+"time.time".msg = "read wall-clock time through finagents.clock"
+"time.time_ns".msg = "read wall-clock time through finagents.clock"
+"time.gmtime".msg = "read wall-clock time through finagents.clock"
+"time.localtime".msg = "read wall-clock time through finagents.clock"
+"datetime.datetime.utcnow".msg = "returns a naive datetime; read wall-clock time through finagents.clock.utc_now"
+"datetime.datetime.utcfromtimestamp".msg = "returns a naive datetime; use datetime.fromtimestamp(value, UTC)"
+"pandas.Timestamp.now".msg = "omits the timezone; read wall-clock time through finagents.clock.utc_now"
+"pandas.Timestamp.utcnow".msg = "deprecated; read wall-clock time through finagents.clock.utc_now"
+"pandas.Timestamp.today".msg = "omits the timezone; read wall-clock time through finagents.clock.utc_now"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "PLC0415", "PLR2004", "S102", "S105", "S106", "S107", "S108", "S301", "S311", "S608"]
+"src/finagents/__init__.py" = ["PLC0415"]
+"src/finagents/cli/main.py" = ["PLC0415"]
+"src/finagents/cli/history.py" = ["PLC0415"]
+"src/finagents/clock.py" = ["TID251"]
+
+[tool.coverage.run]
+source = ["src/finagents"]
+
+[tool.gitleaks.extend]
+useDefault = true
+
+[[tool.gitleaks.allowlists]]
+description = "Fake Angel One session tokens used by the session manager tests"
+paths = ['''^tests/fixtures/angelone/generateSession\.json$''']

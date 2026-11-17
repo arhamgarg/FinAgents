@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.risk_mgmt.consolidation import (
     _parse_size,
@@ -87,7 +86,7 @@ class TestParseSize:
 
 
 class TestWeightedSizeSynthesis:
-    def test_d02_formula_default_weights(self, default_settings: Settings) -> None:
+    def test_formula_default_weights(self, default_settings: Settings) -> None:
         state = _state_with_persona_sizes(agg=0.05, neu=0.03, con=0.01)
         mock_llm = _mock_consolidation_llm()
         with patch(

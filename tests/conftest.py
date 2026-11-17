@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from finagents.config import Settings
+from finagents.dataflows.interface import use_data_sources
 
 
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch, tmp_path):
     from finagents.dataflows import cache
-    from tests._network import block_network
+    from tests.support.network import block_network
 
     for field in Settings.model_fields:
         monkeypatch.delenv(field.upper(), raising=False)
@@ -41,11 +42,9 @@ def hermetic_provider_guard():
 
 
 @pytest.fixture
-def stub_surveillance(monkeypatch):
-    monkeypatch.setattr(
-        "finagents.agents.analysts.technical_analyst.get_surveillance_data",
-        AsyncMock(return_value=(0.20, False)),
-    )
+def stub_surveillance():
+    with use_data_sources(surveillance=AsyncMock(return_value=(0.20, False))):
+        yield
 
 
 @pytest.fixture

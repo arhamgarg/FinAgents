@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.risk_mgmt.aggressive import (
     AGGRESSIVE_SCENARIO,
@@ -171,16 +170,6 @@ class TestAggressiveNodeBehavior:
         assert "second" in sentinel["main_argument"]
         assert "first" in sentinel["main_argument"]
 
-    def test_none_config_uses_default_settings(self, fresh_risk_state: RiskDebateState) -> None:
-        mock_assessment = _build_mock_assessment()
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=mock_assessment)
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-
-        with patch(
-            "finagents.agents.risk_mgmt.aggressive.create_llm_client",
-            return_value=mock_llm,
-        ):
-            result = asyncio.run(aggressive_risk_node(fresh_risk_state, None))
-        assert "aggressive_assessment" in result
+    def test_none_config_requires_settings(self, fresh_risk_state: RiskDebateState) -> None:
+        with pytest.raises(TypeError, match="settings"):
+            asyncio.run(aggressive_risk_node(fresh_risk_state, None))

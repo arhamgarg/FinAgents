@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.analysts.schemas import TechnicalReport
 from finagents.agents.managers.schemas import PortfolioContext, PortfolioDecision
 from finagents.agents.trader.schemas import TradingSignal
 from finagents.agents.utils.agent_states import AgentState, RiskDebateState
 from finagents.config import Settings
-
-
 
 
 @pytest.fixture
@@ -87,10 +84,7 @@ def _build_failing_mock_llm(*side_effect_errors: Exception) -> MagicMock:
     return llm
 
 
-
-
 class TestPortfolioManagerNode:
-
     def test_writes_final_trade_decision(
         self,
         state_with_signal: AgentState,
@@ -226,7 +220,6 @@ class TestPortfolioManagerNode:
         system_content = messages[0].content
         assert isinstance(system_content, str)
         assert "MODIFY SURFACE RULE" in system_content
-        assert "" in system_content
 
     def test_prompt_contains_anti_rubber_stamp_directive(
         self,
@@ -304,10 +297,7 @@ class TestPortfolioManagerNode:
         assert "OutputFixingParser failure" in decision.pm_notes
 
 
-
-
 class TestModifySurfaceClamp:
-
     def test_modify_reverts_entry_price(
         self,
         state_with_signal: AgentState,
@@ -318,10 +308,9 @@ class TestModifySurfaceClamp:
             portfolio_manager_node,
         )
 
-        tampered_signal = trader_signal_buy.model_copy()
-        tampered_signal.entry_price = 150.0
-        tampered_signal.position_size_pct = 0.02
-        tampered_signal.position_size_shares = 20
+        tampered_signal = trader_signal_buy.model_copy(
+            update={"entry_price": 150.0, "position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered_signal,
             approved=False,
@@ -349,10 +338,9 @@ class TestModifySurfaceClamp:
             portfolio_manager_node,
         )
 
-        tampered = trader_signal_buy.model_copy()
-        tampered.stop_loss = 80.0
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = trader_signal_buy.model_copy(
+            update={"stop_loss": 80.0, "position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -380,11 +368,14 @@ class TestModifySurfaceClamp:
             portfolio_manager_node,
         )
 
-        tampered = trader_signal_buy.model_copy()
-        tampered.target_1 = 200.0
-        tampered.target_2 = 300.0
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = trader_signal_buy.model_copy(
+            update={
+                "target_1": 200.0,
+                "target_2": 300.0,
+                "position_size_pct": 0.02,
+                "position_size_shares": 20,
+            }
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -413,10 +404,9 @@ class TestModifySurfaceClamp:
             portfolio_manager_node,
         )
 
-        tampered = trader_signal_buy.model_copy()
-        tampered.action = "SELL"
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = trader_signal_buy.model_copy(
+            update={"action": "SELL", "position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -444,9 +434,9 @@ class TestModifySurfaceClamp:
             portfolio_manager_node,
         )
 
-        tampered = trader_signal_buy.model_copy()
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = trader_signal_buy.model_copy(
+            update={"position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -466,10 +456,7 @@ class TestModifySurfaceClamp:
         assert final_signal.position_size_shares == 20
 
 
-
-
 class TestValidatorRerun:
-
     def test_circuit_band_breach_flips_modify_to_veto(
         self,
         trader_signal_buy: TradingSignal,
@@ -499,9 +486,9 @@ class TestValidatorRerun:
             portfolio_context=PortfolioContext(total_value_inr=500_000.0),
         )
 
-        tampered = trader_signal_buy.model_copy()
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = trader_signal_buy.model_copy(
+            update={"position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -530,8 +517,7 @@ class TestValidatorRerun:
             portfolio_manager_node,
         )
 
-        thin_target_trader = trader_signal_buy.model_copy()
-        thin_target_trader.target_1 = 100.2
+        thin_target_trader = trader_signal_buy.model_copy(update={"target_1": 100.2})
 
         state = AgentState(
             ticker="TEST",
@@ -553,9 +539,9 @@ class TestValidatorRerun:
             portfolio_context=PortfolioContext(total_value_inr=500_000.0),
         )
 
-        tampered = thin_target_trader.model_copy()
-        tampered.position_size_pct = 0.02
-        tampered.position_size_shares = 20
+        tampered = thin_target_trader.model_copy(
+            update={"position_size_pct": 0.02, "position_size_shares": 20}
+        )
         pm_decision = PortfolioDecision(
             signal=tampered,
             approved=False,
@@ -608,10 +594,7 @@ class TestValidatorRerun:
         assert result["final_trade_decision"].decision == "approve"
 
 
-
-
 class TestVetoShape:
-
     def test_veto_preserves_entry_stop_targets_rationale(
         self,
         state_with_signal: AgentState,
@@ -661,9 +644,9 @@ class TestVetoShape:
             portfolio_manager_node,
         )
 
-        veto_signal = trader_signal_buy.model_copy()
-        veto_signal.position_size_pct = 0.10
-        veto_signal.position_size_shares = 100
+        veto_signal = trader_signal_buy.model_copy(
+            update={"position_size_pct": 0.10, "position_size_shares": 100}
+        )
         veto_decision = PortfolioDecision(
             signal=veto_signal,
             approved=False,
@@ -691,8 +674,7 @@ class TestVetoShape:
             portfolio_manager_node,
         )
 
-        veto_signal = trader_signal_buy.model_copy()
-        veto_signal.position_size_shares = 100
+        veto_signal = trader_signal_buy.model_copy(update={"position_size_shares": 100})
         veto_decision = PortfolioDecision(
             signal=veto_signal,
             approved=False,
@@ -720,8 +702,7 @@ class TestVetoShape:
             portfolio_manager_node,
         )
 
-        veto_signal = trader_signal_buy.model_copy()
-        veto_signal.action = "BUY"
+        veto_signal = trader_signal_buy.model_copy(update={"action": "BUY"})
         veto_decision = PortfolioDecision(
             signal=veto_signal,
             approved=False,
@@ -740,10 +721,7 @@ class TestVetoShape:
         assert final_signal.action == "HOLD"
 
 
-
-
 class TestReturnType:
-
     def test_returns_portfolio_decision_not_dict(
         self,
         state_with_signal: AgentState,

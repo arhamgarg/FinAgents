@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import queue
 import threading
 from pathlib import Path
@@ -9,7 +10,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from finagents.observability.events import PipelineEvent
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LIVE_FRAGMENT_PAGE_PATH = REPO_ROOT / "tests" / "dashboard" / "_live_fragment_app.py"
@@ -170,7 +170,7 @@ class TestDrainQueueAndApply:
 
 class TestPersonaSizePctRender:
     def test_persona_size_pct_shown_in_status_label(self, tmp_path: Path) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required for live region render test",
         ).AppTest
@@ -179,29 +179,29 @@ class TestPersonaSizePctRender:
             "import streamlit as st\n"
             "from finagents.observability.events import PipelineEvent\n"
             "from finagents.dashboard.live_fragment import (\n"
-            " _initial_stage_state,\n"
-            " apply_event_to_stage_state,\n"
-            " render_live_region,\n"
+            "    _initial_stage_state,\n"
+            "    apply_event_to_stage_state,\n"
+            "    render_live_region,\n"
             ")\n"
             "stage_state = _initial_stage_state()\n"
             "apply_event_to_stage_state(\n"
-            " stage_state,\n"
-            " PipelineEvent(\n"
-            " kind='node_status',\n"
-            " node_name='aggressive_risk_node',\n"
-            " status='started',\n"
-            "),\n"
-            " now=1.0,\n"
+            "    stage_state,\n"
+            "    PipelineEvent(\n"
+            "        kind='node_status',\n"
+            "        node_name='aggressive_risk_node',\n"
+            "        status='started',\n"
+            "    ),\n"
+            "    now=1.0,\n"
             ")\n"
             "apply_event_to_stage_state(\n"
-            " stage_state,\n"
-            " PipelineEvent(\n"
-            " kind='node_status',\n"
-            " node_name='aggressive_risk_node',\n"
-            " status='completed',\n"
-            " position_size_pct=0.045,\n"
-            "),\n"
-            " now=2.0,\n"
+            "    stage_state,\n"
+            "    PipelineEvent(\n"
+            "        kind='node_status',\n"
+            "        node_name='aggressive_risk_node',\n"
+            "        status='completed',\n"
+            "        position_size_pct=0.045,\n"
+            "    ),\n"
+            "    now=2.0,\n"
             ")\n"
             "st.session_state['stage_state'] = stage_state\n"
             "render_live_region()\n"
@@ -209,7 +209,7 @@ class TestPersonaSizePctRender:
         app_path = tmp_path / "live_fragment_render_app.py"
         app_path.write_text(app_src)
 
-        at = AppTest.from_file(str(app_path)).run(timeout=10)
+        at = app_test.from_file(str(app_path)).run(timeout=10)
         assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         markdown_text = " ".join(m.value for m in at.markdown)
         assert "4.5%" in markdown_text, (
@@ -217,10 +217,7 @@ class TestPersonaSizePctRender:
         )
 
 
-
-
 class _RecordingAsyncGen:
-
     def __init__(self, inner) -> None:
         self._inner = inner
         self.aclose_awaited = False
@@ -231,16 +228,13 @@ class _RecordingAsyncGen:
     async def __anext__(self):
         return await self._inner.__anext__()
 
-    async def aclose(self) -> None:  # noqa: D401 — mirror agen.aclose signature
+    async def aclose(self) -> None:
         self.aclose_awaited = True
-        try:
+        with contextlib.suppress(Exception):
             await self._inner.aclose()
-        except Exception:  # pragma: no cover - aclose is best-effort
-            pass
 
 
 class _FakeGraph:
-
     def __init__(self, recording_agen: _RecordingAsyncGen) -> None:
         self._recording_agen = recording_agen
 
@@ -249,7 +243,6 @@ class _FakeGraph:
 
 
 class TestCancelPipeline:
-
     @pytest.mark.asyncio
     async def test_cancel_event_set_mid_stream_terminates_producer(self) -> None:
         from finagents.observability.events import stream_pipeline_events
@@ -326,8 +319,9 @@ class TestCancelPipeline:
             shim["pipeline_thread"] = thread
             shim["pipeline_running"] = True
 
-            import streamlit as st
             from unittest.mock import patch
+
+            import streamlit as st
 
             with patch.object(st, "session_state", shim):
                 cancel_pipeline()
@@ -368,8 +362,9 @@ class TestCancelPipeline:
                 self[key] = value
 
         shim = _SessionStateShim()
-        import streamlit as st
         from unittest.mock import patch
+
+        import streamlit as st
 
         with patch.object(st, "session_state", shim):
             live_fragment.start_pipeline(MagicMock(), {}, {"configurable": {}})

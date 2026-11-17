@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from typing import Any
 
 import pytest
-
-
 
 
 class TestPipelineEventDataclass:
@@ -18,8 +17,8 @@ class TestPipelineEventDataclass:
             status="completed",
         )
         assert hash(ev) == hash(ev)
-        with pytest.raises(Exception):
-            ev.kind = "errored"  # ty: ignore[invalid-assignment]  # Deliberately test frozen mutation.
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            ev.kind = "errored"  # ty: ignore[invalid-assignment]
 
     def test_module_public_surface(self) -> None:
         from finagents.observability import events as mod
@@ -68,10 +67,7 @@ class TestPipelineEventDataclass:
         }
 
 
-
-
 class _MockGraph:
-
     def __init__(self, scripted: list[tuple[tuple[str, ...], Any]]) -> None:
         self.scripted = scripted
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import platformdirs
 
+from finagents.config import Settings
 from finagents.storage.paths import signals_db_path
 
 
@@ -15,7 +16,7 @@ class TestPathsResolution:
             "user_data_dir",
             lambda appname, appauthor: str(tmp_path / appname),
         )
-        p = signals_db_path()
+        p = signals_db_path(Settings())
         expected = Path(platformdirs.user_data_dir("finagents", appauthor=False)) / "signals.db"
         assert p == expected
 
@@ -32,7 +33,7 @@ class TestPathsResolution:
         (legacy_dir / "signals.db").write_bytes(b"signal history")
         (legacy_dir / "signals-backup.db").write_bytes(b"backup")
 
-        path = signals_db_path()
+        path = signals_db_path(Settings())
 
         assert path == tmp_path / "finagents" / "signals.db"
         assert path.read_bytes() == b"signal history"
@@ -46,10 +47,10 @@ class TestPathsResolution:
         tmp_path: Path,
     ) -> None:
         monkeypatch.setenv("FA_DATA_DIR", str(tmp_path / "fa"))
-        p = signals_db_path()
+        p = signals_db_path(Settings())
         assert p == tmp_path / "fa" / "signals.db"
 
     def test_tilde_expansion(self, default_settings, monkeypatch) -> None:
         monkeypatch.setenv("FA_DATA_DIR", "~/fa-test")
-        p = signals_db_path()
+        p = signals_db_path(Settings())
         assert p == Path("~/fa-test").expanduser() / "signals.db"

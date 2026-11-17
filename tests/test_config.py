@@ -3,12 +3,12 @@ from __future__ import annotations
 import warnings
 
 import pytest
+from pydantic import ValidationError
 
 from finagents.config import PROVIDER_DEFAULTS, Settings, resolve_model
 
 
 class TestSettingsDefaults:
-
     def test_default_provider_is_openrouter(self, default_settings: Settings) -> None:
         assert default_settings.llm_provider == "openrouter"
 
@@ -37,7 +37,6 @@ class TestSettingsDefaults:
 
 
 class TestSettingsEnvLoading:
-
     def test_env_overrides_provider(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
         monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
@@ -54,7 +53,7 @@ class TestSettingsEnvLoading:
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "openai")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings()
 
     def test_fa_data_dir_env(
@@ -76,7 +75,6 @@ class TestSettingsEnvLoading:
 
 
 class TestDebateParams:
-
     def test_default_debate_rounds(self, default_settings: Settings) -> None:
         assert default_settings.max_debate_rounds == 3
 
@@ -93,7 +91,6 @@ class TestDebateParams:
 
 
 class TestStartupWarnings:
-
     def test_groq_without_key_warns(self, clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("LLM_PROVIDER", "groq")
         monkeypatch.setenv("OPENROUTER_API_KEY", "fake-scaffold")
@@ -127,7 +124,6 @@ class TestStartupWarnings:
 
 
 class TestPhase4SettingsFields:
-
     def test_risk_persona_weights_default(self, default_settings: Settings) -> None:
         assert default_settings.risk_persona_weights == {
             "aggressive": 0.25,
@@ -173,7 +169,7 @@ class TestPhase4SettingsFields:
             Settings(
                 llm_provider="openrouter",
                 openrouter_api_key="fake",
-                default_time_horizon="intraday",  # ty: ignore[invalid-argument-type]  # Invalid input.
+                default_time_horizon="intraday",  # ty: ignore[invalid-argument-type]
             )
 
     def test_default_time_horizon_rejects_swing(self) -> None:
@@ -183,12 +179,11 @@ class TestPhase4SettingsFields:
             Settings(
                 llm_provider="openrouter",
                 openrouter_api_key="fake",
-                default_time_horizon="swing",  # ty: ignore[invalid-argument-type]  # Invalid input.
+                default_time_horizon="swing",  # ty: ignore[invalid-argument-type]
             )
 
 
 class TestResolveModel:
-
     def test_override_wins_for_deep_tier(self, clean_env: None) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
@@ -271,7 +266,6 @@ class TestResolveModel:
 
 
 class TestRequireAtLeastOneLlmKey:
-
     def test_zero_keys_raises_value_error(
         self, clean_env: None, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -332,3 +326,18 @@ class TestRequireAtLeastOneLlmKey:
             s = Settings()
         assert s.openrouter_api_key == "fake"
         assert not hasattr(s, "ollama_api_key")
+
+
+class TestSettingsAnalystWeights:
+    def test_analyst_weights_default_values(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from finagents.config import Settings
+
+            s = Settings(openrouter_api_key="fake")
+        assert s.analyst_weights == {
+            "technical": 0.303,
+            "fundamentals": 0.455,
+            "news": 0.242,
+        }
+        assert abs(sum(s.analyst_weights.values()) - 1.0) < 1e-9

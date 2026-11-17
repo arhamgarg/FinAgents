@@ -3,7 +3,7 @@ import json
 from typer.testing import CliRunner
 
 from finagents.cli.main import app
-from tests.pipeline import pipeline_scenario
+from tests.support.pipeline import pipeline_scenario
 
 
 def test_cli_graph_history_show_export(tmp_path):

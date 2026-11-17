@@ -52,23 +52,23 @@ def signal_card_app_factory(tmp_path):
             "render_signal_card\n"
             "sig = TradingSignal(\n"
             f"    action={action!r},\n"
-            " conviction=0.72,\n"
-            " entry_price=2500.0,\n"
-            " stop_loss=2400.0,\n"
-            " target_1=2700.0,\n"
-            " position_size_pct=0.045,\n"
-            " rationale='Test rationale.',\n"
+            "    conviction=0.72,\n"
+            "    entry_price=2500.0,\n"
+            "    stop_loss=2400.0,\n"
+            "    target_1=2700.0,\n"
+            "    position_size_pct=0.045,\n"
+            "    rationale='Test rationale.',\n"
             ")\n"
             "pd_ = PortfolioDecision(\n"
-            " signal=sig,\n"
+            "    signal=sig,\n"
             f"    approved={decision == 'approve'},\n"
             f"    decision={decision!r},\n"
-            " pm_notes='PM rationale here.',\n"
+            "    pm_notes='PM rationale here.',\n"
             ")\n"
             "state = AgentState(\n"
-            " ticker='RELIANCE',\n"
-            " date='2026-04-27',\n"
-            " final_trade_decision=pd_,\n"
+            "    ticker='RELIANCE',\n"
+            "    date='2026-04-27',\n"
+            "    final_trade_decision=pd_,\n"
             ")\n"
             "render_signal_card(state)\n"
         )
@@ -90,11 +90,11 @@ class TestVerdictColorHelper:
 
 class TestSignalCardVerdictColors:
     def _render_and_collect_markdown(self, app_path: Path) -> str:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(str(app_path)).run(timeout=10)
+        at = app_test.from_file(str(app_path)).run(timeout=10)
         assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         return " ".join(m.value for m in at.markdown)
 
@@ -103,7 +103,7 @@ class TestSignalCardVerdictColors:
             signal_card_app_factory(action="BUY", decision="approve")
         )
         assert ":green[BUY]" in text or "green[BUY]" in text, (
-            f"BUY verdict missing:green[] colour token; markdown: {text!r}"
+            f"BUY verdict missing :green[] colour token; markdown: {text!r}"
         )
 
     def test_verdict_color_mapping_sell(self, signal_card_app_factory) -> None:
@@ -111,7 +111,7 @@ class TestSignalCardVerdictColors:
             signal_card_app_factory(action="SELL", decision="veto")
         )
         assert ":red[SELL]" in text or "red[SELL]" in text, (
-            f"SELL verdict missing:red[] colour token; markdown: {text!r}"
+            f"SELL verdict missing :red[] colour token; markdown: {text!r}"
         )
 
     def test_verdict_color_mapping_hold(self, signal_card_app_factory) -> None:
@@ -119,7 +119,7 @@ class TestSignalCardVerdictColors:
             signal_card_app_factory(action="HOLD", decision="modify")
         )
         assert ":orange[HOLD]" in text or "orange[HOLD]" in text, (
-            f"HOLD verdict missing:orange[] colour token; markdown: {text!r}"
+            f"HOLD verdict missing :orange[] colour token; markdown: {text!r}"
         )
 
 
@@ -127,7 +127,7 @@ class TestSignalCardNoUnsafeHtml:
     def test_no_unsafe_html(self) -> None:
         import ast
 
-        dashboard_dir = REPO_ROOT / "finagents" / "dashboard"
+        dashboard_dir = REPO_ROOT / "src" / "finagents" / "dashboard"
         offenders: list[tuple[Path, int]] = []
 
         class _UnsafeHtmlVisitor(ast.NodeVisitor):
@@ -157,11 +157,11 @@ class TestSignalCardNoUnsafeHtml:
 
 class TestSignalCardLayout:
     def test_4_metric_tiles(self, signal_card_app_factory) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
+        at = app_test.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
             timeout=10
         )
         assert not at.exception
@@ -170,11 +170,11 @@ class TestSignalCardLayout:
             assert required in labels, f"Missing st.metric label {required!r}; got: {labels!r}"
 
     def test_3_collapsed_expanders(self, signal_card_app_factory) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
+        at = app_test.from_file(str(signal_card_app_factory(action="BUY", decision="approve"))).run(
             timeout=10
         )
         assert not at.exception
@@ -185,7 +185,7 @@ class TestSignalCardLayout:
 
 class TestSignalCardMissingDecision:
     def test_no_decision_warning(self, tmp_path) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
@@ -199,7 +199,7 @@ class TestSignalCardMissingDecision:
         )
         path = tmp_path / "signal_card_none.py"
         path.write_text(app_src)
-        at = AppTest.from_file(str(path)).run(timeout=10)
+        at = app_test.from_file(str(path)).run(timeout=10)
         assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         warning_text = " ".join(w.value for w in at.warning)
         assert "PortfolioDecision" in warning_text or "no" in warning_text.lower(), (

@@ -10,16 +10,14 @@ from finagents.llm_clients.factory import create_llm_client
 from finagents.testing.llm_mock import (
     CALL_SITE_SCHEMAS,
     LLMHarnessError,
-    LLMHarnessExhausted,
-    LLMHarnessMissing,
+    LLMHarnessExhaustedError,
+    LLMHarnessMissingError,
     LLMHarnessSchemaError,
     LLMMockHarness,
     failures,
     fixtures,
 )
 from finagents.testing.llm_mock._call_sites import CallSite
-
-
 
 
 @pytest.mark.parametrize("call_site", list(CALL_SITE_SCHEMAS.keys()))
@@ -43,8 +41,6 @@ def test_harness_routes_per_call_site(call_site: str) -> None:
     assert isinstance(result, schema)
 
 
-
-
 def test_unset_call_site_raises() -> None:
     with LLMMockHarness():
         llm = create_llm_client(
@@ -52,17 +48,13 @@ def test_unset_call_site_raises() -> None:
             Settings(openrouter_api_key="fake"),
             call_site="trader",
         )
-        with pytest.raises(LLMHarnessMissing):
+        with pytest.raises(LLMHarnessMissingError):
             llm.with_structured_output(CALL_SITE_SCHEMAS["trader"]).invoke([])
-
-
 
 
 def test_set_wrong_schema_raises() -> None:
     with LLMMockHarness() as h, pytest.raises(LLMHarnessSchemaError):
         h.set("bull_researcher", fixtures.NEWS_REPORT_DEFAULT)
-
-
 
 
 def test_exhausted_sequence_raises() -> None:
@@ -77,10 +69,8 @@ def test_exhausted_sequence_raises() -> None:
         structured = llm.with_structured_output(CALL_SITE_SCHEMAS["trader"])
         _first = structured.invoke([])
         assert _first is fixtures.TRADER_SIGNAL_DEFAULT
-        with pytest.raises(LLMHarnessExhausted):
+        with pytest.raises(LLMHarnessExhaustedError):
             structured.invoke([])
-
-
 
 
 def test_length_error_raises() -> None:
@@ -88,10 +78,8 @@ def test_length_error_raises() -> None:
 
     err = failures.length_error()
     assert isinstance(err, openai.LengthFinishReasonError)
-    assert getattr(failures.length_error, "SENTINEL") == "LengthFinishReasonError"
+    assert failures.length_error.SENTINEL == "LengthFinishReasonError"  # ty: ignore[unresolved-attribute]
     assert "LengthFinishReasonError" in repr(err)
-
-
 
 
 def test_validation_error_raises() -> None:
@@ -99,9 +87,7 @@ def test_validation_error_raises() -> None:
 
     err = failures.validation_error()
     assert isinstance(err, ValidationError)
-    assert getattr(failures.validation_error, "SENTINEL") == "ValidationError"
-
-
+    assert failures.validation_error.SENTINEL == "ValidationError"  # ty: ignore[unresolved-attribute]
 
 
 def test_runtime_error_raises() -> None:
@@ -109,9 +95,7 @@ def test_runtime_error_raises() -> None:
     assert isinstance(err, RuntimeError)
     assert str(err) == "simulated LLM failure after retry (harness)"
     assert "simulated LLM failure after retry" in str(err)
-    assert getattr(failures.runtime_error_after_retry, "SENTINEL") == "LLM error after retry"
-
-
+    assert failures.runtime_error_after_retry.SENTINEL == "LLM error after retry"  # ty: ignore[unresolved-attribute]
 
 
 def test_retry_then_succeed_sequence() -> None:
@@ -129,12 +113,10 @@ def test_retry_then_succeed_sequence() -> None:
             call_site="trader",
         )
         structured = llm.with_structured_output(CALL_SITE_SCHEMAS["trader"])
-        with pytest.raises(BaseException):  # noqa: B017,PT011
+        with pytest.raises(BaseException):  # noqa: B017
             structured.invoke([])
         result = structured.invoke([])
         assert result is fixtures.TRADER_SIGNAL_DEFAULT
-
-
 
 
 def test_provider_class_assertion() -> None:
@@ -144,33 +126,34 @@ def test_provider_class_assertion() -> None:
         langchain_groq.ChatGroq(model="x")
 
 
-
-
 def test_nested_harness_restores_outer_sentinel() -> None:
-    _factory = LLMMockHarness.__enter__.__globals__["_factory"]
+    settings = Settings(openrouter_api_key="fake")
+
+    def producer() -> object:
+        llm = create_llm_client("deep_think", settings, call_site="trader")
+        return getattr(llm, "_producer_harness", None)
 
     outer = LLMMockHarness()
     inner = LLMMockHarness()
 
     with outer:
-        assert _factory._ACTIVE_HARNESS is outer
+        assert producer() is outer
 
         with inner:
-            assert _factory._ACTIVE_HARNESS is inner
+            assert producer() is inner
 
-        assert _factory._ACTIVE_HARNESS is outer
+        assert producer() is outer
 
-    assert _factory._ACTIVE_HARNESS is None
-
-
+    with pytest.raises(RuntimeError, match="provider client instantiated under hermetic test"):
+        producer()
 
 
 def test_exception_hierarchy_invariant() -> None:
-    assert issubclass(LLMHarnessMissing, LLMHarnessError), (
-        "LLMHarnessMissing must subclass LLMHarnessError"
+    assert issubclass(LLMHarnessMissingError, LLMHarnessError), (
+        "LLMHarnessMissingError must subclass LLMHarnessError"
     )
     assert issubclass(LLMHarnessSchemaError, LLMHarnessError)
-    assert issubclass(LLMHarnessExhausted, LLMHarnessError)
+    assert issubclass(LLMHarnessExhaustedError, LLMHarnessError)
 
 
 @pytest.mark.parametrize("method_name", ["set", "set_sequence"])
@@ -180,14 +163,11 @@ def test_off_list_call_site_raises_llm_harness_missing(method_name: str) -> None
     else:
         payload = [fixtures.TECH_REPORT_DEFAULT]
 
-    with LLMMockHarness() as h:
-        with pytest.raises(LLMHarnessMissing) as exc_info:
-            getattr(h, method_name)("not_a_real_call_site", payload)
+    with LLMMockHarness() as h, pytest.raises(LLMHarnessMissingError) as exc_info:
+        getattr(h, method_name)("not_a_real_call_site", payload)
 
     assert "not_a_real_call_site" in str(exc_info.value)
     assert "technical_analyst" in str(exc_info.value) or "trader" in str(exc_info.value)
-
-
 
 
 @pytest.mark.parametrize(
@@ -202,9 +182,11 @@ def test_off_list_call_site_raises_llm_harness_missing(method_name: str) -> None
     ],
 )
 def test_cross_persona_registration_rejected(call_site: str, fixture_name: str) -> None:
-    with LLMMockHarness() as h:
-        with pytest.raises(LLMHarnessSchemaError, match="cross-persona") as exc_info:
-            h.set(cast(CallSite, call_site), getattr(fixtures, fixture_name))
+    with (
+        LLMMockHarness() as h,
+        pytest.raises(LLMHarnessSchemaError, match="cross-persona") as exc_info,
+    ):
+        h.set(cast(CallSite, call_site), getattr(fixtures, fixture_name))
 
     msg = str(exc_info.value)
     assert call_site in msg
@@ -231,12 +213,11 @@ def test_happy_path_full_registration_still_succeeds() -> None:
 
 
 def test_cross_persona_set_sequence_rejected() -> None:
-    with LLMMockHarness() as h:
-        with pytest.raises(LLMHarnessSchemaError, match="cross-persona"):
-            h.set_sequence(
-                "conservative_risk",  # type: ignore[arg-type]
-                [fixtures.AGGRESSIVE_DEFAULT],
-            )
+    with LLMMockHarness() as h, pytest.raises(LLMHarnessSchemaError, match="cross-persona"):
+        h.set_sequence(
+            "conservative_risk",  # type: ignore[arg-type]
+            [fixtures.AGGRESSIVE_DEFAULT],
+        )
 
 
 def test_persona_origin_attr_name_locked() -> None:
@@ -245,7 +226,7 @@ def test_persona_origin_attr_name_locked() -> None:
 
     assert hasattr(fixtures_mod, "_LLM_MOCK_PERSONA_ORIGIN_ATTR"), (
         "fixtures._LLM_MOCK_PERSONA_ORIGIN_ATTR has been renamed or removed — "
-        "update _harness.py to import the new name lock)."
+        "update _harness.py to import the new name."
     )
 
     assert fixtures_mod._LLM_MOCK_PERSONA_ORIGIN_ATTR == "_LLM_MOCK_PERSONA_ORIGIN"
@@ -256,12 +237,10 @@ def test_persona_origin_attr_name_locked() -> None:
     assert getattr(fixtures_mod.CONSERVATIVE_DEFAULT, attr) == "conservative_risk"
 
     assert hasattr(_harness_mod, "_LLM_MOCK_PERSONA_ORIGIN_ATTR"), (
-        "_harness.py must import _LLM_MOCK_PERSONA_ORIGIN_ATTR from fixtures "
-        " — hardcoding the string literal there is the silent-drift trap."
+        "_harness.py must import _LLM_MOCK_PERSONA_ORIGIN_ATTR from fixtures. "
+        "Hardcoding the string literal there is the silent-drift trap."
     )
     assert _harness_mod._LLM_MOCK_PERSONA_ORIGIN_ATTR == fixtures_mod._LLM_MOCK_PERSONA_ORIGIN_ATTR
-
-
 
 
 def test_with_structured_output_schema_mismatch_raises() -> None:
@@ -302,8 +281,8 @@ def test_with_structured_output_matching_schema_still_returns_runnable() -> None
 
 
 def test_with_structured_output_survives_sys_modules_purge() -> None:
-    import importlib  # noqa: PLC0415
-    import sys  # noqa: PLC0415
+    import importlib
+    import sys
 
     original_cls = CALL_SITE_SCHEMAS["trader"]
 
@@ -333,8 +312,6 @@ def test_with_structured_output_survives_sys_modules_purge() -> None:
     finally:
         if saved is not None:
             sys.modules[mod_name] = saved
-
-
 
 
 def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
@@ -396,8 +373,6 @@ def test_with_structured_output_runnable_bound_to_producer_harness() -> None:
         assert outer_runnable.invoke([]) is a_signal
 
 
-
-
 def test_with_structured_output_locks_to_producer_not_active_at_call_time() -> None:
     trading_signal_cls = CALL_SITE_SCHEMAS["trader"]
 
@@ -441,16 +416,14 @@ def test_with_structured_output_locks_to_producer_not_active_at_call_time() -> N
 
             outer_runnable = outer_llm.with_structured_output(trading_signal_cls)
             assert outer_runnable.invoke([]) is a_signal, (
-                " violation: outer-produced runnable dispatched to the "
+                "Violation: outer-produced runnable dispatched to the "
                 "wrong harness — producer identity was not preserved across "
                 "the nested-harness boundary"
             )
 
 
-
-
 def test_dispatch_sequence_lock_under_concurrent_invokes() -> None:
-    import asyncio  # noqa: PLC0415
+    import asyncio
 
     trading_signal_cls = CALL_SITE_SCHEMAS["trader"]
 
@@ -495,8 +468,6 @@ def test_dispatch_sequence_lock_under_concurrent_invokes() -> None:
     )
 
 
-
-
 def test_with_structured_output_include_raw_raises_not_implemented() -> None:
     trading_signal_cls = CALL_SITE_SCHEMAS["trader"]
 
@@ -509,8 +480,6 @@ def test_with_structured_output_include_raw_raises_not_implemented() -> None:
         )
         with pytest.raises(NotImplementedError, match="include_raw=True"):
             llm.with_structured_output(trading_signal_cls, include_raw=True)
-
-
 
 
 def test_harness_chat_model_generate_raises_on_bypass() -> None:

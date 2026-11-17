@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.risk_mgmt.conservative import (
     CONSERVATIVE_SCENARIO,
     CONSERVATIVE_TEMPERATURE,
-    _enforce_guard_04,
+    _log_positional_audit,
     build_conservative_prompt,
     conservative_risk_node,
 )
@@ -214,30 +213,19 @@ class TestConservativeNodeBehavior:
         assert "second" in sentinel["main_argument"]
         assert "first" in sentinel["main_argument"]
 
-    def test_none_config_uses_default_settings(self, fresh_risk_state: RiskDebateState) -> None:
-        mock_assessment = _build_mock_assessment()
-        mock_structured = MagicMock()
-        mock_structured.ainvoke = AsyncMock(return_value=mock_assessment)
-        mock_llm = MagicMock()
-        mock_llm.with_structured_output.return_value = mock_structured
-
-        with patch(
-            "finagents.agents.risk_mgmt.conservative.create_llm_client",
-            return_value=mock_llm,
-        ):
-            result = asyncio.run(conservative_risk_node(fresh_risk_state, None))
-        assert "conservative_assessment" in result
+    def test_none_config_requires_settings(self, fresh_risk_state: RiskDebateState) -> None:
+        with pytest.raises(TypeError, match="settings"):
+            asyncio.run(conservative_risk_node(fresh_risk_state, None))
 
 
 class TestGuard04AuditPassThrough:
-
     def test_helper_passes_through_when_no_signal(self) -> None:
         assessment = PersonaAssessment(
             main_argument="base thesis",
             recommended_position_size_pct=0.03,
             confidence=0.5,
         )
-        out = _enforce_guard_04(assessment, trader_signal_snapshot="")
+        out = _log_positional_audit(assessment, trader_signal_snapshot="")
         assert out.main_argument == "base thesis"
         assert out.recommended_position_size_pct == 0.03
 
@@ -247,7 +235,7 @@ class TestGuard04AuditPassThrough:
             recommended_position_size_pct=0.02,
             confidence=0.5,
         )
-        out = _enforce_guard_04(assessment, trader_signal_snapshot="not-json")
+        out = _log_positional_audit(assessment, trader_signal_snapshot="not-json")
         assert out.main_argument == "base"
         assert out.recommended_position_size_pct == 0.02
 
@@ -257,7 +245,7 @@ class TestGuard04AuditPassThrough:
             recommended_position_size_pct=0.05,
             confidence=0.8,
         )
-        out = _enforce_guard_04(assessment, '{"action":"BUY","t2t_flag":false}')
+        out = _log_positional_audit(assessment, '{"action":"BUY","t2t_flag":false}')
         assert out.main_argument == "aggressive BUY reasoning"
         assert out.recommended_position_size_pct == 0.05
 
@@ -267,7 +255,7 @@ class TestGuard04AuditPassThrough:
             recommended_position_size_pct=0.0,
             confidence=0.3,
         )
-        out = _enforce_guard_04(assessment, '{"action":"HOLD","t2t_flag":true}')
+        out = _log_positional_audit(assessment, '{"action":"HOLD","t2t_flag":true}')
         assert out.main_argument == "HOLD reasoning"
 
     def test_helper_passes_through_when_buy_and_t2t_true(self) -> None:
@@ -276,7 +264,7 @@ class TestGuard04AuditPassThrough:
             recommended_position_size_pct=0.04,
             confidence=0.7,
         )
-        out = _enforce_guard_04(assessment, '{"action":"BUY","t2t_flag":true}')
+        out = _log_positional_audit(assessment, '{"action":"BUY","t2t_flag":true}')
         assert out.main_argument == "Momentum is strong — size up aggressively."
         assert out.recommended_position_size_pct == 0.04
 
@@ -286,6 +274,6 @@ class TestGuard04AuditPassThrough:
             recommended_position_size_pct=0.03,
             confidence=0.6,
         )
-        out = _enforce_guard_04(assessment, '{"action":"SELL","t2t_flag":true}')
+        out = _log_positional_audit(assessment, '{"action":"SELL","t2t_flag":true}')
         assert out.main_argument == "Short conviction — size 3%."
         assert out.recommended_position_size_pct == 0.03

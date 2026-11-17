@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -15,26 +14,26 @@ def agent_reports_app(tmp_path):
         if populate_reports:
             state_block = (
                 "from finagents.agents.analysts.schemas import (\n"
-                " TechnicalReport, FundamentalsAnalystReport, NewsReport,\n"
+                "    TechnicalReport, FundamentalsAnalystReport, NewsReport,\n"
                 ")\n"
                 "tech = TechnicalReport(\n"
-                " rsi=58.0, current_price=2500.0, confidence=0.7,\n"
-                " notes='Tech notes.',\n"
+                "    rsi=58.0, current_price=2500.0, confidence=0.7,\n"
+                "    notes='Tech notes.',\n"
                 ")\n"
                 "fund = FundamentalsAnalystReport(\n"
-                " pe_ratio=22.5, confidence=0.6,\n"
-                " fundamental_assessment='Fundamentals OK.',\n"
+                "    pe_ratio=22.5, confidence=0.6,\n"
+                "    fundamental_assessment='Fundamentals OK.',\n"
                 ")\n"
                 "news = NewsReport(\n"
-                " article_count=5, sentiment_direction='positive',\n"
-                " confidence=0.8,\n"
-                " news_assessment='News positive.',\n"
+                "    article_count=5, sentiment_direction='positive',\n"
+                "    confidence=0.8,\n"
+                "    news_assessment='News positive.',\n"
                 ")\n"
                 "state = AgentState(\n"
-                " ticker='RELIANCE', date='2026-04-27',\n"
-                " technical_report=tech,\n"
-                " fundamentals_report=fund,\n"
-                " news_report=news,\n"
+                "    ticker='RELIANCE', date='2026-04-27',\n"
+                "    technical_report=tech,\n"
+                "    fundamentals_report=fund,\n"
+                "    news_report=news,\n"
                 ")\n"
             )
         else:
@@ -56,11 +55,11 @@ def agent_reports_app(tmp_path):
 
 class TestAgentReports:
     def test_three_columns(self, agent_reports_app) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(str(agent_reports_app(populate_reports=True))).run(timeout=10)
+        at = app_test.from_file(str(agent_reports_app(populate_reports=True))).run(timeout=10)
         assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         markdown_blobs = [m.value for m in at.markdown]
         haystack = " ".join(markdown_blobs)
@@ -68,11 +67,11 @@ class TestAgentReports:
             assert required in haystack, f"Missing analyst label {required!r}; got: {haystack!r}"
 
     def test_missing_reports_render_dash(self, agent_reports_app) -> None:
-        AppTest = pytest.importorskip(
+        app_test = pytest.importorskip(
             "streamlit.testing.v1",
             reason="Streamlit AppTest required",
         ).AppTest
-        at = AppTest.from_file(str(agent_reports_app(populate_reports=False))).run(timeout=10)
+        at = app_test.from_file(str(agent_reports_app(populate_reports=False))).run(timeout=10)
         assert not at.exception, f"AppTest raised: {[str(e.value) for e in at.exception]}"
         all_text = " ".join(m.value for m in at.markdown) + " ".join(t.value for t in at.text)
         assert "—" in all_text or "-" in all_text, (

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
-
 import json
 from pathlib import Path
+from typing import Literal
 
 import pydantic
 import pytest
@@ -41,13 +40,13 @@ class TestPortfolioDecision:
         from finagents.agents.managers.schemas import PortfolioDecision
 
         with pytest.raises(pydantic.ValidationError):
-            PortfolioDecision(signal=valid_signal, approved=False, decision="sell")  # ty: ignore[invalid-argument-type]  # Deliberately invalid input.
+            PortfolioDecision(signal=valid_signal, approved=False, decision="sell")  # ty: ignore[invalid-argument-type]
 
     def test_missing_signal_raises(self) -> None:
         from finagents.agents.managers.schemas import PortfolioDecision
 
         with pytest.raises(pydantic.ValidationError):
-            PortfolioDecision(approved=True, decision="approve")  # ty: ignore[missing-argument]  # Verify required-field validation.
+            PortfolioDecision(approved=True, decision="approve")  # ty: ignore[missing-argument]
 
     def test_pm_notes_populated(self, valid_signal) -> None:
         from finagents.agents.managers.schemas import PortfolioDecision
@@ -125,3 +124,32 @@ class TestPortfolioContext:
         ctx = PortfolioContext.from_seed_file(Path("tests/fixtures/portfolio.json"))
         assert isinstance(ctx.holdings, dict)
         assert isinstance(ctx.total_value_inr, (int, float))
+
+
+class TestResearchBrief:
+    def test_validates_with_key_findings_and_confidences(self):
+        from finagents.agents.managers.schemas import ResearchBrief
+
+        brief = ResearchBrief(
+            key_findings=[],
+            consensus_view="bullish",
+            conflicts=["news vs sentiment"],
+            analyst_confidences={"technical": 0.85, "fundamentals": 0.9},
+        )
+        assert brief.consensus_view == "bullish"
+        assert brief.analyst_confidences["fundamentals"] == pytest.approx(0.9)
+
+
+class TestFinding:
+    def test_validates_finding(self):
+        from finagents.agents.managers.schemas import Finding
+
+        finding = Finding(
+            analyst="technical",
+            key_point="RSI oversold",
+            supporting_data="RSI=28",
+            weight=0.25,
+        )
+        assert finding.analyst == "technical"
+        assert finding.key_point == "RSI oversold"
+        assert finding.weight == pytest.approx(0.25)

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from finagents.agents.analysts.schemas import FundamentalsAnalystReport
+from finagents.config import Settings
 from finagents.dataflows.data_result import DataResult
 from finagents.dataflows.fundamentals_schema import (
     DebtBalance,
@@ -13,8 +14,7 @@ from finagents.dataflows.fundamentals_schema import (
     Shareholding,
     Valuation,
 )
-
-
+from finagents.dataflows.interface import use_data_sources
 
 
 @pytest.fixture
@@ -77,11 +77,7 @@ async def _run_node_with_mocks(
         mock_structured_llm.ainvoke = AsyncMock(return_value=mock_report)
         mock_llm.with_structured_output.return_value = mock_structured_llm
     with (
-        patch(
-            "finagents.agents.analysts.fundamentals_analyst.get_fundamentals",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ),
+        use_data_sources(fundamentals=AsyncMock(return_value=data_result)),
         patch(
             "finagents.agents.analysts.fundamentals_analyst.create_llm_client",
             return_value=mock_llm,
@@ -91,9 +87,9 @@ async def _run_node_with_mocks(
             fundamentals_analyst_node,
         )
 
-        return await fundamentals_analyst_node(agent_state, {"configurable": {}})
-
-
+        return await fundamentals_analyst_node(
+            agent_state, {"configurable": {"settings": Settings()}}
+        )
 
 
 class TestFundamentalsAnalystConfidence:

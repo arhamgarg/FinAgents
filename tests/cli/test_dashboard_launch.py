@@ -30,7 +30,7 @@ class TestDashboardLaunch:
                 "-m",
                 "streamlit",
                 "run",
-                "finagents/dashboard/app.py",
+                "src/finagents/dashboard/app.py",
                 "--server.port",
                 "8501",
                 "--server.address",
@@ -42,7 +42,7 @@ class TestDashboardLaunch:
             popen.return_value = MagicMock(wait=MagicMock(return_value=42))
             from finagents.cli.dashboard_launch import launch_dashboard
 
-            assert launch_dashboard(port=1234, host="0.0.0.0") == 42
+            assert launch_dashboard(port=1234, host="0.0.0.0") == 42  # noqa: S104
 
     def test_keyboard_interrupt_forwards_signal(self) -> None:
         mock_proc = MagicMock()
@@ -84,5 +84,5 @@ class TestDashboardLaunch:
         importlib.import_module("finagents.cli.dashboard_launch")
         assert "streamlit.web.bootstrap" not in _sys.modules, (
             "dashboard_launch must NOT import streamlit.web.bootstrap "
-            " — main-thread signal handler requirement)"
+            "(main-thread signal handler requirement)"
         )

@@ -7,6 +7,7 @@ from finagents.agents.researchers.bear_researcher import BearArgument
 from finagents.agents.researchers.bull_researcher import BullArgument
 from finagents.agents.researchers.investment_thesis import InvestmentThesis
 from finagents.agents.utils.agent_states import InvestDebateState
+from finagents.config import Settings
 
 
 def _make_mock_llm(coro_factory):
@@ -18,7 +19,6 @@ def _make_mock_llm(coro_factory):
 
 
 class TestInvestDebateSubgraphCompiles:
-
     def test_build_returns_compiled_graph(self) -> None:
         from finagents.graph.subgraphs.invest_debate import (
             build_invest_debate_subgraph,
@@ -34,7 +34,6 @@ class TestInvestDebateSubgraphCompiles:
 
 
 class TestInvestDebateSubgraphRoundCount:
-
     def test_three_round_debate_produces_three_entries_each_side(self) -> None:
 
         async def fake_bull_ainvoke(prompt):
@@ -66,11 +65,13 @@ class TestInvestDebateSubgraphRoundCount:
 
             subgraph = build_invest_debate_subgraph()
             initial = InvestDebateState(max_rounds=3, research_brief_snapshot="brief")
-            result = asyncio.run(subgraph.ainvoke(initial))
+            result = asyncio.run(
+                subgraph.ainvoke(initial, config={"configurable": {"settings": Settings()}})
+            )
 
         rehydrated = InvestDebateState.model_validate(result)
         assert len(rehydrated.bull_turns()) == 3, (
-            f" off-by-one — expected 3 bull turns, got {len(rehydrated.bull_turns())}"
+            f"Off-by-one: expected 3 bull turns, got {len(rehydrated.bull_turns())}"
         )
         assert len(rehydrated.bear_turns()) == 3
         assert rehydrated.investment_thesis == "synthesized plan"
@@ -107,7 +108,9 @@ class TestInvestDebateSubgraphRoundCount:
 
             subgraph = build_invest_debate_subgraph()
             initial = InvestDebateState(max_rounds=1, research_brief_snapshot="brief")
-            result = asyncio.run(subgraph.ainvoke(initial))
+            result = asyncio.run(
+                subgraph.ainvoke(initial, config={"configurable": {"settings": Settings()}})
+            )
 
         rehydrated = InvestDebateState.model_validate(result)
         assert len(rehydrated.bull_turns()) == 1

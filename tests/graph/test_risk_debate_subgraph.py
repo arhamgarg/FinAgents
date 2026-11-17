@@ -7,6 +7,7 @@ import pytest
 
 from finagents.agents.risk_mgmt.schemas import PersonaAssessment, RiskConsolidation
 from finagents.agents.utils.agent_states import RiskDebateState
+from finagents.config import Settings
 
 
 def _build_mock_persona_llm(assessment: PersonaAssessment):
@@ -44,7 +45,6 @@ class TestRiskDebateSubgraphCompiles:
 
 
 class TestRiskDebateSubgraphRoundCount:
-
     def test_single_round_debate_exits_cleanly(self) -> None:
         from finagents.graph.subgraphs.risk_debate import build_risk_debate_subgraph
 
@@ -76,7 +76,9 @@ class TestRiskDebateSubgraphRoundCount:
                 max_rounds=1,
                 trader_signal_snapshot='{"action":"BUY","t2t_flag":false}',
             )
-            result = asyncio.run(subgraph.ainvoke(initial))
+            result = asyncio.run(
+                subgraph.ainvoke(initial, config={"configurable": {"settings": Settings()}})
+            )
         hydrated = RiskDebateState.model_validate(result)
         assert len(hydrated.risk_turns()) == 1
         assert hydrated.current_round == 1
@@ -126,7 +128,9 @@ class TestRiskDebateSubgraphRoundCount:
                 max_rounds=2,
                 trader_signal_snapshot='{"action":"BUY","t2t_flag":false}',
             )
-            result = asyncio.run(subgraph.ainvoke(initial))
+            result = asyncio.run(
+                subgraph.ainvoke(initial, config={"configurable": {"settings": Settings()}})
+            )
         hydrated = RiskDebateState.model_validate(result)
         assert len(hydrated.risk_turns()) == 2
         assert hydrated.current_round == 2
@@ -162,6 +166,8 @@ class TestRiskDebateSubgraphRoundCount:
                 max_rounds=1,
                 trader_signal_snapshot='{"action":"BUY","t2t_flag":false}',
             )
-            result = asyncio.run(subgraph.ainvoke(initial))
+            result = asyncio.run(
+                subgraph.ainvoke(initial, config={"configurable": {"settings": Settings()}})
+            )
         hydrated = RiskDebateState.model_validate(result)
         assert hydrated.synthesized_position_size_pct == pytest.approx(0.04)

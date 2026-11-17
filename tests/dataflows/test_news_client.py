@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from pytest_httpx import HTTPXMock
 
+from finagents.config import Settings
 from finagents.dataflows.news_client import (
     _parse_economic_times,
     _parse_livemint,
@@ -14,14 +15,11 @@ from finagents.dataflows.news_client import (
 )
 from finagents.dataflows.news_schema import NewsArticle
 
-
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "news"
 
 MC_URL = "https://www.moneycontrol.com/news/tags/reliance/"
 ET_URL = "https://economictimes.indiatimes.com/topic/reliance"
 LM_URL = "https://www.livemint.com/Search/Link/Keyword/reliance"
-
-
 
 
 def test_moneycontrol_parser() -> None:
@@ -47,8 +45,6 @@ def test_livemint_parser() -> None:
     assert articles[0].source == "livemint"
 
 
-
-
 @pytest.mark.asyncio
 async def test_aggregator_ok_when_3_sources_succeed(
     httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -64,7 +60,7 @@ async def test_aggregator_ok_when_3_sources_succeed(
         httpx_mock.add_response(
             url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
         )
-        result = await get_news("RELIANCE")
+        result = await get_news("RELIANCE", Settings())
 
     assert result.status == "ok"
     assert result.data is not None
@@ -86,7 +82,7 @@ async def test_aggregator_ok_when_2_sources_succeed(
         httpx_mock.add_response(
             url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
         )
-        result = await get_news("RELIANCE")
+        result = await get_news("RELIANCE", Settings())
 
     assert result.status == "ok"
     assert result.data is not None
@@ -103,7 +99,7 @@ async def test_aggregator_partial_when_1_source_succeeds(
         httpx_mock.add_response(
             url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
         )
-        result = await get_news("RELIANCE")
+        result = await get_news("RELIANCE", Settings())
 
     assert result.status == "partial"
     assert result.data is not None
@@ -119,7 +115,7 @@ async def test_aggregator_error_when_0_sources_succeed(
         httpx_mock.add_response(url=MC_URL, status_code=503)
         httpx_mock.add_response(url=ET_URL, status_code=503)
         httpx_mock.add_response(url=LM_URL, status_code=503)
-        result = await get_news("RELIANCE")
+        result = await get_news("RELIANCE", Settings())
 
     assert result.status == "error"
     assert result.error is not None
@@ -158,7 +154,7 @@ async def test_ticker_sanitization_rejects_injection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "cache.db")
-    result = await get_news("RELIANCE/../etc")
+    result = await get_news("RELIANCE/../etc", Settings())
     assert result.status == "error"
     assert result.error is not None
     assert "Invalid ticker" in result.error
@@ -181,7 +177,7 @@ async def test_rate_limiter_per_domain(
         httpx_mock.add_response(
             url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
         )
-        await get_news("RELIANCE")
+        await get_news("RELIANCE", Settings())
 
     call_args = [call.args[0] for call in acquire_mock.call_args_list]
     assert "www.moneycontrol.com" in call_args
@@ -208,12 +204,12 @@ async def test_cache_hit(
         httpx_mock.add_response(
             url=LM_URL, content=(FIXTURE_DIR / "livemint_reliance.html").read_bytes()
         )
-        first = await get_news("RELIANCE")
+        first = await get_news("RELIANCE", Settings())
 
     assert first.status == "ok"
 
     with patch("finagents.dataflows.rate_limits.acquire", new_callable=AsyncMock):
-        second = await get_news("RELIANCE")
+        second = await get_news("RELIANCE", Settings())
 
     assert second.status == "ok"
     assert second.data is not None

@@ -14,7 +14,6 @@ def default_settings() -> Settings:
 
 
 class TestFinAgentsGraphFullPipelineFlag:
-
     def test_default_uses_build_analysis_graph(self) -> None:
         from finagents.graph.trading_graph import FinAgentsGraph
 
@@ -41,7 +40,6 @@ class TestFinAgentsGraphFullPipelineFlag:
 
 
 class TestFinAgentsGraphThreadId:
-
     def test_thread_id_is_unique_per_propagate_call(self, default_settings: Settings) -> None:
         from finagents.graph.trading_graph import FinAgentsGraph
 
@@ -92,7 +90,6 @@ class TestFinAgentsGraphThreadId:
 
 
 class TestFinAgentsGraphModelValidate:
-
     def test_returns_agent_state_from_dict_with_nested_debate(
         self, default_settings: Settings
     ) -> None:

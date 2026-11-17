@@ -12,7 +12,7 @@ AppTest = pytest.importorskip(
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RUN_PAGE_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "run.py"
+RUN_PAGE_PATH = REPO_ROOT / "src" / "finagents" / "dashboard" / "pages" / "run.py"
 
 
 def _all_widget_labels(at, attr: str) -> list[str]:
@@ -137,10 +137,7 @@ class TestRunPageFormSubmission:
         start_pipeline.assert_called_once()
 
 
-
-
 class TestModelFieldPropagation:
-
     def test_user_model_input_flows_into_settings(self) -> None:
         captured: dict[str, object] = {}
 
@@ -198,20 +195,17 @@ class TestModelFieldPropagation:
         settings = captured["settings"]
         assert isinstance(settings, Settings)
         assert settings.deep_think_llm == "groq:llama-3.1-405b", (
-            " settings.deep_think_llm must reflect user-selected "
+            "Settings.deep_think_llm must reflect user-selected "
             f"Model, got {settings.deep_think_llm!r}"
         )
         assert settings.quick_think_llm == "groq:llama-3.1-405b", (
-            " settings.quick_think_llm must also reflect the "
+            "Settings.quick_think_llm must also reflect the "
             "user-selected Model (analyst nodes route through the "
-            f"quick tier per, got {settings.quick_think_llm!r}"
+            f"quick tier), got {settings.quick_think_llm!r}"
         )
 
 
-
-
 class TestResubmissionStateReset:
-
     def test_consecutive_runs_reset_session_state(self) -> None:
         from finagents.observability.events import PipelineEvent
 
@@ -275,16 +269,16 @@ class TestResubmissionStateReset:
             assert not at.exception, f"After submit: {[str(e.value) for e in at.exception]}"
 
         assert at.session_state["last_completed_event"] is None, (
-            " last_completed_event must be reset to None before "
+            "Last_completed_event must be reset to None before "
             f"kickoff; got {at.session_state['last_completed_event']!r}"
         )
         assert at.session_state["persisted"] is False, (
-            " persisted must be reset to False before kickoff; "
+            "Persisted must be reset to False before kickoff; "
             f"got {at.session_state['persisted']!r}"
         )
         assert len(captured_run_ids) == 1, f"start_pipeline call count: {len(captured_run_ids)}"
         assert captured_run_ids[0] != "deadbeef", (
-            " kickoff must generate a fresh run_id, not reuse the "
+            "Kickoff must generate a fresh run_id, not reuse the "
             f"stale one; got {captured_run_ids[0]!r}"
         )
         assert at.session_state["run_id"] == captured_run_ids[0], (
@@ -292,10 +286,7 @@ class TestResubmissionStateReset:
         )
 
 
-
-
 class TestErroredEventPersists:
-
     def test_errored_event_calls_update_errored(self) -> None:
         from finagents.observability.events import PipelineEvent
 
@@ -346,7 +337,7 @@ class TestErroredEventPersists:
             f"raw secret leaked through to error_msg: {call['error_msg']!r}"
         )
         assert at.session_state["persisted"] is True, (
-            " persisted must flip to True after update_errored; "
+            "Persisted must flip to True after update_errored; "
             f"got {at.session_state['persisted']!r}"
         )
         error_blobs = [e.value for e in at.error]
@@ -399,10 +390,7 @@ class TestErroredEventPersists:
         )
 
 
-
-
 class TestCompletedWithNoDecisionPersistsErrored:
-
     def test_completed_event_with_none_decision_calls_update_errored(
         self,
     ) -> None:
@@ -606,13 +594,10 @@ class TestCompletedWithNoDecisionPersistsErrored:
         assert call["pm_decision"] == "approve"
 
 
-
-
 class TestEmptyRunDbPathFailsClosed:
-
     def test_completed_event_with_empty_db_path_skips_write(self) -> None:
-        from finagents.observability.events import PipelineEvent
         from finagents.agents.utils.agent_states import AgentState
+        from finagents.observability.events import PipelineEvent
 
         partial_state = AgentState(ticker="RELIANCE", date="2026-04-26")
         completed_event = PipelineEvent(
@@ -694,10 +679,7 @@ class TestEmptyRunDbPathFailsClosed:
         )
 
 
-
-
 class TestSessionResetCancelsStaleProducer:
-
     def test_session_reset_cancels_prior_producer_before_new_kickoff(
         self,
     ) -> None:

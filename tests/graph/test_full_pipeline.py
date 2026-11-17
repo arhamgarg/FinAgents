@@ -1,6 +1,6 @@
 from finagents import FinAgentsGraph
 from finagents.config import Settings
-from tests.pipeline import pipeline_scenario
+from tests.support.pipeline import pipeline_scenario
 
 
 async def test_full_pipeline_flag():

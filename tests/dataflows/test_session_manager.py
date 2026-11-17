@@ -14,15 +14,11 @@ from finagents.dataflows.session_manager import (
 )
 
 
-
-
 @pytest.fixture(autouse=True)
 def reset_singleton():
     reset_session_manager()
     yield
     reset_session_manager()
-
-
 
 
 @pytest.fixture
@@ -32,8 +28,6 @@ def angelone_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("ANGELONE_PIN", "1234")
     monkeypatch.setenv("ANGELONE_TOTP_SECRET", "JBSWY3DPEHPK3PXP")
     return Settings(openrouter_api_key="fake")
-
-
 
 
 @pytest.mark.asyncio
@@ -52,16 +46,12 @@ async def test_get_session_authenticates_once(mock_smart_connect, angelone_setti
         mock_totp_instance.now.assert_called_once()
 
 
-
-
 @pytest.mark.asyncio
 async def test_missing_credentials_raises_auth_error(clean_env):
     settings = Settings(openrouter_api_key="fake")
     manager = SessionManager(settings)
     with pytest.raises(AngelOneAuthError, match="Angel One credentials missing"):
         await manager.get_session()
-
-
 
 
 @pytest.mark.asyncio
@@ -77,8 +67,6 @@ async def test_reauth_on_token_exception(mock_smart_connect, angelone_settings):
 
     assert result == success_response
     assert mock_smart_connect.generateSession.call_count == 2
-
-
 
 
 @pytest.mark.asyncio
@@ -97,8 +85,6 @@ async def test_reauth_on_ab1010(mock_smart_connect, angelone_settings):
 
     assert result == success_response
     assert mock_smart_connect.generateSession.call_count == 2
-
-
 
 
 @pytest.mark.asyncio
@@ -126,8 +112,6 @@ async def test_ab1004_retries_not_reauth(mock_smart_connect, angelone_settings, 
     assert sleep_calls == [1, 2, 4]
 
 
-
-
 @pytest.mark.asyncio
 async def test_ab1050_no_retry(mock_smart_connect, angelone_settings):
     ab1050_response = {
@@ -146,8 +130,6 @@ async def test_ab1050_no_retry(mock_smart_connect, angelone_settings):
     assert mock_smart_connect.generateSession.call_count == 1
 
 
-
-
 @pytest.mark.asyncio
 async def test_singleton_lock_serializes_first_auth(mock_smart_connect, angelone_settings):
     manager = SessionManager(angelone_settings)
@@ -160,8 +142,6 @@ async def test_singleton_lock_serializes_first_auth(mock_smart_connect, angelone
     assert session_a is mock_smart_connect
     assert session_b is mock_smart_connect
     assert mock_smart_connect.generateSession.call_count == 1
-
-
 
 
 @pytest.mark.asyncio
@@ -185,8 +165,6 @@ async def test_fresh_totp_on_reauthenticate(mock_smart_connect, angelone_setting
 
         assert mock_pyotp.TOTP.call_count == 2
         assert mock_totp_instance.now.call_count == 2
-
-
 
 
 @pytest.mark.asyncio
@@ -215,14 +193,10 @@ async def test_credential_not_in_error_message(clean_env, monkeypatch):
         assert "JBSWY3DPEHPK3PXP" not in error_msg
 
 
-
-
 def test_get_session_manager_singleton(angelone_settings):
     mgr1 = get_session_manager(angelone_settings)
     mgr2 = get_session_manager(angelone_settings)
     assert mgr1 is mgr2
-
-
 
 
 def test_reset_session_manager(angelone_settings):
@@ -230,8 +204,6 @@ def test_reset_session_manager(angelone_settings):
     reset_session_manager()
     mgr2 = get_session_manager(angelone_settings)
     assert mgr1 is not mgr2
-
-
 
 
 def test_import_emits_no_smartconnect_log() -> None:
@@ -242,6 +214,7 @@ def test_import_emits_no_smartconnect_log() -> None:
         [sys.executable, "-c", "from finagents.dataflows import session_manager"],
         capture_output=True,
         text=True,
+        check=False,
         timeout=30,
     )
     assert result.returncode == 0, (

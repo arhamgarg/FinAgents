@@ -236,9 +236,11 @@ class TestSignalsPragmas:
         tmp_signals_db: Path,
     ) -> None:
         await run_migrations(tmp_signals_db)
-        async with open_signals_db(tmp_signals_db) as db:
-            async with db.execute("PRAGMA synchronous") as cur:
-                row = await cur.fetchone()
+        async with (
+            open_signals_db(tmp_signals_db) as db,
+            db.execute("PRAGMA synchronous") as cur,
+        ):
+            row = await cur.fetchone()
         assert row is not None
         assert row[0] == 1
 
@@ -274,7 +276,6 @@ class TestSignalsRunIdValidation:
 
 
 class TestSignalsPrune:
-
     @pytest.mark.asyncio
     async def test_prune_before_returns_zero_on_missing_db(
         self,

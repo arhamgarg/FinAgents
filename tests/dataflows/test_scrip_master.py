@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import json
-
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from finagents.dataflows import scrip_master
-from finagents.dataflows.scrip_master import InstrumentNotFound
-
-
+from finagents.dataflows.scrip_master import InstrumentNotFoundError
 
 
 @pytest.mark.asyncio
@@ -26,8 +23,6 @@ async def test_cold_cache_fetches_and_stores(
     assert any(e["symbol"] == "RELIANCE-EQ" for e in result)
     assert any(e["symbol"] == "INFY-EQ" for e in result)
     assert any(e["symbol"] == "TCS-EQ" for e in result)
-
-
 
 
 @pytest.mark.asyncio
@@ -47,8 +42,6 @@ async def test_warm_cache_no_network_call(recorded_fixture_dir, tmp_path, monkey
     assert any(e["symbol"] == "RELIANCE-EQ" for e in result)
 
 
-
-
 @pytest.mark.asyncio
 async def test_stale_cache_refetches(httpx_mock, recorded_fixture_dir, tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -63,8 +56,6 @@ async def test_stale_cache_refetches(httpx_mock, recorded_fixture_dir, tmp_path,
 
     assert isinstance(result, list)
     assert mock_cache.set_cached.call_count == 1
-
-
 
 
 @pytest.mark.asyncio
@@ -97,8 +88,6 @@ async def test_resolve_token_case_insensitive(tmp_path, monkeypatch):
         assert token_with_eq == "2885"
 
 
-
-
 @pytest.mark.asyncio
 async def test_instrument_not_found(tmp_path, monkeypatch):
     monkeypatch.setattr("finagents.dataflows.cache.CACHE_DB_PATH", tmp_path / "t.db")
@@ -119,10 +108,8 @@ async def test_instrument_not_found(tmp_path, monkeypatch):
     with patch("finagents.dataflows.scrip_master._master_bytes") as mock_get:
         mock_get.return_value = json.dumps(fixture_data).encode()
 
-        with pytest.raises(InstrumentNotFound, match="NOTAREALTICKER"):
+        with pytest.raises(InstrumentNotFoundError, match="NOTAREALTICKER"):
             await scrip_master.resolve_token("NOTAREALTICKER")
-
-
 
 
 def test_scrip_master_url_domain():
@@ -131,8 +118,6 @@ def test_scrip_master_url_domain():
         in scrip_master.SCRIP_MASTER_URL
     )
     assert "angelbroking.com" not in scrip_master.SCRIP_MASTER_URL
-
-
 
 
 @pytest.mark.asyncio

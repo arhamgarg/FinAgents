@@ -24,7 +24,7 @@ def freeze_ist_today(monkeypatch: pytest.MonkeyPatch) -> str:
     frozen = "2026-04-26"
 
     monkeypatch.setattr(
-        "finagents.cli.ist_dates.ist_today_str",
+        "finagents.clock.ist_today_str",
         lambda: frozen,
         raising=False,
     )

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Literal
-
 import asyncio
 from pathlib import Path
+from typing import Any, Literal
 
 import pytest
 
@@ -14,9 +13,7 @@ AppTest = pytest.importorskip(
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SIGNAL_PAGE_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "signal.py"
-
-
+SIGNAL_PAGE_PATH = REPO_ROOT / "src" / "finagents" / "dashboard" / "pages" / "signal.py"
 
 
 def _build_payload_json(
@@ -142,8 +139,6 @@ def _clear_streamlit_cache():
     st.cache_data.clear()
 
 
-
-
 class TestSignalPagePermalink:
     def test_permalink(self, monkeypatch, tmp_path) -> None:
         run_id = "12345678"
@@ -195,7 +190,7 @@ class TestSignalPageDebateColumns:
         )
 
         text_blobs = (
-            " ".join((m.value for m in at.markdown)) + " " + " ".join(t.value for t in at.text)
+            " ".join(m.value for m in at.markdown) + " " + " ".join(t.value for t in at.text)
         )
         for snippet in (
             "Bull says go up",

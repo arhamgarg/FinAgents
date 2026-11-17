@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import io
 import re
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
 from rich.console import Console
@@ -33,7 +34,6 @@ async def _stream(events: list) -> AsyncIterator:
 
 
 class TestCLILiveRender:
-
     @pytest.mark.asyncio
     async def test_live_snapshot(self) -> None:
         from finagents.cli.live import run_with_live_render
@@ -256,7 +256,6 @@ class TestCLILiveRender:
 
 
 class TestErroredEventReRaises:
-
     @pytest.mark.asyncio
     async def test_run_with_log_lines_reraises_errored_exc(self) -> None:
         from finagents.cli.live import run_with_log_lines
@@ -360,10 +359,7 @@ class TestErroredEventReRaises:
         assert result is None
 
 
-
-
 class TestStreamPipelineEventsBackwardCompat:
-
     @pytest.mark.asyncio
     async def test_stream_pipeline_events_no_cancel_param_backward_compat(
         self,

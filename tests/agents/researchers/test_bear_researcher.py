@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.utils.agent_states import InvestDebateState
 from finagents.config import Settings
@@ -38,7 +37,7 @@ def mock_bear_argument():
 
 
 class TestBearResearcherNode:
-    def test_returns_keyed_entry_AND_increments_current_round(
+    def test_returns_keyed_entry_and_increments_current_round(
         self,
         populated_state: InvestDebateState,
         mock_bear_argument,
@@ -166,10 +165,11 @@ class TestBearResearcherNode:
 class TestBearArgumentSchema:
     def test_required_field_argument(self) -> None:
         import pydantic
+
         from finagents.agents.researchers.bear_researcher import BearArgument
 
         with pytest.raises(pydantic.ValidationError):
-            BearArgument(key_points=[])
+            BearArgument(key_points=[])  # ty: ignore[missing-argument]
 
     def test_optional_key_points_defaults_to_empty_list(self) -> None:
         from finagents.agents.researchers.bear_researcher import BearArgument

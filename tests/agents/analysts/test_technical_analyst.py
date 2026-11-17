@@ -1,22 +1,22 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
+import math
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pandas as pd
-import pytest
-
 import pydantic
+import pytest
+from langchain_core.runnables import RunnableConfig
+
 from finagents.agents.analysts.schemas import (
     FundamentalsAnalystReport,
     NewsReport,
     TechnicalReport,
 )
+from finagents.config import Settings
 from finagents.dataflows.data_result import DataResult
-
-
+from finagents.dataflows.interface import use_data_sources
 
 
 @pytest.fixture
@@ -87,8 +87,6 @@ def valid_technical_report() -> TechnicalReport:
     )
 
 
-
-
 class TestComputeTechnicalIndicators:
     def test_returns_expected_keys(self, ohlcv_250: pd.DataFrame):
         from finagents.agents.analysts.technical_analyst import compute_technical_indicators
@@ -121,7 +119,7 @@ class TestComputeTechnicalIndicators:
                 f"Key '{key}' has unexpected type {type(val)}: {val}"
             )
             if isinstance(val, float):
-                assert not (val != val), f"Key '{key}' contains NaN"
+                assert not math.isnan(val), f"Key '{key}' contains NaN"
 
     def test_with_250_rows_all_indicators_non_none(self, ohlcv_250: pd.DataFrame):
         from finagents.agents.analysts.technical_analyst import compute_technical_indicators
@@ -161,8 +159,6 @@ class TestComputeTechnicalIndicators:
             assert val is None, f"Expected None for '{key}' on empty DataFrame, got {val!r}"
 
 
-
-
 @pytest.mark.usefixtures("stub_surveillance")
 class TestTechnicalAnalystNode:
     @pytest.mark.asyncio
@@ -177,11 +173,7 @@ class TestTechnicalAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with (
-            patch(
-                "finagents.agents.analysts.technical_analyst.get_ohlcv",
-                new_callable=AsyncMock,
-                return_value=data_result,
-            ),
+            use_data_sources(ohlcv=AsyncMock(return_value=data_result)),
             patch(
                 "finagents.agents.analysts.technical_analyst.create_llm_client",
                 return_value=mock_llm,
@@ -189,7 +181,7 @@ class TestTechnicalAnalystNode:
         ):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            runnable_config: RunnableConfig = {"configurable": {}}
+            runnable_config: RunnableConfig = {"configurable": {"settings": Settings()}}
             result = await technical_analyst_node(agent_state_basic, runnable_config)
 
         assert "technical_report" in result
@@ -201,29 +193,25 @@ class TestTechnicalAnalystNode:
     async def test_handles_ohlcv_error(self, agent_state_basic):
         data_result = DataResult(status="error", data=None, error="Angel One API timeout")
 
-        with patch(
-            "finagents.agents.analysts.technical_analyst.get_ohlcv",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ):
+        with use_data_sources(ohlcv=AsyncMock(return_value=data_result)):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
             with pytest.raises(ValueError, match="Technical analyst requires OHLCV data"):
-                await technical_analyst_node(agent_state_basic, {"configurable": {}})
+                await technical_analyst_node(
+                    agent_state_basic, {"configurable": {"settings": Settings()}}
+                )
 
     @pytest.mark.asyncio
     async def test_handles_ohlcv_empty(self, agent_state_basic):
         data_result = DataResult(status="empty", data=None)
 
-        with patch(
-            "finagents.agents.analysts.technical_analyst.get_ohlcv",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ):
+        with use_data_sources(ohlcv=AsyncMock(return_value=data_result)):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
             with pytest.raises(ValueError, match="Technical analyst requires OHLCV data"):
-                await technical_analyst_node(agent_state_basic, {"configurable": {}})
+                await technical_analyst_node(
+                    agent_state_basic, {"configurable": {"settings": Settings()}}
+                )
 
     @pytest.mark.asyncio
     async def test_retries_llm_once_on_failure(
@@ -238,11 +226,7 @@ class TestTechnicalAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with (
-            patch(
-                "finagents.agents.analysts.technical_analyst.get_ohlcv",
-                new_callable=AsyncMock,
-                return_value=data_result,
-            ),
+            use_data_sources(ohlcv=AsyncMock(return_value=data_result)),
             patch(
                 "finagents.agents.analysts.technical_analyst.create_llm_client",
                 return_value=mock_llm,
@@ -250,7 +234,9 @@ class TestTechnicalAnalystNode:
         ):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(
+                agent_state_basic, {"configurable": {"settings": Settings()}}
+            )
 
         assert "technical_report" in result
         assert isinstance(result["technical_report"], TechnicalReport)
@@ -271,11 +257,7 @@ class TestTechnicalAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with (
-            patch(
-                "finagents.agents.analysts.technical_analyst.get_ohlcv",
-                new_callable=AsyncMock,
-                return_value=data_result,
-            ),
+            use_data_sources(ohlcv=AsyncMock(return_value=data_result)),
             patch(
                 "finagents.agents.analysts.technical_analyst.create_llm_client",
                 return_value=mock_llm,
@@ -283,7 +265,9 @@ class TestTechnicalAnalystNode:
         ):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(
+                agent_state_basic, {"configurable": {"settings": Settings()}}
+            )
 
         assert "technical_report" in result
         report = result["technical_report"]
@@ -306,11 +290,7 @@ class TestTechnicalAnalystNode:
         mock_llm.with_structured_output.return_value = mock_structured_llm
 
         with (
-            patch(
-                "finagents.agents.analysts.technical_analyst.get_ohlcv",
-                new_callable=AsyncMock,
-                return_value=data_result,
-            ),
+            use_data_sources(ohlcv=AsyncMock(return_value=data_result)),
             patch(
                 "finagents.agents.analysts.technical_analyst.create_llm_client",
                 return_value=mock_llm,
@@ -318,16 +298,15 @@ class TestTechnicalAnalystNode:
         ):
             from finagents.agents.analysts.technical_analyst import technical_analyst_node
 
-            result = await technical_analyst_node(agent_state_basic, {"configurable": {}})
+            result = await technical_analyst_node(
+                agent_state_basic, {"configurable": {"settings": Settings()}}
+            )
 
         report = result["technical_report"]
         assert "angelone" in report.data_sources
 
 
-
-
 class TestSchemaConfidenceValidation:
-
     @pytest.mark.parametrize("bad_value", [1.1, 99.9, -0.01, -1.0, 2.0])
     def test_technical_report_rejects_out_of_range_confidence(self, bad_value: float):
         with pytest.raises(pydantic.ValidationError):

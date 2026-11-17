@@ -11,7 +11,7 @@ AppTest = pytest.importorskip(
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-APP_PATH = REPO_ROOT / "finagents" / "dashboard" / "app.py"
+APP_PATH = REPO_ROOT / "src" / "finagents" / "dashboard" / "app.py"
 
 
 class TestDashboardApp:

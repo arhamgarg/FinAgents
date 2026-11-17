@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 import asyncio
 import json
 import re
 import sqlite3
+from typing import Any
 
 import pytest
 
@@ -23,7 +22,6 @@ def _read_signals(db_path) -> list[dict]:
 
 
 class TestRedactSecrets:
-
     def test_canonical_groq(self) -> None:
         from finagents.cli.run_command import _redact_secrets
 
@@ -56,7 +54,6 @@ class TestRedactSecrets:
 
 
 class TestRunIdGeneration:
-
     def test_run_id_stable_8hex(self) -> None:
         from finagents.cli.run_command import _new_run_id
 
@@ -65,7 +62,6 @@ class TestRunIdGeneration:
 
 
 class TestFaRun:
-
     def test_happy_path_json(self, fake_pipeline, tmp_signals_db, capsys) -> None:
         from finagents.cli.run_command import run_pipeline
 
@@ -113,7 +109,7 @@ class TestFaRun:
 
         async def _broken_stream(*args, **kwargs):
             raise RuntimeError("boom: GROQ_API_KEY=topsecret")
-            yield  # pragma: no cover — generator marker
+            yield  # pragma: no cover
 
         monkeypatch.setattr(
             "finagents.cli.run_command.stream_pipeline_events",
@@ -137,8 +133,9 @@ class TestFaRun:
         assert "GROQ_API_KEY=***" in rows[0]["error_msg"]
 
     def test_no_debug_renders_error_panel(self, tmp_signals_db, capsys, monkeypatch) -> None:
-        from finagents.cli.run_command import run_pipeline
         from unittest.mock import MagicMock
+
+        from finagents.cli.run_command import run_pipeline
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
@@ -152,7 +149,7 @@ class TestFaRun:
 
         async def _broken_stream(*args, **kwargs):
             raise RuntimeError("kaboom")
-            yield  # pragma: no cover — generator marker
+            yield  # pragma: no cover
 
         monkeypatch.setattr(
             "finagents.cli.run_command.stream_pipeline_events",
@@ -389,15 +386,16 @@ class TestFaRun:
         assert "RELIANCE" in out
 
     def test_first_ctrl_c(self, tmp_signals_db, capsys, monkeypatch) -> None:
-        from finagents.cli.run_command import run_pipeline
         from unittest.mock import AsyncMock, MagicMock
+
+        from finagents.cli.run_command import run_pipeline
 
         broken_graph = MagicMock()
         broken_graph.apropagate = AsyncMock(side_effect=KeyboardInterrupt())
 
         async def _ki_stream(*args, **kwargs):
             raise KeyboardInterrupt()
-            yield  # pragma: no cover — generator marker
+            yield  # pragma: no cover
 
         monkeypatch.setattr(
             "finagents.cli.run_command.FinAgentsGraph",
@@ -445,7 +443,6 @@ def _make_event(**kwargs):
 
 
 class TestLiveRenderIntegration:
-
     @pytest.fixture(autouse=True)
     def _reset_sigint_handler(self):
         import signal as _signal
@@ -554,7 +551,6 @@ class TestLiveRenderIntegration:
 
         async def spy_live(*args, **kwargs):  # pragma: no cover
             called["live"] += 1
-            return None
 
         monkeypatch.setattr("finagents.cli.run_command.run_with_log_lines", spy_log)
         monkeypatch.setattr("finagents.cli.run_command.run_with_live_render", spy_live)
@@ -578,10 +574,11 @@ class TestLiveRenderIntegration:
     def test_cancelled_run_persists_partial_payload(
         self, tmp_signals_db, fake_providers, monkeypatch
     ) -> None:
+        from unittest.mock import MagicMock
+
         from finagents.agents.utils.agent_states import AgentState
         from finagents.cli import live as live_mod
         from finagents.cli import run_command as rc_mod
-        from unittest.mock import MagicMock
 
         fake_graph = MagicMock()
         monkeypatch.setattr(
@@ -638,9 +635,7 @@ class TestLiveRenderIntegration:
         assert len(rows) == 1
         row = rows[0]
         assert row["status"] == "cancelled", f"expected cancelled status, got {row['status']!r}"
-        assert row["payload_json"] is not None, (
-            "P5- cancelled rows MUST persist the partial AgentState"
-        )
+        assert row["payload_json"] is not None, "Cancelled rows MUST persist the partial AgentState"
         payload = json.loads(row["payload_json"])
         assert payload.get("trader_investment_thesis") == "partial-tech-analysis"
 

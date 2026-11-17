@@ -23,13 +23,13 @@ class TestTradingSignalRequiredFields:
         from finagents.agents.trader.schemas import TradingSignal
 
         with pytest.raises(pydantic.ValidationError):
-            TradingSignal(conviction=0.5)  # ty: ignore[missing-argument]  # Verify required-field validation.
+            TradingSignal(conviction=0.5)  # ty: ignore[missing-argument]
 
     def test_missing_conviction_raises(self) -> None:
         from finagents.agents.trader.schemas import TradingSignal
 
         with pytest.raises(pydantic.ValidationError):
-            TradingSignal(action="BUY")  # ty: ignore[missing-argument]  # Verify required-field validation.
+            TradingSignal(action="BUY")  # ty: ignore[missing-argument]
 
     @pytest.mark.parametrize("bad_conviction", [1.1, 99.9, -0.01, -1.0, 2.0])
     def test_rejects_out_of_range_conviction(self, bad_conviction: float) -> None:
@@ -43,7 +43,7 @@ class TestTradingSignalRequiredFields:
         from finagents.agents.trader.schemas import TradingSignal
 
         with pytest.raises(pydantic.ValidationError):
-            TradingSignal(action=bad_action, conviction=0.5)  # ty: ignore[invalid-argument-type]  # Exercise runtime validation/coercion.
+            TradingSignal(action=bad_action, conviction=0.5)  # ty: ignore[invalid-argument-type]
 
     def test_hold_and_sell_are_valid_actions(self) -> None:
         from finagents.agents.trader.schemas import TradingSignal
@@ -82,7 +82,7 @@ class TestTradingSignalOptionalFields:
     def test_time_horizon_coerces_any_value_to_positional(self, llm_value: str) -> None:
         from finagents.agents.trader.schemas import TradingSignal
 
-        sig = TradingSignal(action="BUY", conviction=0.5, time_horizon=llm_value)  # ty: ignore[invalid-argument-type]  # Exercise runtime validation/coercion.
+        sig = TradingSignal(action="BUY", conviction=0.5, time_horizon=llm_value)  # ty: ignore[invalid-argument-type]
         assert sig.time_horizon == "positional", (
             f"Expected 'positional' after coercion of {llm_value!r}, got {sig.time_horizon!r}"
         )

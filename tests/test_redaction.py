@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DASH_RUN_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "run.py"
+DASH_RUN_PATH = REPO_ROOT / "src" / "finagents" / "dashboard" / "pages" / "run.py"
 
 
 _VECTORS = (
@@ -16,14 +16,13 @@ _VECTORS = (
     "ANGELONE_TOTP_SECRET=xyz",
     "REDDIT_CLIENT_SECRET=abc",
     "OPENROUTER_API_KEY='sk-quoted'",
-    "CEREBRAS_API_KEY: sk-colon-style",
+    "CEREBRAS_API_KEY:  sk-colon-style",
     "boom: 260526-no0-marker",
     "",
 )
 
 
 class TestCliSharedRedactionParity:
-
     @pytest.mark.parametrize("vec", _VECTORS)
     def test_cli_and_shared_redact_identically(self, vec: str) -> None:
         from finagents._redaction import redact_secrets as shared
@@ -43,20 +42,19 @@ class TestCliSharedRedactionParity:
 
         assert _redact_secrets is redact_secrets, (
             "CLI _redact_secrets is no longer the shared helper — a "
-            "divergent local copy was reintroduced regression)"
+            "divergent local copy was reintroduced"
         )
 
     def test_cli_pattern_is_the_shared_object(self) -> None:
-        from finagents._redaction import _SECRET_PATTERN as shared_pat
+        from finagents._redaction import _SECRET_PATTERN as SHARED_PATTERN
         from finagents.cli.run_command import (
-            _SECRET_PATTERN as cli_pat,
+            _SECRET_PATTERN as CLI_PATTERN,
         )
 
-        assert cli_pat is shared_pat, "CLI _SECRET_PATTERN drifted from the shared module"
+        assert CLI_PATTERN is SHARED_PATTERN, "CLI _SECRET_PATTERN drifted from the shared module"
 
 
 class TestDashboardSharedRedactionParity:
-
     def _parse(self) -> ast.Module:
         return ast.parse(DASH_RUN_PATH.read_text(encoding="utf-8"))
 
@@ -70,7 +68,7 @@ class TestDashboardSharedRedactionParity:
         assert {"_SECRET_PATTERN", "redact_secrets"}.issubset(imported_names), (
             "Dashboard run.py must import _SECRET_PATTERN and "
             "redact_secrets from finagents._redaction — found: "
-            f"{imported_names!r}  regression)"
+            f"{imported_names!r}"
         )
 
     def test_dashboard_aliases_redact_secrets_to_shared(self) -> None:
@@ -90,5 +88,5 @@ class TestDashboardSharedRedactionParity:
         assert found_alias, (
             "Dashboard run.py must alias `_redact_secrets = "
             "redact_secrets` at module scope so the historic private "
-            "name still resolves to the shared callable "
+            "name still resolves to the shared callable"
         )

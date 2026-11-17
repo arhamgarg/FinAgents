@@ -4,8 +4,7 @@ from pathlib import Path
 
 import pytest
 
-PRODUCTION_ROOT = Path(__file__).resolve().parent.parent / "finagents"
-ARCHIVE_DIRNAME = "_archive"
+PRODUCTION_ROOT = Path(__file__).resolve().parent.parent / "src" / "finagents"
 
 RETIRED_SYMBOLS = (
     "SentimentAnalyst",
@@ -25,12 +24,7 @@ RETIRED_SETTINGS_FIELDS = (
 
 
 def _iter_production_py_files() -> list[Path]:
-    guardrail = PRODUCTION_ROOT / "_archive.py"
-    return [
-        p
-        for p in PRODUCTION_ROOT.rglob("*.py")
-        if ARCHIVE_DIRNAME not in p.parts and "__pycache__" not in p.parts and p != guardrail
-    ]
+    return [p for p in PRODUCTION_ROOT.rglob("*.py") if "__pycache__" not in p.parts]
 
 
 @pytest.mark.parametrize("symbol", RETIRED_SYMBOLS)
@@ -42,7 +36,7 @@ def test_retired_sentiment_symbol_absent_from_production(symbol: str) -> None:
                 offenders.append((path.relative_to(PRODUCTION_ROOT.parent), lineno, line.strip()))
 
     assert not offenders, (
-        f"Retired symbol {symbol!r} found in production source —  "
+        f"Retired symbol {symbol!r} found in production source — "
         f"retirement has regressed:\n" + "\n".join(f"  {p}:{n}: {line}" for p, n, line in offenders)
     )
 
@@ -52,16 +46,9 @@ def test_retired_settings_field_absent_from_config(field: str) -> None:
     from finagents.config import Settings
 
     assert field not in Settings.model_fields, (
-        f"Retired Settings field {field!r} re-appeared in config.py —  "
+        f"Retired Settings field {field!r} re-appeared in config.py — "
         "data-layer retirement has regressed."
     )
-
-
-def test_archive_guardrail_blocks_import() -> None:
-    import importlib.util
-
-    with pytest.raises(ModuleNotFoundError):
-        importlib.util.find_spec("finagents._archive.sentiment.sentiment_analyst")
 
 
 def test_agent_state_has_no_sentiment_report_field() -> None:

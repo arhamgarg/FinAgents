@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.config import Settings
 
@@ -16,7 +15,6 @@ def default_settings() -> Settings:
 
 
 class TestDebateRetryIdempotency:
-
     def test_bull_retry_at_same_round_produces_one_entry(
         self,
         default_settings: Settings,
@@ -26,7 +24,7 @@ class TestDebateRetryIdempotency:
             bull_researcher_node,
         )
         from finagents.agents.utils.agent_states import InvestDebateState
-        from finagents.graph.reducers import merge_by_key
+        from finagents.agents.utils.reducers import merge_by_key
 
         state = InvestDebateState(
             current_round=1,
@@ -73,7 +71,7 @@ class TestDebateRetryIdempotency:
             bear_researcher_node,
         )
         from finagents.agents.utils.agent_states import InvestDebateState
-        from finagents.graph.reducers import merge_by_key
+        from finagents.agents.utils.reducers import merge_by_key
 
         state = InvestDebateState(
             current_round=1,

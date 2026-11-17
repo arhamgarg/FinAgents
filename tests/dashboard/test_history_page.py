@@ -12,9 +12,7 @@ AppTest = pytest.importorskip(
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HISTORY_PAGE_PATH = REPO_ROOT / "finagents" / "dashboard" / "pages" / "history.py"
-
-
+HISTORY_PAGE_PATH = REPO_ROOT / "src" / "finagents" / "dashboard" / "pages" / "history.py"
 
 
 async def _seed_three_rows(db_path: Path) -> list[str]:
@@ -93,8 +91,6 @@ def _clear_streamlit_cache():
 def history_app(monkeypatch, tmp_path) -> AppTest:
     monkeypatch.setenv("FA_DATA_DIR", str(tmp_path))
     return AppTest.from_file(str(HISTORY_PAGE_PATH))
-
-
 
 
 class TestHistoryPageDefaultTable:

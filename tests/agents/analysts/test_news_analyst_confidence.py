@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from finagents.agents.analysts.schemas import NewsReport
+from finagents.config import Settings
 from finagents.dataflows.data_result import DataResult
+from finagents.dataflows.interface import use_data_sources
 from finagents.dataflows.news_schema import NewsArticle
-
-
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def agent_state():
 
 
 def _make_articles(n: int) -> list[NewsArticle]:
-    now = datetime(2024, 12, 15, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 12, 15, 10, 0, tzinfo=UTC)
     return [
         NewsArticle(
             title=f"TESTCO headline {i}",
@@ -51,11 +51,7 @@ async def _run_node_with_mocks(
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured_llm
     with (
-        patch(
-            "finagents.agents.analysts.news_analyst.get_news",
-            new_callable=AsyncMock,
-            return_value=data_result,
-        ),
+        use_data_sources(news=AsyncMock(return_value=data_result)),
         patch(
             "finagents.agents.analysts.news_analyst.create_llm_client",
             return_value=mock_llm,
@@ -63,9 +59,7 @@ async def _run_node_with_mocks(
     ):
         from finagents.agents.analysts.news_analyst import news_analyst_node
 
-        return await news_analyst_node(agent_state, {"configurable": {}})
-
-
+        return await news_analyst_node(agent_state, {"configurable": {"settings": Settings()}})
 
 
 class TestNewsAnalystConfidence:

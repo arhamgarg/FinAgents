@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
+from finagents.clock import utc_now
 from finagents.dataflows.cache import (
     TTL_SECONDS,
     get_cached,
@@ -33,7 +34,7 @@ class TestCache:
         key = "RELIANCE:2024-01-01:2024-01-31"
         value = b"stale-bytes"
 
-        old_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
+        old_time = (utc_now() - timedelta(hours=25)).isoformat()
         await init_cache(db)
         conn = sqlite3.connect(db)
         conn.execute(
@@ -90,7 +91,7 @@ class TestCache:
         key = "news-key-31min"
         value = b"news-bytes"
 
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=31)).isoformat()
+        old_time = (utc_now() - timedelta(minutes=31)).isoformat()
         await init_cache(db)
         conn = sqlite3.connect(db)
         conn.execute(

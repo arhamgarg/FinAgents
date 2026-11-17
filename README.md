@@ -2,14 +2,14 @@
 
 Multi-agent trading-signal research for Indian equities (NSE/BSE), built with
 LangGraph. Three analysts, investment and risk debates, a trader, and a
-portfolio manager produce explained decisions—not broker orders.
+portfolio manager produce explained decisions, not broker orders.
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/arhamgarg/FinAgents.git
+git clone https://github.com/arhamgarg/FinAgents
 cd FinAgents
-uv sync --all-extras
+uv sync
 # Set a provider key in your shell or a project-local .env first.
 uv run fa run RELIANCE
 uv run fa dashboard
@@ -21,14 +21,14 @@ Select with `LLM_PROVIDER` or `fa run --provider`. Live Angel One data also
 requires its API key, client ID, PIN, and TOTP secret; absent credentials
 produce degraded data, not fabricated prices.
 
-`fa --help` lists run, history, show, export, and dashboard commands.
+`fa --help` lists the run, history, show, export, and dashboard commands.
 Bare `fa` starts the interactive wizard; `finagents` is the equivalent long name.
 
 ## Project guide
 
-See [PROJECT.md](PROJECT.md) for installation, all configuration defaults,
-Python API, architecture, safeguards, storage/data migration, development,
-UAT reporting, historical findings, and the source-recovery index.
+See [PROJECT.md](PROJECT.md) for installation, configuration defaults, the
+Python API, pipeline architecture, safeguards, storage, failure handling,
+development, and acceptance reports.
 
 ## License
 

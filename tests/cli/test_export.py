@@ -347,7 +347,6 @@ class TestFaExport:
 
 
 class TestLoadHistoryUntil:
-
     def test_until_excludes_rows_at_or_after(self, tmp_signals_db) -> None:
         from finagents.storage.signals import load_history
 

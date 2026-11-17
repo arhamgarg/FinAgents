@@ -4,7 +4,7 @@ from finagents.agents.utils.agent_states import AgentState, RiskDebateState
 from finagents.config import Settings
 from finagents.graph.setup import build_full_pipeline, call_risk_debate_subgraph
 from finagents.testing.llm_mock import CALL_SITE_SCHEMAS, failures, fixtures
-from tests.pipeline import pipeline_scenario
+from tests.support.pipeline import pipeline_scenario
 
 
 @pytest.mark.parametrize("invest_rounds,risk_rounds", [(1, 1), (3, 2)])
@@ -81,7 +81,8 @@ async def test_failure_scenarios_consume_registered_failures(sites, retry):
 
 async def test_risk_recursion_limit_applied(monkeypatch):
     from unittest.mock import AsyncMock
-    import finagents.graph.setup as setup
+
+    from finagents.graph import setup
 
     risk = RiskDebateState(max_rounds=2)
     invoke = AsyncMock(return_value=risk.model_dump())

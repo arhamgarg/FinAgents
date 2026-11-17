@@ -7,9 +7,9 @@ import pandas as pd
 import pytest
 
 from finagents.agents.analysts.schemas import TechnicalReport
+from finagents.config import Settings
 from finagents.dataflows.data_result import DataResult
-
-
+from finagents.dataflows.interface import use_data_sources
 
 
 @pytest.fixture
@@ -84,10 +84,9 @@ async def _run_node_with_mocks(agent_state, ohlcv_df: pd.DataFrame, mock_report:
         "atr_14": mock_report.atr_14,
     }
     with (
-        patch(
-            "finagents.agents.analysts.technical_analyst.get_ohlcv",
-            new_callable=AsyncMock,
-            return_value=data_result,
+        use_data_sources(
+            ohlcv=AsyncMock(return_value=data_result),
+            surveillance=AsyncMock(return_value=(None, False)),
         ),
         patch(
             "finagents.agents.analysts.technical_analyst.create_llm_client",
@@ -97,19 +96,12 @@ async def _run_node_with_mocks(agent_state, ohlcv_df: pd.DataFrame, mock_report:
             "finagents.agents.analysts.technical_analyst.compute_technical_indicators",
             return_value=indicators_dict,
         ),
-        patch(
-            "finagents.agents.analysts.technical_analyst.get_surveillance_data",
-            new_callable=AsyncMock,
-            return_value=(None, False),
-        ),
     ):
         from finagents.agents.analysts.technical_analyst import (
             technical_analyst_node,
         )
 
-        return await technical_analyst_node(agent_state, {"configurable": {}})
-
-
+        return await technical_analyst_node(agent_state, {"configurable": {"settings": Settings()}})
 
 
 class TestTechnicalAnalystConfidence:

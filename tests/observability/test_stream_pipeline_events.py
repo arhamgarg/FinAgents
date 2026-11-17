@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 
 async def _fake_astream_three_tuples() -> AsyncIterator[tuple[Any, str, Any]]:
@@ -14,7 +15,6 @@ async def _fake_astream_three_tuples() -> AsyncIterator[tuple[Any, str, Any]]:
 
 
 class _FakeGraph:
-
     def astream(
         self,
         initial_state: Any,
@@ -42,7 +42,6 @@ class TestAstreamThreeTupleUnpack:
             config={},
         ):
             events.append(ev)
-
 
         values_events = [e for e in events if e.kind == "values" and e.final_state is not None]
         assert values_events, (

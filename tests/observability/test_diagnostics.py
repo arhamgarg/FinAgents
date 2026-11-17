@@ -1,6 +1,9 @@
 import json
 from uuid import uuid4
 
+from langchain_core.messages import HumanMessage
+from langchain_core.outputs import Generation, LLMResult
+
 from finagents.observability.diagnostics import RunDiagnostics
 
 
@@ -9,9 +12,11 @@ def test_diagnostics_omit_prompts_responses_and_errors(tmp_path):
     trace = RunDiagnostics(path, {"run_id": "aabbccdd"})
     for status in ("completed", "errored"):
         request = uuid4()
-        trace.on_chat_model_start({}, ["SECRET prompt"], run_id=request)
+        trace.on_chat_model_start({}, [[HumanMessage("SECRET prompt")]], run_id=request)
         if status == "completed":
-            trace.on_llm_end("SECRET response", run_id=request)
+            trace.on_llm_end(
+                LLMResult(generations=[[Generation(text="SECRET response")]]), run_id=request
+            )
         else:
             trace.on_llm_error(RuntimeError("SECRET key"), run_id=request)
     content = path.read_text()

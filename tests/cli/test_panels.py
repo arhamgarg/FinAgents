@@ -5,7 +5,6 @@ from rich.panel import Panel
 
 
 class TestRenderSignalCardNoneFinalTradeDecision:
-
     def test_render_signal_card_handles_none_final_trade_decision(self) -> None:
         from finagents.agents.utils.agent_states import AgentState
         from finagents.cli.panels import render_signal_card

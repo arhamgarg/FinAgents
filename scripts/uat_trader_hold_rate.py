@@ -8,18 +8,19 @@ import csv
 import io
 import re
 import sys
-from datetime import datetime
+from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
+
+from finagents.clock import local_now
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Manual hold-rate UAT for trader_node ")
+    parser = argparse.ArgumentParser(description="Manual hold-rate acceptance run for trader_node")
     parser.add_argument(
         "--tickers",
         type=str,
@@ -35,12 +36,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Smoke test: verify ticker selection + table emitter without invoking the LLM pipeline",
+        help=(
+            "Smoke test: verify ticker selection + table emitter without invoking the LLM pipeline"
+        ),
     )
     parser.add_argument(
         "--date",
         type=str,
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=local_now().strftime("%Y-%m-%d"),
         help="Date passed to FinAgentsGraph.propagate (default: today)",
     )
     parser.add_argument(
@@ -63,10 +66,7 @@ class TickerRow(NamedTuple):
 
 
 def load_sec_list(source: Path | bytes) -> list[TickerRow]:
-    if isinstance(source, Path):
-        content = source.read_bytes()
-    else:
-        content = source
+    content = source.read_bytes() if isinstance(source, Path) else source
     rows: list[TickerRow] = []
     reader = csv.DictReader(io.StringIO(content.decode("utf-8", errors="replace")))
     required_cols = {"Symbol", "Series", "Band"}
@@ -112,9 +112,7 @@ class UatResult(NamedTuple):
     trader_action: str
     hold_reason: str
     nonzero_analyst_count: int
-    analyst_confidences: dict[
-        str, float
-    ]
+    analyst_confidences: dict[str, float]
 
 
 def _format_per_analyst(conf: dict[str, float]) -> str:
@@ -129,6 +127,7 @@ DATA_RICH_MIN_NONZERO = 2
 DATA_RICH_CONF_THRESHOLD = 0.6
 DATA_POOR_CONF_THRESHOLD = 0.4
 HOLD_RATE_PASS_PCT = 50.0
+NSE_SEC_LIST_URL = "https://nsearchives.nseindia.com/content/equities/sec_list.csv"
 
 
 _RE_BUY = re.compile(r"\b(?:BUY|ACCUMULATE|LONG)\b", re.IGNORECASE)
@@ -147,7 +146,7 @@ def scan_debate_direction(investment_thesis: str) -> str:
 
 def _tier_hold_rate(
     results: list[UatResult],
-    tier_predicate,
+    tier_predicate: Callable[[UatResult], bool],
     conf_threshold: float,
 ) -> tuple[int, int, float | None]:
     cohort = [
@@ -169,7 +168,7 @@ def _format_tier_line(
     if pct is None:
         return (
             f"- **{label}** (overall_confidence >= {threshold:.1f} AND directional): "
-            f"{holds} / {total} = N/A (empty tier — counts as N/A per "
+            f"{holds} / {total} = N/A (empty tier — counts as N/A)"
         )
     verdict = "PASS" if pct < HOLD_RATE_PASS_PCT else "FAIL"
     return (
@@ -180,13 +179,15 @@ def _format_tier_line(
 
 def format_results_table(results: list[UatResult]) -> str:
     lines = [
-        "| ticker | overall_confidence | per_analyst (t/f/n) | debate_direction | trader_action | nonzero_analysts | hold_reason |",
+        "| ticker | overall_confidence | per_analyst (t/f/n) | debate_direction | trader_action | "
+        "nonzero_analysts | hold_reason |",
         "|--------|-------------------|---------------------|------------------|---------------|------------------|-------------|",
     ]
     for r in results:
         reason = (r.hold_reason or "").replace("|", "\\|")[:80]
         lines.append(
-            f"| {r.ticker} | {r.overall_confidence:.2f} | {_format_per_analyst(r.analyst_confidences)} "
+            f"| {r.ticker} | {r.overall_confidence:.2f} | "
+            f"{_format_per_analyst(r.analyst_confidences)} "
             f"| {r.debate_direction} | {r.trader_action} | {r.nonzero_analyst_count}/3 | {reason} |"
         )
 
@@ -202,7 +203,7 @@ def format_results_table(results: list[UatResult]) -> str:
     )
 
     lines.append("")
-    lines.append("**Tiered hold-rate (ROADMAP SC-5, / **")
+    lines.append("**Tiered hold-rate:**")
     lines.append(
         _format_tier_line("data-rich", DATA_RICH_CONF_THRESHOLD, rich_holds, rich_total, rich_pct)
     )
@@ -213,7 +214,7 @@ def format_results_table(results: list[UatResult]) -> str:
 
 
 async def run_pipeline(ticker: str, date: str) -> UatResult:
-    from finagents.graph.trading_graph import FinAgentsGraph
+    from finagents.graph.trading_graph import FinAgentsGraph  # noqa: PLC0415
 
     graph = FinAgentsGraph(full_pipeline=True)
     state = await graph.apropagate(ticker, date)
@@ -256,7 +257,7 @@ async def run_pipeline(ticker: str, date: str) -> UatResult:
     )
 
 
-def main() -> int:
+def main() -> int:  # noqa: PLR0915
     args = _parse_args()
 
     if args.dry_run:
@@ -268,11 +269,10 @@ def main() -> int:
             return 2
         rows = load_sec_list(args.sec_list_fixture)
     else:
-        import httpx
+        import httpx  # noqa: PLC0415
 
-        NSE_URL = "https://nsearchives.nseindia.com/content/equities/sec_list.csv"
         resp = httpx.get(
-            NSE_URL,
+            NSE_SEC_LIST_URL,
             headers={"User-Agent": "FinAgents/1.0"},
             timeout=30.0,
         )
@@ -288,14 +288,14 @@ def main() -> int:
     leaked = [t for t in tickers if t in no_band_symbols]
     if leaked:
         print(
-            f"ERROR: OQ-1 violation — 'No Band' tickers in batch: {leaked}",
+            f"ERROR: 'No Band' tickers in batch: {leaked}",
             file=sys.stderr,
         )
         return 3
 
     if args.dry_run:
         print(f"[dry-run] Selected {len(tickers)} tickers: {', '.join(tickers)}")
-        print("[dry-run] OQ-1 'No Band' exclusion: OK")
+        print("[dry-run] 'No Band' exclusion: OK")
         synthetic = [
             UatResult(
                 t,
@@ -344,13 +344,10 @@ def main() -> int:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     existing = args.output.read_text() if args.output.exists() else ""
-    stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    stamp = local_now().strftime("%Y-%m-%d %H:%M:%S")
     block = f"\n### Run {stamp}\n\n**Batch:** {', '.join(tickers)}\n\n{table}\n"
     marker = "## Hold-Rate Results"
-    if marker in existing:
-        new_content = existing + block
-    else:
-        new_content = existing + f"\n{marker}\n{block}"
+    new_content = existing + block if marker in existing else existing + f"\n{marker}\n{block}"
     args.output.write_text(new_content)
     print(f"Results appended to {args.output}")
 
@@ -391,14 +388,11 @@ def main() -> int:
     if rich_fail or poor_fail:
         print(
             f"FAIL: tiered hold-rate — {rich_msg}; {poor_msg} — "
-            " iteration required (max 3 iterations)."
+            "trader-prompt iteration required (max 3 iterations)."
         )
         return 1
 
-    print(
-        f"PASS: tiered hold-rate — {rich_msg}; {poor_msg} — "
-        " phase gate satisfied /."
-    )
+    print(f"PASS: tiered hold-rate — {rich_msg}; {poor_msg} — hold-rate gate satisfied.")
     return 0
 
 

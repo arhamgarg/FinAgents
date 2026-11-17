@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.analysts.schemas import TechnicalReport
 from finagents.agents.managers.schemas import Finding, ResearchBrief
 from finagents.agents.trader.schemas import TradingSignal
 from finagents.agents.utils.agent_states import AgentState, InvestDebateState
 from finagents.config import Settings
-
-
 
 
 @pytest.fixture
@@ -80,8 +77,6 @@ def populated_state(
         research_summary=mock_research_brief,
         investment_debate_state=debate,
     )
-
-
 
 
 class TestTraderNode:
@@ -408,13 +403,11 @@ class TestTraderNode:
         assert result["trader_signal"].t2t_flag is True
 
 
-
-
 def test_pipe12_no_forbidden_analyst_reads() -> None:
     import re
     from pathlib import Path
 
-    source_path = Path(__file__).parent.parent.parent.parent / "finagents/agents/trader/trader.py"
+    source_path = Path(__file__).parents[3] / "src/finagents/agents/trader/trader.py"
     source = source_path.read_text()
     forbidden = [
         "state.fundamentals_report",
@@ -427,7 +420,7 @@ def test_pipe12_no_forbidden_analyst_reads() -> None:
     ]
     for pattern in forbidden:
         assert not re.search(re.escape(pattern), source), (
-            f" violation: trader.py reads forbidden field: {pattern}"
+            f"Violation: trader.py reads forbidden field: {pattern}"
         )
 
 

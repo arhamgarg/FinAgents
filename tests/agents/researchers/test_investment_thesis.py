@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from langchain_core.runnables import RunnableConfig
-
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from finagents.agents.utils.agent_states import InvestDebateState
 from finagents.config import Settings
@@ -174,10 +173,11 @@ class TestInvestmentThesisNode:
 class TestInvestmentThesisSchema:
     def test_required_field_synthesis(self) -> None:
         import pydantic
+
         from finagents.agents.researchers.investment_thesis import InvestmentThesis
 
         with pytest.raises(pydantic.ValidationError):
-            InvestmentThesis()
+            InvestmentThesis()  # ty: ignore[missing-argument]
 
     def test_optional_strength_fields_default_to_none(self) -> None:
         from finagents.agents.researchers.investment_thesis import InvestmentThesis

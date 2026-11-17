@@ -50,7 +50,6 @@ class TestInvestDebateRouter:
 
 
 class TestRiskDebateRouter:
-
     def test_loop_continues_when_current_round_less_than_max(self) -> None:
         from finagents.agents.utils.agent_states import RiskDebateState
         from finagents.graph.conditional_logic import risk_debate_router
